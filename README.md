@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="app/src/main/res/drawable/ic_banner.webp" style="border-radius: 24px; margin-top: 32px; max-width: 100%; height: auto;"/>
+<img src="app/src/main/res/drawable/ic_banner.png" style="border-radius: 24px; margin-top: 32px; max-width: 100%; height: auto;"/>
 
 # newBV
 
