@@ -1,6 +1,6 @@
-# new BV 产品需求文档（PRD）
+# BTV 产品需求文档（PRD）
 
-> **项目名称**：new BV —— 哔哩哔哩第三方客户端重构版
+> **项目名称**：BTV —— 哔哩哔哩第三方客户端重构版
 > **文档版本**：v1.0
 > **创建日期**：2026-07-20
 > **基准项目**：BV（源码位于 `bv/` 目录，作者 aaa1115910 / Frost819）
@@ -12,15 +12,15 @@
 
 | 版本 | 日期 | 修订人 | 修订内容 |
 |---|---|---|---|
-| v1.0 | 2026-07-20 | new BV 团队 | 初始版本，基于 BV 源码分析产出 |
+| v1.0 | 2026-07-20 | BTV 团队 | 初始版本，基于 BV 源码分析产出 |
 
 ### 文档说明
 
-本 PRD 基于对 BV 源码（`bv/` 目录）的深度分析，结合 new BV 的重构改进定位编写。文档涵盖：
+本 PRD 基于对 BV 源码（`bv/` 目录）的深度分析，结合 BTV 的重构改进定位编写。文档涵盖：
 
 - **第 1-2 章**：项目概述与技术架构
 - **第 3 章**：从 BV 继承并重构的现有功能（含完整行为规格）
-- **第 4 章**：new BV 新增功能需求
+- **第 4 章**：BTV 新增功能需求
 - **第 5-6 章**：非功能性需求与交互设计规范
 - **第 7-8 章**：设置项全量清单与数据接口清单
 - **第 9-10 章**：里程碑与风险对策
@@ -57,7 +57,7 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 5. **功能缺失**：直播功能有底层 API 无 UI；评论、触屏适配等缺失
 6. **云端依赖**：依赖 Firebase Crashlytics，国内不可用
 
-**new BV 的目标**：以 BV 为基础进行重构，保留其核心功能与优秀体验，同时：
+**BTV 的目标**：以 BV 为基础进行重构，保留其核心功能与优秀体验，同时：
 
 - 采用单 Activity + Navigation 架构，根治焦点与状态问题
 - 拆分巨型 ViewModel，建立清晰的模块分层
@@ -75,11 +75,11 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 | 平板/触屏设备用户 | 平板上观看 | 触屏操作、响应迅速 |
 | B 站重度用户 | 番剧追番、UP 主关注、稍后再看 | 功能完整、交互高效 |
 
-**不支持声明**：new BV 不支持在中国大陆地区内使用，如有相关使用需求请使用官方客户端。
+**不支持声明**：BTV 不支持在中国大陆地区内使用，如有相关使用需求请使用官方客户端。
 
 ### 1.3 与原版 BV 的差异总览
 
-| 维度 | 原版 BV | new BV |
+| 维度 | 原版 BV | BTV |
 |---|---|---|
 | 架构 | 多 Activity（每个功能独立 Activity） | 单 Activity + Navigation-Compose |
 | 依赖注入 | Koin 4.0 + annotations + KSP | Hilt |
@@ -173,7 +173,7 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      new BV App                          │
+│                       BTV App                            │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │              UI 层 (Compose)                       │   │
@@ -227,7 +227,7 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 
 ### 2.3 模块划分
 
-相比原版 BV 的模块结构，new BV 进行了更清晰的分层与职责划分：
+相比原版 BV 的模块结构，BTV 进行了更清晰的分层与职责划分：
 
 | 模块 | 类型 | 职责 | 对应原版 |
 |---|---|---|---|
@@ -348,7 +348,7 @@ Composable (UI) ──事件──▶ ViewModel (State Holder)
 
 **ViewModel 拆分原则**（解决原版巨型 ViewModel 问题）：
 
-| 原版 ViewModel | new BV 拆分 |
+| 原版 ViewModel | BTV 拆分 |
 |---|---|
 | `VideoPlayerV3ViewModel` (1417 行) | `PlayerViewModel`（播放控制）<br>`PlayerMenuViewModel`（菜单/设置）<br>`DanmakuViewModel`（弹幕）<br>`SubtitleViewModel`（字幕）<br>`VideoListViewModel`（分集列表）<br>`PlayerInteractionViewModel`（快捷键） |
 | `VideoInfoViewModel` | `VideoDetailViewModel`（详情数据）<br>`VideoActionViewModel`（点赞/投币/收藏） |
@@ -360,7 +360,7 @@ Composable (UI) ──事件──▶ ViewModel (State Holder)
 
 #### 2.6.1 接口分层（移除代理层）
 
-原版 BV 的接口层包含 Web HTTP、App gRPC、代理三层。new BV **完全删除代理层**，保留 Web 与 App 双接口：
+原版 BV 的接口层包含 Web HTTP、App gRPC、代理三层。BTV **完全删除代理层**，保留 Web 与 App 双接口：
 
 ```
 ┌─────────────────────────────────────┐
@@ -453,7 +453,7 @@ Composable (UI) ──事件──▶ ViewModel (State Holder)
 
 #### 2.7.1 统一播放器接口
 
-new BV 需要播放器兼容**视频点播（VOD）**与**直播（Live）**两种场景。设计统一的播放器抽象：
+BTV 需要播放器兼容**视频点播（VOD）**与**直播（Live）**两种场景。设计统一的播放器抽象：
 
 ```kotlin
 interface BvMediaPlayer {
@@ -658,7 +658,7 @@ ChooseUser (选择用户) ──选中──▶ InputPassword (输入密码)
 
 **功能描述**：手机号 + 短信验证码登录，含极验验证码。
 
-**状态**：原版代码存在但已注释关闭。new BV **保留代码但暂不启用**（移除 Geetest SDK 依赖），未来如需启用再接入。
+**状态**：原版代码存在但已注释关闭。BTV **保留代码但暂不启用**（移除 Geetest SDK 依赖），未来如需启用再接入。
 
 #### 3.2.3 多账户管理
 
@@ -702,7 +702,7 @@ ChooseUser (选择用户) ──选中──▶ InputPassword (输入密码)
 | 影视 | `Icons.Default.Movie` | PGC 影视 |
 | 直播 [新增] | `Icons.Default.LiveTv` | 直播首页 |
 
-> 注：原版为 5 项（无直播），new BV 新增直播项，共 **6 项**。
+> 注：原版为 5 项（无直播），BTV 新增直播项，共 **6 项**。
 
 **导航栏顶部**：用户头像与个人中心入口
 - 折叠时：显示头像小图标
@@ -954,7 +954,7 @@ LazyColumn
 
 ### 3.9 播放器（核心）
 
-播放器是 new BV 最核心、最复杂的功能模块。本节详细描述播放器的全部功能与交互。
+播放器是 BTV 最核心、最复杂的功能模块。本节详细描述播放器的全部功能与交互。
 
 #### 3.9.1 播放器整体结构
 
@@ -1443,15 +1443,15 @@ SearchInputContent (Row)
 
 ---
 
-## 4. 功能需求 - 新增功能（new BV 规划）
+## 4. 功能需求 - 新增功能（BTV 规划）
 
-本章描述 new BV 相对原版 BV 的新增功能需求。每项标注优先级（P0 核心必做 / P1 重要 / P2 增强）。
+本章描述 BTV 相对原版 BV 的新增功能需求。每项标注优先级（P0 核心必做 / P1 重要 / P2 增强）。
 
 ### 4.1 直播观看 [P0]
 
 #### 4.1.1 功能描述
 
-原版 BV 已有直播底层 API（`BiliLiveHttpApi` 获取直播间信息、`LiveDataWebSocket` 接收弹幕），但无任何直播 UI。new BV 补全完整的直播观看功能。
+原版 BV 已有直播底层 API（`BiliLiveHttpApi` 获取直播间信息、`LiveDataWebSocket` 接收弹幕），但无任何直播 UI。BTV 补全完整的直播观看功能。
 
 #### 4.1.2 用户故事
 
@@ -1530,7 +1530,7 @@ LazyColumn
 
 #### 4.2.1 功能描述
 
-原版 BV 无评论功能。new BV 新增评论浏览，支持详情页评论预览 + 完整评论页 + 播放器内评论。
+原版 BV 无评论功能。BTV 新增评论浏览，支持详情页评论预览 + 完整评论页 + 播放器内评论。
 
 #### 4.2.2 用户故事
 
@@ -1591,12 +1591,12 @@ LazyColumn
 
 #### 4.3.1 功能描述
 
-原版 BV 仅支持 D-pad 遥控器交互。new BV 抽象交互模式层，同时支持 D-pad 与触屏。
+原版 BV 仅支持 D-pad 遥控器交互。BTV 抽象交互模式层，同时支持 D-pad 与触屏。
 
 #### 4.3.2 交互模式抽象
 
 原版基于设备能力互斥选择 D-pad/Touch，无法处理"触屏设备也想用遥控器"的场景。
-new BV 改为**运行时追踪最近输入方式**，始终同时支持两种输入。
+BTV 改为**运行时追踪最近输入方式**，始终同时支持两种输入。
 
 ```kotlin
 enum class InputMethod {
@@ -1662,7 +1662,7 @@ CompositionLocalProvider(LocalInteractionTracker provides tracker) {
 
 #### 4.4.1 功能描述
 
-原版固定深色主题。new BV 支持黑夜/白天/跟随系统三种模式。
+原版固定深色主题。BTV 支持黑夜/白天/跟随系统三种模式。
 
 #### 4.4.2 功能规格
 
@@ -1917,7 +1917,7 @@ CompositionLocalProvider(LocalInteractionTracker provides tracker) {
 - 卡片渲染优化：避免嵌套过深，减少 `Modifier` 链
 - 图片加载异步，占位图与错误图
 - 滚动时暂停非关键加载（如缩略图预加载）
-- 动画简化：原版部分动画过重，new BV 精简过渡动画
+- 动画简化：原版部分动画过重，BTV 精简过渡动画
 
 #### 5.2.2 弹幕蒙版性能
 
@@ -2558,4 +2558,4 @@ App 模式下接口分三种实现方式：**App gRPC**（grpc.biliapi.net）、
 
 **文档结束**
 
-> 本 PRD 基于 BV 源码分析与 new BV 重构需求编写，将作为 new BV 开发的需求基线。开发过程中如需变更，请通过修订记录更新文档版本。
+> 本 PRD 基于 BV 源码分析与 BTV 重构需求编写，将作为 BTV 开发的需求基线。开发过程中如需变更，请通过修订记录更新文档版本。

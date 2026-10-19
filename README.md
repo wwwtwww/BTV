@@ -2,7 +2,7 @@
 
 <img src="app/src/main/res/drawable/ic_banner.png" style="border-radius: 24px; margin-top: 32px; max-width: 100%; height: auto;"/>
 
-# newBV
+# BTV
 
 **哔哩哔哩第三方 Android TV 客户端架构重构版**
 
@@ -12,7 +12,7 @@
 [![Media3](https://img.shields.io/badge/Media3-1.4.1-red)](https://developer.android.com/media/media3)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-**newBV 不支持在中国大陆地区内使用，如有相关使用需求请使用 [云视听小电视](https://app.bilibili.com)**
+**BTV 不支持在中国大陆地区内使用，如有相关使用需求请使用 [云视听小电视](https://app.bilibili.com)**
 
 </div>
 
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介
 
-newBV 是基于 [BV](https://github.com/aaa1115910/bv) 重构的 [哔哩哔哩](https://www.bilibili.com) 第三方 `Android TV` 客户端。基于 **Jetpack Compose for TV** 打造，全面遵循 **10-foot Leanback** 电视交互体验基准。
+BTV 是基于 [BV](https://github.com/aaa1115910/bv) 重构的 [哔哩哔哩](https://www.bilibili.com) 第三方 `Android TV` 客户端。基于 **Jetpack Compose for TV** 打造，全面遵循 **10-foot Leanback** 电视交互体验基准。
 
 **这不是原版 BV 的 1:1 复刻，而是一次由内而外的架构重构与交互升级。** 在继承原版轻量无广告、画质自由切换等核心体验的基础上，引入了现代 Android 架构规范，大幅增强了大屏交互细节与系统稳定性。
 
@@ -60,10 +60,10 @@ newBV 是基于 [BV](https://github.com/aaa1115910/bv) 重构的 [哔哩哔哩](
 
 ## 🏛 架构设计
 
-newBV 遵循现代 Android 开发架构标准：
+BTV 遵循现代 Android 开发架构标准：
 
 ```
-newBV/
+BTV/
 ├── app/               # 主应用（UI、ViewModel、Compose Navigation 路由）
 ├── core/              # 核心基础库（主题配色、焦点扩展、KeyEvent 工具）
 ├── data/              # 持久化数据层（Room、DataStore、用户偏好 Prefs）
@@ -87,7 +87,7 @@ newBV/
 
 在 TV 1080p 模拟器（x86 / API 28）、Release 混淆构建环境下与原版 BV 对比：
 
-| 指标 | newBV | 原版 BV | 表现提升 |
+| 指标 | BTV | 原版 BV | 表现提升 |
 |---|---|---|---|
 | **冷启动 → 首页首帧** | 576 ms | 1076 ms | **快 46.5%**（约 1.87×） |
 | **Release APK 体积** | 7.20 MiB | 11.97 MiB | **小 39.8%**（约 1.66×） |

@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "newBV"
+rootProject.name = "BTV"
 include(":app")
 include(":bili-api")
 include(":bili-api-grpc")

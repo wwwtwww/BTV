@@ -1,6 +1,6 @@
-# AGENTS.md — new BV 开发指南
+# AGENTS.md — BTV 开发指南
 
-> 本文档是 new BV 项目的 AI 协作开发规范，所有贡献者（含 AI Agent）必须遵守。
+> 本文档是 BTV 项目的 AI 协作开发规范，所有贡献者（含 AI Agent）必须遵守。
 > 配套文档：[PRD](docs/PRD.md) | [开发计划](docs/开发计划.md)
 
 ---
@@ -9,7 +9,7 @@
 
 ### 1.1 项目定位
 
-new BV 是基于 [BV](https://github.com/aaa1115910/bv)（源码在 `bv/` 目录）重构的哔哩哔哩第三方 Android TV 客户端。**不是 1:1 复刻**，而是架构重构 + 功能增强。
+BTV 是基于 [BV](https://github.com/aaa1115910/bv)（源码在 `bv/` 目录）重构的哔哩哔哩第三方 Android TV 客户端。**不是 1:1 复刻**，而是架构重构 + 功能增强。
 
 ### 1.2 必读文档
 
@@ -39,7 +39,7 @@ new BV 是基于 [BV](https://github.com/aaa1115910/bv)（源码在 `bv/` 目录
 ### 1.4 模块结构
 
 ```
-newBV/
+BTV/
 ├── app/                    # 主应用（UI、ViewModel、Navigation）
 ├── core/                   # [待建] 通用工具、主题、交互模式抽象、日志基础设施
 ├── data/                   # [待建] Room、DataStore、Repository 接口
@@ -404,7 +404,7 @@ suspend fun getVideoPlayUrl(
 
 ### 5.1 测试要求
 
-**所有新增代码必须有对应测试，覆盖率目标 ≥ 80%**。原版 BV 测试覆盖率很差，new BV 必须补全。
+**所有新增代码必须有对应测试，覆盖率目标 ≥ 80%**。原版 BV 测试覆盖率很差，BTV 必须补全。
 
 | 测试类型 | 工具 | 运行环境 | 覆盖目标 |
 |---|---|---|---|
@@ -1218,7 +1218,7 @@ adb shell input keyevent KEYCODE_BACK
 
 #### 11.7.1 不要用 `dataStore.data.collect` 监听变化
 
-**问题**：原版 BV 和早期 new BV 都在 `Prefs.init()` 中启动 `dataStore.data.collect { updateMemoryCache(it) }`，意图是让磁盘变化同步到内存。但这会引入竞态：
+**问题**：原版 BV 和早期 BTV 都在 `Prefs.init()` 中启动 `dataStore.data.collect { updateMemoryCache(it) }`，意图是让磁盘变化同步到内存。但这会引入竞态：
 
 `PrefDelegate.setValue()` 逐字段异步写 DataStore。例如 `AuthData.saveToPrefs()` 连续写 9 个字段，`uid` 写完后 `collect` 触发，此时磁盘快照包含新 `uid` 但旧 `sessData`，`updateMemoryCache` 用这个不完整快照覆盖全部内存缓存，导致 `Prefs.sessData` 被旧值覆盖。
 
@@ -1637,7 +1637,7 @@ MenuItem(
 
 **问题**：播放器使用 `RESIZE_MODE_FILL` + `.fillMaxSize().aspectRatio()`，视频被拉伸溢出屏幕。
 
-**原因**：原版 BV 用 `RESIZE_MODE_FILL` + `.fillMaxHeight().aspectRatio()` 约束尺寸。newBV 误改为 `.fillMaxSize().aspectRatio()` 导致尺寸约束失效。
+**原因**：原版 BV 用 `RESIZE_MODE_FILL` + `.fillMaxHeight().aspectRatio()` 约束尺寸。BTV 曾误改为 `.fillMaxSize().aspectRatio()` 导致尺寸约束失效。
 
 **解决方案**：改用 `RESIZE_MODE_FIT` + `.fillMaxSize()`，让 `PlayerView` 自己处理 letterbox：
 
