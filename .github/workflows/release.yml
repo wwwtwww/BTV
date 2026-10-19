@@ -1,10 +1,11 @@
-name: Release
+name: Release BTV
 
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,7 +14,6 @@ jobs:
   build-release:
     name: Build & Publish Release
     runs-on: ubuntu-latest
-    if: github.repository == 'Frost819/newBV'
 
     steps:
       - name: Checkout
@@ -26,57 +26,57 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Decode signing config
+      - name: Decode signing config (Optional)
         env:
           SIGNING_PROPERTIES: ${{ secrets.SIGNING_PROPERTIES }}
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
-          echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
-          echo "$SIGN_KEY" | base64 -d > key.jks
+          if [ -n "$SIGNING_PROPERTIES" ] && [ -n "$SIGN_KEY" ]; then
+            echo "Applying custom release signing configuration..."
+            echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
+            echo "$SIGN_KEY" | base64 -d > key.jks
+          else
+            echo "No signing secrets found. Falling back to default debug keystore."
+          fi
 
       - name: Build release APK
         env:
-          NEWBV_VERSION_BASE: ${{ github.ref_name }}
+          BTV_VERSION_BASE: ${{ github.ref_name }}
         run: |
-          export NEWBV_VERSION_BASE="${NEWBV_VERSION_BASE#v}"
-          ./gradlew assembleRelease
+          export BTV_VERSION_BASE="${BTV_VERSION_BASE#v}"
+          ./gradlew assembleRelease --stacktrace
 
-      - name: Parse version
+      - name: Parse version and find APK
+        id: apk_info
         run: |
-          META=app/build/outputs/apk/release/output-metadata.json
-          echo "versionCode=$(jq -r '.elements[0].versionCode' "$META")" >> "$GITHUB_ENV"
-          echo "versionName=$(jq -r '.elements[0].versionName' "$META")" >> "$GITHUB_ENV"
-
-      - name: Upload mapping to crash backend
-        env:
-          CRASH_UPLOAD_TOKEN: ${{ secrets.CRASH_UPLOAD_TOKEN }}
-        run: |
-          MAPPING=app/build/outputs/mapping/release/mapping.txt
-          SIZE=$(stat -c%s "$MAPPING")
-          gzip -9 -c "$MAPPING" > mapping.txt.gz
-          curl -sfS -X POST \
-            "https://crash-log.frost819.site/api/mapping/upload?versionCode=${versionCode}&gzip=1&size=${SIZE}" \
-            -H "Authorization: Bearer ${CRASH_UPLOAD_TOKEN}" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @mapping.txt.gz
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: No APK found in app/build/outputs/apk/release"
+            exit 1
+          fi
+          echo "Found APK: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$APK_PATH")" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: newBV_${{ env.versionName }}
-          path: app/build/outputs/apk/release/newBV_${{ env.versionCode }}_${{ env.versionName }}_release.apk
+          name: ${{ steps.apk_info.outputs.apk_name }}
+          path: ${{ steps.apk_info.outputs.apk_path }}
+          retention-days: 30
 
       - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/release/newBV_${{ env.versionCode }}_${{ env.versionName }}_release.apk
+          files: ${{ steps.apk_info.outputs.apk_path }}
           tag_name: ${{ github.ref_name }}
-          name: newBV ${{ env.versionName }}
+          name: BTV ${{ github.ref_name }}
           generate_release_notes: true
           draft: false
           prerelease: false

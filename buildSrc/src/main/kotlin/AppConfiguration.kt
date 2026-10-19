@@ -20,7 +20,8 @@ object AppConfiguration {
     val versionName: String
         get() {
             val base =
-                System.getenv("NEWBV_VERSION_BASE")?.takeIf { it.isNotBlank() }
+                System.getenv("BTV_VERSION_BASE")?.takeIf { it.isNotBlank() }
+                    ?: System.getenv("NEWBV_VERSION_BASE")?.takeIf { it.isNotBlank() }
                     ?: "$major.$minor.$patch${".$hotFix".takeIf { hotFix != 0 } ?: ""}"
             return "$base.r$versionCode.${"git rev-list HEAD --abbrev-commit --max-count=1".exec()}"
         }

@@ -1,0 +1,87 @@
+name: Build BTV APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '选择构建类型 (Build Type)'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build APK (${{ inputs.build_type || 'release' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Setup signing config (Optional)
+        env:
+          SIGNING_PROPERTIES: ${{ secrets.SIGNING_PROPERTIES }}
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          if [ -n "$SIGNING_PROPERTIES" ] && [ -n "$SIGN_KEY" ]; then
+            echo "Applying custom release signing configuration..."
+            echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
+            echo "$SIGN_KEY" | base64 -d > key.jks
+          else
+            echo "No signing secrets found. Falling back to default signing (installs seamlessly on TV devices)."
+          fi
+
+      - name: Build APK
+        env:
+          BUILD_TYPE: ${{ inputs.build_type || 'release' }}
+        run: |
+          if [ "$BUILD_TYPE" = "debug" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            ./gradlew assembleRelease --stacktrace
+          fi
+
+      - name: Locate output APK
+        id: locate_apk
+        run: |
+          BUILD_TYPE="${{ inputs.build_type || 'release' }}"
+          APK_PATH=$(find app/build/outputs/apk/$BUILD_TYPE -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: No APK found in app/build/outputs/apk/$BUILD_TYPE"
+            exit 1
+          fi
+          echo "Found APK: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$(basename "$APK_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.locate_apk.outputs.apk_name }}
+          path: ${{ steps.locate_apk.outputs.apk_path }}
+          retention-days: 30

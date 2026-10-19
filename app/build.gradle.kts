@@ -68,6 +68,8 @@ android {
             )
             if (signingPropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
         debug {
@@ -81,7 +83,7 @@ android {
             variant.outputs.forEach { output ->
                 if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
                     output.outputFileName.set(
-                        "newBV_${AppConfiguration.versionCode}_${AppConfiguration.versionName}_${variant.name}.apk",
+                        "BTV_${AppConfiguration.versionCode}_${AppConfiguration.versionName}_${variant.name}.apk",
                     )
                 }
             }
