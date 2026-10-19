@@ -82,7 +82,7 @@ fun UpdateDialog(
                 val revision =
                     latestRelease!!
                         .assets
-                        .first { it.name.startsWith("newBV") && it.name.contains("release") }
+                        .first { (it.name.startsWith("BTV") || it.name.startsWith("newBV")) && it.name.contains("release") }
                         .name
                         .split("_")[1]
                         .toInt()

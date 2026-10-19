@@ -6,7 +6,7 @@
  */
 object AppConfiguration {
     const val appId = "dev.frost819.newbv"
-    const val applicationId = "dev.frost819.newbv"
+    const val applicationId = "dev.frost819.btv"
     const val compileSdk = 36
     const val minSdk = 21
     const val targetSdk = 36

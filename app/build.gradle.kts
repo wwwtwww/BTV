@@ -29,12 +29,18 @@ android {
     compileSdk = AppConfiguration.compileSdk
 
     signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
         if (signingPropertiesFile.exists()) {
             create("release") {
                 storeFile = rootProject.file(signingProperties.getProperty("releaseStoreFile"))
                 storePassword = signingProperties.getProperty("releaseStorePassword")
                 keyAlias = signingProperties.getProperty("releaseKeyAlias")
                 keyPassword = signingProperties.getProperty("releaseKeyPassword")
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }

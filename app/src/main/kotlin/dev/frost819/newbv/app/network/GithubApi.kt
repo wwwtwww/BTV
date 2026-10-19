@@ -30,8 +30,8 @@ import java.io.File
  * 下载通过 `ghfast.top` 代理加速国内访问。
  */
 object GithubApi {
-    private const val OWNER = "Frost819"
-    private const val REPO = "newBV"
+    private const val OWNER = "wwwtwww"
+    private const val REPO = "BTV"
 
     private val json =
         Json {
