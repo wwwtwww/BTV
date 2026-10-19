@@ -1,6 +1,5 @@
 package dev.frost819.newbv.app.ui.component.videocard
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,11 +21,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,26 +35,18 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Icon
-import androidx.tv.material3.IconButton
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.frost819.newbv.R
+import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.core.focus.touchClickable
-import dev.frost819.newbv.core.interaction.InputMethod
-import dev.frost819.newbv.core.interaction.currentInputMethod
 
 /**
- * 小型视频卡片。
+ * 小型视频卡片（对标 YouTube TV 风格）。
  *
  * 展示视频封面、播放数/弹幕数/时长、标题、UP 主名、发布时间。
- * 支持长按显示快捷操作（稍后再看/详情/UP 页）。
- *
- * 长按行为（与原版 BV 一致）：
- * - 长按后 [showActions] 切为 true，封面替换为操作按钮行
- * - 自动将焦点移至第一个操作按钮
- * - D-Pad center 释放不会误触发按钮点击（[releaseLongPress] 守卫）
- * - 失焦或返回键自动关闭操作面板
+ * 支持聚焦微放大动效（Scale 1.06x）以及通过遥控器「Menu / 菜单键」或长按唤起快捷操作浮层。
  *
  * @param data 卡片数据。
  * @param onClick 点击卡片回调。
@@ -76,9 +66,6 @@ fun SmallVideoCard(
     onRemoveWatchLater: (() -> Unit)? = null,
 ) {
     var showActions by remember { mutableStateOf(false) }
-    var releaseLongPress by remember { mutableStateOf(false) }
-    val firstButtonRequester = remember { FocusRequester() }
-    val isTouchMode = currentInputMethod() == InputMethod.Touch
 
     val hasAnyAction =
         onAddWatchLater != null ||
@@ -86,17 +73,8 @@ fun SmallVideoCard(
             onGoToUpPage != null ||
             onRemoveWatchLater != null
 
-    BackHandler(enabled = showActions) {
-        showActions = false
-    }
-
-    LaunchedEffect(showActions) {
-        if (showActions && hasAnyAction) {
-            firstButtonRequester.requestFocus()
-        } else if (!showActions) {
-            releaseLongPress = false
-        }
-    }
+    // Back 键由 VideoCardActionDialog（独立 Dialog 窗口）的 onDismissRequest 处理，
+    // 此处无需也不应再注册 BackHandler。
 
     Column(modifier = modifier.fillMaxWidth()) {
         Card(
@@ -108,13 +86,20 @@ fun SmallVideoCard(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(1.6f)
-                    .touchClickable(
+                    .onPreviewKeyEvent { event ->
+                        if (event.isMenuKey() && event.type == KeyEventType.KeyUp) {
+                            if (hasAnyAction) {
+                                showActions = true
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                        false
+                    }.touchClickable(
                         onClick = { if (!showActions) onClick() },
                         onLongClick = { if (hasAnyAction) showActions = true },
-                    ).onFocusChanged { focusState ->
-                        if (!focusState.hasFocus) showActions = false
-                    },
+                    ),
             shape = CardDefaults.shape(MaterialTheme.shapes.large),
+            scale = CardDefaults.scale(focusedScale = 1.06f),
             border =
                 CardDefaults.border(
                     focusedBorder =
@@ -124,168 +109,25 @@ fun SmallVideoCard(
                         ),
                 ),
         ) {
-            if (showActions) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    onRemoveWatchLater?.let { action ->
-                        IconButton(
-                            onClick = {
-                                if (!isTouchMode && !releaseLongPress) {
-                                    releaseLongPress = true
-                                    return@IconButton
-                                }
-                                action()
-                            },
-                            modifier =
-                                Modifier
-                                    .focusRequester(firstButtonRequester)
-                                    .touchClickable(onClick = {
-                                        if (!isTouchMode && !releaseLongPress) {
-                                            releaseLongPress = true
-                                        } else {
-                                            action()
-                                        }
-                                    }),
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.remove_from_list),
-                                contentDescription = "移除稍后再看",
-                            )
-                        }
-                    }
+            CardCover(
+                cover = data.cover,
+                play = data.playString,
+                danmaku = data.danmakuString,
+                time = data.timeString,
+                progress = data.progress,
+            )
+        }
 
-                    onAddWatchLater?.let { action ->
-                        val addIsFirst = onRemoveWatchLater == null
-                        IconButton(
-                            onClick = {
-                                if (!isTouchMode && addIsFirst && !releaseLongPress) {
-                                    releaseLongPress = true
-                                    return@IconButton
-                                }
-                                action()
-                            },
-                            modifier =
-                                if (addIsFirst) {
-                                    Modifier
-                                        .focusRequester(firstButtonRequester)
-                                        .touchClickable(onClick = {
-                                            if (!isTouchMode && addIsFirst && !releaseLongPress) {
-                                                releaseLongPress = true
-                                            } else {
-                                                action()
-                                            }
-                                        })
-                                } else {
-                                    Modifier.touchClickable(onClick = {
-                                        if (!isTouchMode && addIsFirst && !releaseLongPress) {
-                                            releaseLongPress = true
-                                        } else {
-                                            action()
-                                        }
-                                    })
-                                },
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.add_to_list),
-                                contentDescription = "稍后再看",
-                            )
-                        }
-                    }
-
-                    onGoToDetailPage?.let { action ->
-                        val detailIsFirst = onRemoveWatchLater == null && onAddWatchLater == null
-                        IconButton(
-                            onClick = {
-                                if (!isTouchMode && detailIsFirst && !releaseLongPress) {
-                                    releaseLongPress = true
-                                    return@IconButton
-                                }
-                                action()
-                            },
-                            modifier =
-                                if (detailIsFirst) {
-                                    Modifier
-                                        .focusRequester(firstButtonRequester)
-                                        .touchClickable(onClick = {
-                                            if (!isTouchMode && detailIsFirst && !releaseLongPress) {
-                                                releaseLongPress = true
-                                            } else {
-                                                action()
-                                            }
-                                        })
-                                } else {
-                                    Modifier.touchClickable(onClick = {
-                                        if (!isTouchMode && detailIsFirst && !releaseLongPress) {
-                                            releaseLongPress = true
-                                        } else {
-                                            action()
-                                        }
-                                    })
-                                },
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.info_24px),
-                                contentDescription = "详情",
-                            )
-                        }
-                    }
-
-                    onGoToUpPage?.let { action ->
-                        val upIsFirst =
-                            onRemoveWatchLater == null &&
-                                onAddWatchLater == null &&
-                                onGoToDetailPage == null
-                        IconButton(
-                            onClick = {
-                                if (!isTouchMode && upIsFirst && !releaseLongPress) {
-                                    releaseLongPress = true
-                                    return@IconButton
-                                }
-                                action()
-                            },
-                            modifier =
-                                if (upIsFirst) {
-                                    Modifier
-                                        .focusRequester(firstButtonRequester)
-                                        .touchClickable(onClick = {
-                                            if (!isTouchMode && upIsFirst && !releaseLongPress) {
-                                                releaseLongPress = true
-                                            } else {
-                                                action()
-                                            }
-                                        })
-                                } else {
-                                    Modifier.touchClickable(onClick = {
-                                        if (!isTouchMode && upIsFirst && !releaseLongPress) {
-                                            releaseLongPress = true
-                                        } else {
-                                            action()
-                                        }
-                                    })
-                                },
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.contact_page_24px),
-                                contentDescription = "UP主主页",
-                            )
-                        }
-                    }
-                }
-            } else {
-                CardCover(
-                    cover = data.cover,
-                    play = data.playString,
-                    danmaku = data.danmakuString,
-                    time = data.timeString,
-                    progress = data.progress,
-                )
-            }
+        if (showActions && hasAnyAction) {
+            VideoCardActionDialog(
+                title = data.title,
+                upName = data.upName,
+                onDismiss = { showActions = false },
+                onAddWatchLater = onAddWatchLater,
+                onRemoveWatchLater = onRemoveWatchLater,
+                onGoToDetailPage = onGoToDetailPage,
+                onGoToUpPage = onGoToUpPage,
+            )
         }
 
         CardInfo(
@@ -332,13 +174,14 @@ private fun CardCover(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(64.dp)
                     .background(
                         Brush.verticalGradient(
                             colors =
                                 listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.5f),
+                                    Color.Black.copy(alpha = 0.35f),
+                                    Color.Black.copy(alpha = 0.85f),
                                 ),
                         ),
                     ),
@@ -348,7 +191,7 @@ private fun CardCover(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (play.isNotBlank()) {
@@ -358,7 +201,7 @@ private fun CardCover(
                     tint = Color.White,
                     modifier = Modifier.size(16.dp),
                 )
-                Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(3.dp))
                 Text(
                     text = play,
                     style = MaterialTheme.typography.bodySmall,
@@ -374,7 +217,7 @@ private fun CardCover(
                     tint = Color.White,
                     modifier = Modifier.size(16.dp),
                 )
-                Spacer(Modifier.width(2.dp))
+                Spacer(Modifier.width(3.dp))
                 Text(
                     text = danmaku,
                     style = MaterialTheme.typography.bodySmall,
@@ -383,12 +226,29 @@ private fun CardCover(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Text(
-                text = time,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White,
-                maxLines = 1,
-            )
+            if (time.isNotBlank()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .background(
+                                color = Color.Black.copy(alpha = 0.82f),
+                                shape =
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(4.dp),
+                            ).padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = time,
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                            ),
+                        color = Color.White,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
 
         if (progress != null && progress > 0f) {

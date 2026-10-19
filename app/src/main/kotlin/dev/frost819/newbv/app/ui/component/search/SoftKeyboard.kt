@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app.ui.component.search
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -110,10 +115,25 @@ private fun SoftKeyboardKey(
     Surface(
         modifier = modifier.touchClickable(onClick = onClick),
         onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(MaterialTheme.shapes.small),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors =
             ClickableSurfaceDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-                pressedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                containerColor = Color.White.copy(alpha = 0.08f),
+                contentColor = Color.White,
+                focusedContainerColor = Color.White,
+                focusedContentColor = Color(0xFF0F0F0F),
+                pressedContainerColor = Color.White.copy(alpha = 0.85f),
+                pressedContentColor = Color(0xFF0F0F0F),
+            ),
+        border =
+            ClickableSurfaceDefaults.border(
+                border =
+                    Border(
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        shape = MaterialTheme.shapes.small,
+                    ),
+                focusedBorder = Border.None,
             ),
     ) {
         Box(
@@ -122,7 +142,10 @@ private fun SoftKeyboardKey(
         ) {
             Text(
                 text = key,
-                style = MaterialTheme.typography.titleMedium,
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    ),
             )
         }
     }
@@ -137,10 +160,25 @@ private fun SoftKeyboardButton(
     Surface(
         modifier = modifier.height(38.dp).touchClickable(onClick = onClick),
         onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(MaterialTheme.shapes.small),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
         colors =
             ClickableSurfaceDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
-                pressedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                containerColor = Color.White.copy(alpha = 0.08f),
+                contentColor = Color.White,
+                focusedContainerColor = Color.White,
+                focusedContentColor = Color(0xFF0F0F0F),
+                pressedContainerColor = Color.White.copy(alpha = 0.85f),
+                pressedContentColor = Color(0xFF0F0F0F),
+            ),
+        border =
+            ClickableSurfaceDefaults.border(
+                border =
+                    Border(
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        shape = MaterialTheme.shapes.small,
+                    ),
+                focusedBorder = Border.None,
             ),
     ) {
         Box(
@@ -149,8 +187,25 @@ private fun SoftKeyboardButton(
         ) {
             Text(
                 text = key,
-                style = MaterialTheme.typography.titleMedium,
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    ),
             )
         }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF121212)
+@Composable
+private fun SoftKeyboardPreview() {
+    dev.frost819.newbv.core.theme.BVTheme {
+        SoftKeyboard(
+            firstButtonFocusRequester = remember { FocusRequester() },
+            onClick = {},
+            onClear = {},
+            onDelete = {},
+            onSearch = {},
+        )
     }
 }

@@ -622,4 +622,15 @@ class SearchResultViewModelTest {
                 searchRepo.searchType(any(), any(), any(), any(), any(), any(), any())
             }
         }
+
+    @Test
+    fun `new search cancels ongoing search jobs and updates to latest keyword`() =
+        runTest(testDispatcher) {
+            viewModel.search("first")
+            // Immediate re-entrant search before first finishes
+            viewModel.search("second")
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.keyword).isEqualTo("second")
+        }
 }

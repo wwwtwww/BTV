@@ -45,6 +45,7 @@ internal object PrefKeys {
     val defaultVideoCodec = intPreferencesKey("dvc")
     val enableSoftwareVideoDecoder = booleanPreferencesKey("enable_software_video_decoder")
     val actionAfterPlay = intPreferencesKey("action_after_play")
+    val screensaverTimeout = intPreferencesKey("screensaver_timeout")
     val playerCustomShortcuts = stringPreferencesKey("player_custom_shortcuts")
 
     // ===== 播放器 - 音频 =====

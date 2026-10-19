@@ -7,6 +7,7 @@ import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
 import dev.frost819.newbv.data.datastore.PlaySpeed
 import dev.frost819.newbv.data.datastore.Resolution
+import dev.frost819.newbv.data.datastore.ScreensaverTimeout
 import dev.frost819.newbv.data.datastore.ThemeMode
 import dev.frost819.newbv.data.datastore.VideoCodec
 
@@ -68,6 +69,17 @@ val ActionAfterPlay.displayName: String
             ActionAfterPlay.PlayNext -> "播放下一集"
             ActionAfterPlay.Exit -> "退出播放器"
             ActionAfterPlay.PlayRelated -> "播放首个相关视频"
+        }
+
+/** 防烧屏屏保超时显示名称。 */
+val ScreensaverTimeout.displayName: String
+    get() =
+        when (this) {
+            ScreensaverTimeout.Never -> "关闭"
+            ScreensaverTimeout.OneMinute -> "1 分钟"
+            ScreensaverTimeout.ThreeMinutes -> "3 分钟"
+            ScreensaverTimeout.FiveMinutes -> "5 分钟"
+            ScreensaverTimeout.TenMinutes -> "10 分钟"
         }
 
 /** 接口类型显示名称。 */

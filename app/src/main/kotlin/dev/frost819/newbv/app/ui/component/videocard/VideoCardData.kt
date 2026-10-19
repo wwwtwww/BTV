@@ -14,6 +14,7 @@ import dev.frost819.newbv.biliapi.entity.video.RelatedVideo
  * @property bvid 视频 BV 号（用于 API 查询，部分大 AV 号需通过 BV 号查询）。
  * @property cid 视频 CID。
  * @property epid 番剧 EP ID（PGC 动态时有值）。
+ * @property seasonId 番剧 Season ID（PGC 动态时有值）。
  * @property title 视频标题。
  * @property cover 封面 URL。
  * @property upName UP 主名称。
@@ -29,6 +30,7 @@ data class VideoCardData(
     val bvid: String = "",
     val cid: Long? = null,
     val epid: Int? = null,
+    val seasonId: Int? = null,
     val title: String,
     val cover: String,
     val upName: String,
@@ -57,6 +59,43 @@ data class VideoCardData(
                 playString = related.view.toWanString(),
                 danmakuString = related.danmaku.toWanString(),
                 timeString = (related.duration * 1000L).formatHourMinSec(),
+            )
+
+        /**
+         * 由 UGC 条目 [UgcItem] 转换。
+         */
+        fun fromUgcItem(item: dev.frost819.newbv.biliapi.entity.ugc.UgcItem): VideoCardData =
+            VideoCardData(
+                avid = item.aid,
+                bvid = item.bvid,
+                title = item.title,
+                cover = item.cover,
+                playString = item.play.takeIf { it != -1 }?.toWanString() ?: "",
+                danmakuString = item.danmaku.takeIf { it != -1 }?.toWanString() ?: "",
+                timeString = (item.duration * 1000L).formatHourMinSec(),
+                upName = item.author,
+                upMid = item.authorMid,
+                pubTime = item.pubTime,
+            )
+
+        /**
+         * 由动态视频条目 [DynamicVideo] 转换。
+         */
+        fun fromDynamicVideo(item: dev.frost819.newbv.biliapi.entity.user.DynamicVideo): VideoCardData =
+            VideoCardData(
+                avid = item.aid,
+                bvid = item.bvid ?: "",
+                cid = item.cid,
+                epid = item.epid,
+                seasonId = item.seasonId,
+                title = item.title,
+                cover = item.cover,
+                playString = item.play.takeIf { it != -1 }?.toWanString() ?: "",
+                danmakuString = item.danmaku.takeIf { it != -1 }?.toWanString() ?: "",
+                timeString = (item.duration * 1000L).formatHourMinSec(),
+                upName = item.author,
+                upMid = item.authorMid,
+                pubTime = item.pubTime,
             )
     }
 }

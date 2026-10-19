@@ -278,6 +278,14 @@ object Prefs {
         restore = { ActionAfterPlay.fromCode(it) },
     )
 
+    /** 防烧屏屏保超时时间。 */
+    var screensaverTimeout by pref(
+        PrefKeys.screensaverTimeout,
+        ScreensaverTimeout.ThreeMinutes,
+        save = { it.code },
+        restore = { ScreensaverTimeout.fromCode(it) },
+    )
+
     /** 自定义播放快捷键（JSON 字符串）。 */
     var playerCustomShortcuts by pref(PrefKeys.playerCustomShortcuts, "")
 
@@ -348,8 +356,14 @@ object Prefs {
         restore = { PlaySpeed.fromCode(it) },
     )
 
-    /** 显示视频详情页（关闭后点击直接播放）。 */
-    var showVideoInfo by pref(PrefKeys.showVideoInfo, true)
+    /**
+     * 显示视频详情页（默认 false）。
+     *
+     * 【版本变更说明】：原版 BV 默认值为 `true`（点击卡片进入详情页），new BV 依据 PRD 与 AGENTS.md 6.2 规范
+     * 「即点即播优先（无冗余详情页跳转）」将其默认值调整为 `false`。未显式设置过的老用户升级后将默认直接全屏起播；
+     * 用户仍可在「设置 -> 播放设置」中开启此项恢复先进入详情页，或通过长按卡片在操作弹窗中点击「查看视频详情」。
+     */
+    var showVideoInfo by pref(PrefKeys.showVideoInfo, false)
 
     /** 显示常显进度条。 */
     var showPersistentSeek by pref(PrefKeys.showPersistentSeek, false)

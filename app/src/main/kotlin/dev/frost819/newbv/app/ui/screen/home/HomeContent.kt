@@ -3,13 +3,12 @@ package dev.frost819.newbv.app.ui.screen.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,32 +16,35 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import dev.frost819.newbv.app.ui.component.FocusSaver
-import dev.frost819.newbv.app.ui.component.HomeTabItem
-import dev.frost819.newbv.app.ui.component.TopNav
+import dev.frost819.newbv.app.viewmodel.common.CollectWatchLaterEffects
+import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.home.HomeViewModel
+import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.Prefs
-import androidx.compose.material3.Scaffold as Material3Scaffold
 
 /**
- * 首页内容（TopNav + 3 个子 Tab）。
+ * YouTube TV 风格主页内容。
  *
- * 顶部 Tab 按首选项排序，Tab 切换使用 [AnimatedContent] 横向滑动。
- * 菜单键刷新当前 Tab 数据。
+ * 采用轻量级顶部 [HomeFilterChips] 替代原先阻断式 Tab 栏，
+ * 内容区默认呈现多横向泳道视图 [HomeShelvesContent]，或无缝切换至单分类沉浸瀑布流。
  *
- * @param navFocusRequester 顶部 Tab 的焦点请求器（由 MainScreen 传入）。
- * @param navController 导航控制器（跳转详情页等）。
- * @param focusSaver 焦点恢复器（由 MainScreen 共享传入）。
+ * 支持通过遥控器「菜单键 (Menu)」（焦点位于顶部 Chips 行时）或重复点击分类 Chip 刷新当前数据；
+ * 焦点位于内容区卡片上时菜单键放行给卡片，用于唤起快捷操作弹窗。
+ *
+ * @param navFocusRequester 顶部导航焦点请求器。
+ * @param navController 导航控制器。
+ * @param focusSaver 焦点恢复器。
+ * @param viewModel 首页 ViewModel。
  */
 @Composable
 fun HomeContent(
@@ -51,87 +53,96 @@ fun HomeContent(
     focusSaver: FocusSaver,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val firstTab = remember { Prefs.firstHomeTopNavItem }
-    var selectedTab by rememberSaveable { mutableStateOf(firstTab) }
-    var focusOnContent by remember { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsState()
-
-    val reorderedItems =
+    val initialTab =
         remember {
-            val allItems = HomeTopNavItem.entries
-            val startIndex = allItems.indexOf(firstTab)
-            if (startIndex == -1) {
-                allItems.map { HomeTabItem(it) }
-            } else {
-                (allItems.drop(startIndex) + allItems.take(startIndex)).map { HomeTabItem(it) }
-            }
+            HomeFilterTab.fromHomeTopNavItem(Prefs.firstHomeTopNavItem)
         }
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val watchLaterViewModel: WatchLaterViewModel = hiltViewModel()
 
-    Material3Scaffold(
-        topBar = {
-            TopNav(
-                modifier = Modifier.focusRequester(navFocusRequester),
-                items = reorderedItems,
-                selectedIndex = reorderedItems.indexOf(HomeTabItem(selectedTab)),
-                isLargePadding = !focusOnContent,
-                onSelectedChanged = { nav ->
-                    val tab = (nav as HomeTabItem).item
+    CollectWatchLaterEffects(watchLaterViewModel)
+
+    // 菜单键刷新仅在焦点位于 Chips 行时生效，避免与内容区卡片的菜单键弹窗冲突
+    var chipsHasFocus by remember { mutableStateOf(false) }
+
+    fun refreshCurrentTab(tab: HomeFilterTab) {
+        when (tab) {
+            HomeFilterTab.Featured -> {
+                viewModel.refresh(HomeTopNavItem.Recommend)
+                viewModel.refresh(HomeTopNavItem.Popular)
+                if (uiState.isLogin) viewModel.refresh(HomeTopNavItem.Dynamics)
+            }
+            HomeFilterTab.Recommend -> viewModel.refresh(HomeTopNavItem.Recommend)
+            HomeFilterTab.Popular -> viewModel.refresh(HomeTopNavItem.Popular)
+            HomeFilterTab.Dynamics -> viewModel.refresh(HomeTopNavItem.Dynamics)
+        }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .onPreviewKeyEvent { event ->
+                    if (event.isMenuKey() && event.type == KeyEventType.KeyUp && chipsHasFocus) {
+                        refreshCurrentTab(selectedTab)
+                        runCatching { navFocusRequester.requestFocus() }
+                        return@onPreviewKeyEvent true
+                    }
+                    false
+                },
+    ) {
+        // YouTube TV 风格顶部 Filter Chips 导航栏
+        Box(modifier = Modifier.onFocusChanged { chipsHasFocus = it.hasFocus }) {
+            HomeFilterChips(
+                selectedTab = selectedTab,
+                onTabSelected = { tab ->
                     selectedTab = tab
-                    if (tab == HomeTopNavItem.Dynamics && uiState.dynamicItems.isEmpty()) {
+                    if (tab == HomeFilterTab.Dynamics && uiState.dynamicItems.isEmpty()) {
                         viewModel.loadDynamic()
                     }
                 },
-                onClick = { nav ->
-                    val tab = (nav as HomeTabItem).item
-                    viewModel.refresh(tab)
+                onTabReselected = { tab ->
+                    refreshCurrentTab(tab)
                 },
+                focusRequester = navFocusRequester,
             )
-        },
-    ) { innerPadding ->
-        Box(
-            modifier =
-                Modifier
-                    .padding(innerPadding)
-                    .onFocusChanged { focusOnContent = it.hasFocus }
-                    .onPreviewKeyEvent { event ->
-                        if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
-                            viewModel.refresh(selectedTab)
-                            navFocusRequester.requestFocus()
-                            return@onPreviewKeyEvent true
-                        }
-                        false
-                    },
-        ) {
+        }
+
+        // 内容区：综合横向泳道 / 单分类沉浸网格
+        Box(modifier = Modifier.weight(1f)) {
             AnimatedContent(
                 targetState = selectedTab,
-                label = "home-animated-content",
+                label = "home-shelves-content",
                 transitionSpec = {
-                    val coefficient = 10
-                    if (reorderedItems.indexOf(HomeTabItem(targetState)) <
-                        reorderedItems.indexOf(HomeTabItem(initialState))
-                    ) {
-                        fadeIn() + slideInHorizontally { -it / coefficient } togetherWith
-                            fadeOut() + slideOutHorizontally { it / coefficient }
-                    } else {
-                        fadeIn() + slideInHorizontally { it / coefficient } togetherWith
-                            fadeOut() + slideOutHorizontally { -it / coefficient }
-                    }
+                    fadeIn() togetherWith fadeOut()
                 },
-            ) { screen ->
-                when (screen) {
-                    HomeTopNavItem.Recommend ->
+            ) { tab ->
+                when (tab) {
+                    HomeFilterTab.Featured ->
+                        HomeShelvesContent(
+                            viewModel = viewModel,
+                            navController = navController,
+                            focusSaver = focusSaver,
+                            onSelectTab = { selectedTab = it },
+                        )
+
+                    HomeFilterTab.Recommend ->
                         RecommendScreen(
                             viewModel = viewModel,
                             navController = navController,
                             focusSaver = focusSaver,
                         )
-                    HomeTopNavItem.Popular ->
+
+                    HomeFilterTab.Popular ->
                         PopularScreen(
                             viewModel = viewModel,
                             navController = navController,
                             focusSaver = focusSaver,
                         )
-                    HomeTopNavItem.Dynamics ->
+
+                    HomeFilterTab.Dynamics ->
                         DynamicsScreen(
                             viewModel = viewModel,
                             navController = navController,

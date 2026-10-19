@@ -10,17 +10,40 @@ import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 
-class RecommendVideoRepository(
+/**
+ * 推荐与热门视频数据仓库接口。
+ */
+interface RecommendVideoRepository {
+    suspend fun getPopularVideos(
+        page: PopularVideoPage,
+        preferApiType: ApiType,
+    ): PopularVideoData
+
+    suspend fun getRecommendVideos(
+        page: RecommendPage = RecommendPage(),
+        preferApiType: ApiType,
+    ): RecommendData
+}
+
+/**
+ * 构建默认的 [RecommendVideoRepository] 实例。
+ */
+fun RecommendVideoRepository(
+    authRepository: AuthRepository,
+    channelRepository: ChannelRepository,
+): RecommendVideoRepository = RecommendVideoRepositoryImpl(authRepository, channelRepository)
+
+open class RecommendVideoRepositoryImpl(
     private val authRepository: AuthRepository,
     private val channelRepository: ChannelRepository,
-) {
+) : RecommendVideoRepository {
     private val popularStub
         get() =
             runCatching {
                 PopularGrpcKt.PopularCoroutineStub(channelRepository.requireDefaultChannel())
             }.getOrNull()
 
-    suspend fun getPopularVideos(
+    override suspend fun getPopularVideos(
         page: PopularVideoPage,
         preferApiType: ApiType,
     ): PopularVideoData =
@@ -75,8 +98,8 @@ class RecommendVideoRepository(
             }
         }
 
-    suspend fun getRecommendVideos(
-        page: RecommendPage = RecommendPage(),
+    override suspend fun getRecommendVideos(
+        page: RecommendPage,
         preferApiType: ApiType,
     ): RecommendData {
         // App 接口的下一页游标必须基于原始列表（含被过滤掉的卡片）推进，

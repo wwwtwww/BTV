@@ -143,4 +143,20 @@ class EnumDisplayNamesTest {
         assertThat(PersonalTopNavItem.Favorite.displayName).isEqualTo("收藏")
         assertThat(PersonalTopNavItem.FollowingSeason.displayName).isEqualTo("追番")
     }
+
+    @Test
+    fun screensaverTimeout_displayNames_allNonEmpty() {
+        dev.frost819.newbv.data.datastore.ScreensaverTimeout.entries.forEach { timeout ->
+            assertThat(timeout.displayName).isNotEmpty()
+        }
+    }
+
+    @Test
+    fun screensaverTimeout_displayNames_knownValues() {
+        assertThat(dev.frost819.newbv.data.datastore.ScreensaverTimeout.Never.displayName).isEqualTo("关闭")
+        assertThat(dev.frost819.newbv.data.datastore.ScreensaverTimeout.OneMinute.displayName).isEqualTo("1 分钟")
+        assertThat(dev.frost819.newbv.data.datastore.ScreensaverTimeout.ThreeMinutes.displayName).isEqualTo("3 分钟")
+        assertThat(dev.frost819.newbv.data.datastore.ScreensaverTimeout.FiveMinutes.displayName).isEqualTo("5 分钟")
+        assertThat(dev.frost819.newbv.data.datastore.ScreensaverTimeout.TenMinutes.displayName).isEqualTo("10 分钟")
+    }
 }

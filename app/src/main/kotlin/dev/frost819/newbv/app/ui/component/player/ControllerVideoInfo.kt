@@ -82,6 +82,7 @@ import kotlinx.coroutines.delay
  * @param videoShot 缩略图数据（为 null 时不显示预览）
  * @param videoShotCache 缩略图缓存
  * @param isPgc 是否来自番剧（为 true 时隐藏详情/UP/相关视频按钮）
+ * @param relatedAvailable 相关推荐是否可用（PGC 或列表为空时为 false，此时隐藏入口与提示）
  * @param danmakuEnabled 弹幕是否开启
  * @param isLooping 是否循环播放
  * @param onDirectionLeft seek 左移回调
@@ -111,6 +112,7 @@ fun ControllerVideoInfo(
     videoShot: VideoShot?,
     videoShotCache: VideoShotImageCache,
     isPgc: Boolean,
+    relatedAvailable: Boolean,
     danmakuEnabled: Boolean,
     isLooping: Boolean,
     onDirectionLeft: () -> Unit,
@@ -157,6 +159,7 @@ fun ControllerVideoInfo(
                 videoShot = videoShot,
                 videoShotCache = videoShotCache,
                 isPgc = isPgc,
+                relatedAvailable = relatedAvailable,
                 danmakuEnabled = danmakuEnabled,
                 isLooping = isLooping,
                 onDirectionLeft = onDirectionLeft,
@@ -203,11 +206,12 @@ fun ControllerVideoInfoTop(
                         Brush.verticalGradient(
                             colors =
                                 listOf(
-                                    Color.Black.copy(alpha = 0.5f),
+                                    Color.Black.copy(alpha = 0.82f),
+                                    Color.Black.copy(alpha = 0.40f),
                                     Color.Black.copy(alpha = 0f),
                                 ),
                         ),
-                ).padding(horizontal = 32.dp, vertical = 16.dp),
+                ).padding(horizontal = 32.dp, vertical = 20.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -222,9 +226,9 @@ fun ControllerVideoInfoTop(
                 text = title,
                 style =
                     MaterialTheme.typography.headlineSmall.copy(
-                        shadow = Shadow(color = Color.Black, blurRadius = 1f),
+                        shadow = Shadow(color = Color.Black.copy(alpha = 0.85f), blurRadius = 4f),
                     ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -268,6 +272,7 @@ fun ControllerVideoInfoBottom(
     videoShot: VideoShot?,
     videoShotCache: VideoShotImageCache,
     isPgc: Boolean,
+    relatedAvailable: Boolean,
     danmakuEnabled: Boolean,
     isLooping: Boolean,
     onDirectionLeft: () -> Unit,
@@ -296,12 +301,23 @@ fun ControllerVideoInfoBottom(
 
     Column(
         modifier =
-            modifier.clip(
-                MaterialTheme.shapes.large.copy(
-                    bottomStart = CornerSize(0.dp),
-                    bottomEnd = CornerSize(0.dp),
-                ),
-            ),
+            modifier
+                .clip(
+                    MaterialTheme.shapes.large.copy(
+                        bottomStart = CornerSize(0.dp),
+                        bottomEnd = CornerSize(0.dp),
+                    ),
+                ).background(
+                    brush =
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.50f),
+                                    Color.Black.copy(alpha = 0.88f),
+                                ),
+                        ),
+                ).padding(top = 28.dp),
         verticalArrangement = Arrangement.Bottom,
     ) {
         // Seek 缩略图预览
@@ -322,8 +338,12 @@ fun ControllerVideoInfoBottom(
             Text(
                 modifier = Modifier.padding(bottom = 2.dp, start = 24.dp),
                 text = "$timeText / ${seekerState.totalDuration.formatHourMinSec()}",
-                color = MaterialTheme.colorScheme.onSurface,
-                style = TextStyle(shadow = Shadow(color = Color.Black, blurRadius = 1f)),
+                color = Color.White,
+                style =
+                    TextStyle(
+                        fontWeight = FontWeight.Medium,
+                        shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 3f),
+                    ),
             )
         }
 
@@ -419,40 +439,43 @@ fun ControllerVideoInfoBottom(
         }
 
         // 操作按钮行
+        var focusedDescription by remember { mutableStateOf("") }
         val icons =
             buildList {
-                add(ControllerIcon(R.drawable.play_pause_24px, "播放/暂停", onPlayPause))
+                add(ControllerIcon(R.drawable.play_pause_24px, "播放 / 暂停", onPlayPause))
                 add(
                     ControllerIcon(
                         if (danmakuEnabled) R.drawable.danmaku_on_24px else R.drawable.danmaku_off_24px,
-                        "弹幕开关",
+                        if (danmakuEnabled) "弹幕：开启" else "弹幕：关闭",
                         onDanmakuSwitchChange,
                     ),
                 )
-                add(ControllerIcon(R.drawable.settings_24px, "打开设置", onShowSettings))
+                add(ControllerIcon(R.drawable.settings_24px, "清晰度与设置", onShowSettings))
+                if (relatedAvailable) {
+                    add(ControllerIcon(R.drawable.related_videos_24px, "相关推荐与选集", onShowRelatedVideos))
+                }
                 if (!isPgc) {
-                    add(ControllerIcon(R.drawable.info_24px, "视频信息", onGoToVideoInfo))
-                    add(ControllerIcon(R.drawable.contact_page_24px, "up主页", onGoToUpPage))
-                    add(ControllerIcon(R.drawable.related_videos_24px, "相关视频", onShowRelatedVideos))
+                    add(ControllerIcon(R.drawable.info_24px, "视频详情", onGoToVideoInfo))
+                    add(ControllerIcon(R.drawable.contact_page_24px, "UP 主空间", onGoToUpPage))
                 }
                 add(
                     ControllerIcon(
                         if (isLooping) R.drawable.repeat_one_on_24px else R.drawable.repeat_one_24px,
-                        "循环播放",
+                        if (isLooping) "循环播放：开启" else "循环播放：关闭",
                         onToggleLoop,
                     ),
                 )
                 add(
                     ControllerIcon(
                         icon = R.drawable.interaction_24px,
-                        description = "交互",
+                        description = "点赞与互动",
                         action = onShowInteraction,
                     ),
                 )
                 add(
                     ControllerIcon(
                         icon = R.drawable.comment,
-                        description = "评论",
+                        description = "评论区",
                         action = onShowComments,
                     ),
                 )
@@ -469,28 +492,68 @@ fun ControllerVideoInfoBottom(
                             seekFocusRequester.requestFocus()
                             return@onKeyEvent true
                         }
+                        // 相关推荐不可用时不消费向下键，交由焦点系统默认处理
+                        if (it.key == Key.DirectionDown && relatedAvailable) {
+                            if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
+                            onShowRelatedVideos()
+                            return@onKeyEvent true
+                        }
                         false
                     }.padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             icons.forEach { item ->
                 key(item.description) {
                     Surface(
                         modifier =
-                            Modifier.touchClickable(
-                                onClick = item.action,
-                            ),
+                            Modifier
+                                .size(46.dp)
+                                .onFocusChanged {
+                                    if (it.hasFocus) focusedDescription = item.description
+                                }.touchClickable(
+                                    onClick = item.action,
+                                ),
                         onClick = item.action,
-                        shape = ClickableSurfaceDefaults.shape(shape = MaterialTheme.shapes.small),
+                        shape = ClickableSurfaceDefaults.shape(shape = androidx.compose.foundation.shape.CircleShape),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.12f),
+                        colors =
+                            ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White,
+                                focusedContainerColor = Color.White,
+                                focusedContentColor = Color(0xFF0F0F0F),
+                            ),
                     ) {
-                        Icon(
-                            painter = painterResource(id = item.icon),
-                            contentDescription = item.description,
-                            modifier = Modifier.padding(5.dp),
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = item.icon),
+                                contentDescription = item.description,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        val hintText =
+            focusedDescription.ifBlank {
+                if (relatedAvailable) "按遥控器「向下」浏览选集与推荐" else ""
+            }
+        if (hintText.isNotEmpty()) {
+            Text(
+                modifier = Modifier.padding(start = 28.dp, bottom = 14.dp),
+                text = hintText,
+                style =
+                    MaterialTheme.typography.labelMedium.copy(
+                        shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 3f),
+                    ),
+                color = Color(0xFFE0E0E0),
+            )
         }
     }
 }
@@ -551,6 +614,7 @@ private fun ControllerVideoInfoPreview() {
             videoShot = null,
             videoShotCache = VideoShotImageCache(),
             isPgc = false,
+            relatedAvailable = true,
             danmakuEnabled = true,
             isLooping = false,
             onDirectionLeft = {},

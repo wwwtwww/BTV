@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,15 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.tv.material3.DrawerValue
 import androidx.tv.material3.NavigationDrawer
-import androidx.tv.material3.rememberDrawerState
 import dev.frost819.newbv.app.ui.component.rememberDoublePressExit
 import dev.frost819.newbv.app.ui.component.rememberFocusSaver
 import dev.frost819.newbv.app.ui.component.user.UserPanel
@@ -45,7 +42,7 @@ import dev.frost819.newbv.data.datastore.Prefs
 /**
  * 主页面框架。
  *
- * 左侧 [NavigationDrawer]（永久展开）+ 右侧内容区（[AnimatedContent] 切换）。
+ * 左侧 [NavigationDrawer]（焦点自动展开/折叠抽屉）+ 右侧内容区（[AnimatedContent] 切换）。
  *
  * 左侧栏：用户头像（点击显示 [UserPanel]）+ 6 导航项 + 设置。
  * 内容区：Home / Search / Personal / UGC / PGC / Live（后 5 项为占位）。
@@ -60,12 +57,11 @@ fun MainScreen(
     navController: NavController,
     userViewModel: UserViewModel = hiltViewModel(),
 ) {
-    val userUiState by userViewModel.uiState.collectAsState()
+    val userUiState by userViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showUserPanel by remember { mutableStateOf(false) }
     var selectedDrawerItem by rememberSaveable { mutableStateOf(Prefs.homeLeftNavItem) }
     var focusInitialized by rememberSaveable { mutableStateOf(false) }
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val homeFocusRequester = remember { FocusRequester() }
     val focusSaver = rememberFocusSaver()
@@ -109,6 +105,7 @@ fun MainScreen(
             LeftNaviContent(
                 isLogin = userUiState.isLogin,
                 avatar = userUiState.avatar,
+                username = userUiState.username,
                 selectedItem = selectedDrawerItem,
                 onLeftNaviItemChanged = { selectedDrawerItem = it },
                 onOpenSettings = {
@@ -124,7 +121,6 @@ fun MainScreen(
                 focusSaver = focusSaver,
             )
         },
-        drawerState = drawerState,
     ) {
         Box(modifier = Modifier) {
             AnimatedContent(
@@ -149,21 +145,10 @@ fun MainScreen(
                             focusSaver = focusSaver,
                         )
                     LeftNaviItem.Search -> {
-                        val searchInputViewModel: dev.frost819.newbv.app.viewmodel.search.SearchInputViewModel =
-                            androidx.hilt.navigation.compose
-                                .hiltViewModel()
                         dev.frost819.newbv.app.ui.screen.search.SearchInputContent(
-                            viewModel = searchInputViewModel,
                             focusRequester = homeFocusRequester,
                             focusSaver = focusSaver,
-                            onSearch = { keyword ->
-                                searchInputViewModel.commitSearch(keyword) {
-                                    navController.navigate(
-                                        dev.frost819.newbv.app.ui.navigation
-                                            .SearchResultRoute(keyword = keyword),
-                                    )
-                                }
-                            },
+                            navController = navController,
                         )
                     }
                     LeftNaviItem.Personal ->
@@ -240,29 +225,5 @@ fun MainScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * 占位内容（UGC/PGC/Live 等未实现的页面）。
- */
-@Composable
-private fun PlaceholderContent(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.tv.material3.Text(
-            text = "$title (待实现)",
-            style = androidx.tv.material3.MaterialTheme.typography.displaySmall,
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PlaceholderContentPreview() {
-    dev.frost819.newbv.core.theme.BVTheme {
-        PlaceholderContent(title = "分区")
     }
 }

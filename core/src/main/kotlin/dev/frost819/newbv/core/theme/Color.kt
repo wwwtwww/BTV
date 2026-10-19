@@ -34,13 +34,13 @@ object BVColors {
     /** 红色，用于错误/直播。 */
     val Red = Color(0xFFC87878)
 
-    /** 深色主题中性色。 */
+    /** 深色主题中性色（严格遵循 10-foot 大屏 ≥ 4.5:1 高对比度规范）。 */
     val DarkBackground = Color(0xFF171717)
     val DarkSurface = Color(0xFF222222)
     val DarkSurfaceVariant = Color(0xFF303030)
-    val DarkOnBackground = Color(0xFFF2F2F2)
-    val DarkOnSurface = Color(0xFFF2F2F2)
-    val DarkOnSurfaceVariant = Color(0xFFB8B8B8)
+    val DarkOnBackground = Color(0xFFFFFFFF)
+    val DarkOnSurface = Color(0xFFFFFFFF)
+    val DarkOnSurfaceVariant = Color(0xFFE0E0E0)
     val DarkBorder = PrimaryLight
 
     /** 浅色主题中性色。 */

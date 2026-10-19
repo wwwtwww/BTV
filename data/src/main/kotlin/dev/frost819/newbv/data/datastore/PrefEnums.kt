@@ -121,6 +121,32 @@ enum class ActionAfterPlay(
     }
 }
 
+/**
+ * 防烧屏屏保超时时间。
+ *
+ * 在播放暂停或播放结束后无操作超过指定时长时进入微光屏保。
+ * 通过 [code] 持久化，反序列化时未知 code 回退到 [ThreeMinutes]。
+ *
+ * @property code 标识码。
+ * @property timeoutMs 超时毫秒数，0 表示关闭。
+ */
+enum class ScreensaverTimeout(
+    val code: Int,
+    val timeoutMs: Long,
+) {
+    Never(0, 0L),
+    OneMinute(1, 60_000L),
+    ThreeMinutes(2, 180_000L),
+    FiveMinutes(3, 300_000L),
+    TenMinutes(4, 600_000L),
+    ;
+
+    companion object {
+        /** 从 code 安全解析，未知 code 返回 [ThreeMinutes]。 */
+        fun fromCode(code: Int): ScreensaverTimeout = entries.find { it.code == code } ?: ThreeMinutes
+    }
+}
+
 // ===== 播放器 - 音频 =====
 
 /**

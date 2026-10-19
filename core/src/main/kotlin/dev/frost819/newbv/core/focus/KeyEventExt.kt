@@ -29,3 +29,11 @@ fun KeyEvent.isConfirm(): Boolean = key == Key.DirectionCenter || key == Key.Ent
 
 /** 按键是否为返回键。 */
 fun KeyEvent.isBack(): Boolean = key == Key.Back
+
+/**
+ * 按键是否为遥控器菜单键。
+ *
+ * 除标准 [Key.Menu] 外，部分遥控器固件将菜单键上报为键码 763，
+ * 需一并兼容，保证同一物理按键在全应用内行为一致。
+ */
+fun KeyEvent.isMenuKey(): Boolean = key == Key.Menu || key == Key(763)

@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
@@ -18,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.ui.component.FocusSaver
@@ -30,7 +30,6 @@ import dev.frost819.newbv.app.ui.navigation.UserSpaceRoute
 import dev.frost819.newbv.app.ui.navigation.navigateFromVideoCard
 import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.app.util.toWanString
-import dev.frost819.newbv.app.viewmodel.common.CollectWatchLaterEffects
 import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -49,7 +48,7 @@ fun DynamicsScreen(
     navController: NavController,
     focusSaver: FocusSaver,
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (!state.isLogin) {
         Box(
@@ -67,8 +66,6 @@ fun DynamicsScreen(
 
     val gridState = rememberLazyGridState()
     val watchLaterViewModel: WatchLaterViewModel = hiltViewModel()
-
-    CollectWatchLaterEffects(watchLaterViewModel)
 
     LaunchedEffect(gridState) {
         snapshotFlow {

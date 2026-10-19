@@ -13,6 +13,7 @@ import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
 import dev.frost819.newbv.biliapi.entity.user.DynamicVideo
 import dev.frost819.newbv.biliapi.entity.user.DynamicVideoData
+import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.repositories.RecommendVideoRepository
 import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.data.datastore.Prefs
@@ -20,6 +21,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -133,6 +135,8 @@ class HomeViewModelTest {
                 historyOffset = "offset1",
                 updateBaseline = "baseline1",
             )
+        BiliHttpApi.wbiImgKey = "7cd084941338484aae1ad9425b81277e"
+        BiliHttpApi.wbiSubKey = "433010b9f1d0442eaec4b4c7c8c8371a"
     }
 
     private fun createViewModel() = HomeViewModel(recommendRepo, userRepo, accountRepo)
@@ -140,6 +144,8 @@ class HomeViewModelTest {
     @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
+        BiliHttpApi.wbiImgKey = null
+        BiliHttpApi.wbiSubKey = null
     }
 
     @Test
@@ -485,26 +491,58 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `loadRecommend sets hasMore false when page is empty`() =
+    fun `loadRecommend does not advance cursor on transient empty page allowing retry`() =
         runTest(testDispatcher) {
-            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+            val page1 = RecommendPage(nextWebIdx = 1)
+            val page2 = RecommendPage(nextWebIdx = 2)
+
+            // 首次请求：返回空数据（transient empty）
+            coEvery { recommendRepo.getRecommendVideos(page1, any()) } returns
                 RecommendData(
-                    items = listOf(fakeUgcItem(1)),
-                    nextPage = RecommendPage(),
+                    items = emptyList(),
+                    nextPage = page2,
+                )
+            coEvery { recommendRepo.getRecommendVideos(page2, any()) } returns
+                RecommendData(
+                    items = emptyList(),
+                    nextPage = page2,
                 )
             viewModel = createViewModel()
             advanceUntilIdle()
-            assertThat(viewModel.uiState.value.recommendHasMore).isTrue()
 
-            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+            assertThat(viewModel.uiState.value.recommendItems).isEmpty()
+
+            // 再次请求：游标应保持 page1，而不是推进到 page2
+            coEvery { recommendRepo.getRecommendVideos(page1, any()) } returns
                 RecommendData(
-                    items = emptyList(),
-                    nextPage = RecommendPage(),
+                    items = listOf(fakeUgcItem(100)),
+                    nextPage = page2,
                 )
             viewModel.loadRecommend()
             advanceUntilIdle()
 
-            assertThat(viewModel.uiState.value.recommendHasMore).isFalse()
+            // 重试成功追加数据，且证明前两次请求均发往 page1
+            assertThat(viewModel.uiState.value.recommendItems).hasSize(1)
+            assertThat(
+                viewModel.uiState.value.recommendItems
+                    .first()
+                    .aid,
+            ).isEqualTo(100L)
+            coVerify(exactly = 2) { recommendRepo.getRecommendVideos(page1, any()) }
+        }
+
+    @Test
+    fun `loadRecommend rethrows CancellationException and does not mark error`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } throws
+                CancellationException("Explicit cancellation")
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // CancellationException 不应被吞并当作普通失败标记 recommendError
+            assertThat(viewModel.uiState.value.recommendError).isFalse()
+            assertThat(viewModel.uiState.value.recommendLoading).isFalse()
         }
 
     @Test

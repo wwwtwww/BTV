@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.network
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -26,9 +27,10 @@ class HttpServerTest {
         tempDir = Files.createTempDirectory("httpserver_test").toFile()
         logFiles = mutableListOf()
 
-        // 创建测试日志文件
-        logFiles.add(createLog("logs_manual_2026-01-01_10:00:00.log", "manual log content"))
-        logFiles.add(createLog("logs_crash_2026-01-02_11:30:00.log", "crash log content"))
+        // 创建测试日志文件（文件名不含 ':'：Windows 非法文件名字符，
+        // 与 Android 端实际命名规则无关，仅保证跨平台可创建）
+        logFiles.add(createLog("logs_manual_2026-01-01_10-00-00.log", "manual log content"))
+        logFiles.add(createLog("logs_crash_2026-01-02_11-30-00.log", "crash log content"))
 
         server =
             HttpServer(
@@ -41,7 +43,7 @@ class HttpServerTest {
                 },
                 logFileProvider = { logFiles.toList() },
                 manualLogCreator = {
-                    val file = File(tempDir, "logs_manual_2026-01-03_12:00:00.log")
+                    val file = File(tempDir, "logs_manual_2026-01-03_12-00-00.log")
                     file.writeText("generated manual log")
                     logFiles.add(file)
                     file
@@ -186,14 +188,29 @@ class HttpServerTest {
 
     @Test
     fun `GET api logs filename downloads existing log file`() {
-        val (status, body) = httpGet("/api/logs/logs_manual_2026-01-01_10:00:00.log")
+        val (status, body) = httpGet("/api/logs/logs_manual_2026-01-01_10-00-00.log")
         assertThat(status).isEqualTo(200)
         assertThat(body).contains("manual log content")
     }
 
     @Test
+    fun `GET api logs filename downloads file with Android-style colon name`() {
+        // 生产端 CrashHandler 以 HH:mm:ss 命名（含冒号），Windows 文件系统不允许冒号，
+        // 故该用例仅在非 Windows 环境运行，保证生产命名格式始终有回归覆盖
+        Assumptions.assumeFalse(
+            System.getProperty("os.name").lowercase().contains("windows"),
+            "Windows 文件系统不支持冒号文件名",
+        )
+
+        logFiles.add(createLog("logs_crash_2026-01-02_11:30:00.log", "crash log with colon name"))
+        val (status, body) = httpGet("/api/logs/logs_crash_2026-01-02_11:30:00.log")
+        assertThat(status).isEqualTo(200)
+        assertThat(body).contains("crash log with colon name")
+    }
+
+    @Test
     fun `GET api logs filename returns 404 for non-existent file`() {
-        val (status, _) = httpGet("/api/logs/logs_manual_9999-01-01_00:00:00.log")
+        val (status, _) = httpGet("/api/logs/logs_manual_9999-01-01_00-00-00.log")
         assertThat(status).isEqualTo(404)
     }
 

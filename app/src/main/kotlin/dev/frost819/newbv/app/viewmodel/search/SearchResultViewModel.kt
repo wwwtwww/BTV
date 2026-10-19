@@ -14,6 +14,7 @@ import dev.frost819.newbv.biliapi.repositories.SearchType
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,12 +46,16 @@ class SearchResultViewModel
         private val _uiState = MutableStateFlow(SearchResultUiState())
         val uiState = _uiState.asStateFlow()
 
+        private val searchJobs = mutableMapOf<SearchType, Job>()
+
         /**
          * 设置搜索关键词并启动搜索。
          *
-         * 重置所有分页和结果，对 4 种类型并行加载第一页。
+         * 重置所有分页和结果，取消正在进行的请求，对各类型并行加载第一页。
          */
         fun search(keyword: String) {
+            searchJobs.values.forEach { it.cancel() }
+            searchJobs.clear()
             _uiState.update {
                 it.copy(
                     keyword = keyword,
@@ -89,75 +94,78 @@ class SearchResultViewModel
 
             updateResult(type) { it.copy(isLoading = true, error = false) }
 
-            viewModelScope.launch {
-                runCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        searchRepository.searchType(
-                            keyword = keyword,
-                            type = type,
-                            tid = null,
-                            order = state.selectedOrder,
-                            duration = state.selectedDuration,
-                            page = result.page,
-                            preferApiType = if (Prefs.apiType == DataApiType.App) ApiType.App else ApiType.Web,
-                        )
-                    }
-                }.onSuccess { searchResult ->
-                    val newItems =
-                        when (type) {
-                            SearchType.Video -> searchResult.videos.map { SearchResultItem.VideoItem(it) }
-                            SearchType.MediaBangumi, SearchType.MediaFt ->
-                                searchResult.pgcs.map {
-                                    SearchResultItem.PgcItem(
-                                        it,
-                                    )
-                                }
-                            SearchType.BiliUser -> searchResult.users.map { SearchResultItem.UserItem(it) }
-                            SearchType.LiveRoom -> searchResult.liveRooms.map { SearchResultItem.LiveRoomItem(it) }
+            searchJobs[type]?.cancel()
+            val job =
+                viewModelScope.launch {
+                    runCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            searchRepository.searchType(
+                                keyword = keyword,
+                                type = type,
+                                tid = null,
+                                order = state.selectedOrder,
+                                duration = state.selectedDuration,
+                                page = result.page,
+                                preferApiType = if (Prefs.apiType == DataApiType.App) ApiType.App else ApiType.Web,
+                            )
                         }
-                    updateResult(type) {
-                        val existingIds =
-                            it.items
-                                .mapNotNull { item ->
-                                    when (item) {
-                                        is SearchResultItem.VideoItem -> "v_${item.video.aid}"
-                                        is SearchResultItem.PgcItem -> "p_${item.pgc.seasonId}"
-                                        is SearchResultItem.UserItem -> "u_${item.user.mid}"
-                                        is SearchResultItem.LiveRoomItem -> "l_${item.room.roomId}"
+                    }.onSuccess { searchResult ->
+                        val newItems =
+                            when (type) {
+                                SearchType.Video -> searchResult.videos.map { SearchResultItem.VideoItem(it) }
+                                SearchType.MediaBangumi, SearchType.MediaFt ->
+                                    searchResult.pgcs.map {
+                                        SearchResultItem.PgcItem(
+                                            it,
+                                        )
                                     }
-                                }.toSet()
-                        val dedupedNewItems =
-                            newItems.filter { item ->
-                                val key =
-                                    when (item) {
-                                        is SearchResultItem.VideoItem -> "v_${item.video.aid}"
-                                        is SearchResultItem.PgcItem -> "p_${item.pgc.seasonId}"
-                                        is SearchResultItem.UserItem -> "u_${item.user.mid}"
-                                        is SearchResultItem.LiveRoomItem -> "l_${item.room.roomId}"
-                                    }
-                                key !in existingIds
+                                SearchType.BiliUser -> searchResult.users.map { SearchResultItem.UserItem(it) }
+                                SearchType.LiveRoom -> searchResult.liveRooms.map { SearchResultItem.LiveRoomItem(it) }
                             }
-                        // hasMore 由 Repository 根据 API 返回的 numPages 判断
-                        val hasMore = searchResult.hasMore && dedupedNewItems.isNotEmpty()
-                        it.copy(
-                            items = it.items + dedupedNewItems,
-                            page = searchResult.page,
-                            isLoading = false,
-                            hasMore = hasMore,
-                            error = false,
-                        )
+                        updateResult(type) {
+                            val existingIds =
+                                it.items
+                                    .mapNotNull { item ->
+                                        when (item) {
+                                            is SearchResultItem.VideoItem -> "v_${item.video.aid}"
+                                            is SearchResultItem.PgcItem -> "p_${item.pgc.seasonId}"
+                                            is SearchResultItem.UserItem -> "u_${item.user.mid}"
+                                            is SearchResultItem.LiveRoomItem -> "l_${item.room.roomId}"
+                                        }
+                                    }.toSet()
+                            val dedupedNewItems =
+                                newItems.filter { item ->
+                                    val key =
+                                        when (item) {
+                                            is SearchResultItem.VideoItem -> "v_${item.video.aid}"
+                                            is SearchResultItem.PgcItem -> "p_${item.pgc.seasonId}"
+                                            is SearchResultItem.UserItem -> "u_${item.user.mid}"
+                                            is SearchResultItem.LiveRoomItem -> "l_${item.room.roomId}"
+                                        }
+                                    key !in existingIds
+                                }
+                            // hasMore 由 Repository 根据 API 返回的 numPages 判断
+                            val hasMore = searchResult.hasMore && dedupedNewItems.isNotEmpty()
+                            it.copy(
+                                items = it.items + dedupedNewItems,
+                                page = searchResult.page,
+                                isLoading = false,
+                                hasMore = hasMore,
+                                error = false,
+                            )
+                        }
+                        logger.info {
+                            "Loaded search result: type=$type, new=${newItems.size}, total=${result.items.size + newItems.size}"
+                        }
+                    }.onFailure { e ->
+                        if (e is CancellationException && e !is TimeoutCancellationException) {
+                            throw e
+                        }
+                        logger.warn { "Failed to load search result: type=$type, $e" }
+                        updateResult(type) { it.copy(isLoading = false, error = true) }
                     }
-                    logger.info {
-                        "Loaded search result: type=$type, new=${newItems.size}, total=${result.items.size + newItems.size}"
-                    }
-                }.onFailure { e ->
-                    if (e is CancellationException && e !is TimeoutCancellationException) {
-                        throw e
-                    }
-                    logger.warn { "Failed to load search result: type=$type, $e" }
-                    updateResult(type) { it.copy(isLoading = false, error = true) }
                 }
-            }
+            searchJobs[type] = job
         }
 
         /**

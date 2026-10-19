@@ -246,7 +246,11 @@ fun VideoPlayerController(
         var status: String? = null
         when (action) {
             PlayerCustomShortcutAction.OpenSettings -> showMenuController = true
-            PlayerCustomShortcutAction.OpenRelatedVideos -> showRelatedVideosController = true
+            PlayerCustomShortcutAction.OpenRelatedVideos -> {
+                if (!isPgc && uiState.relatedVideos.isNotEmpty()) {
+                    showRelatedVideosController = true
+                }
+            }
             PlayerCustomShortcutAction.PlayPrevious -> onPlayPrevious()
             PlayerCustomShortcutAction.PlayNext -> onPlayNext()
             PlayerCustomShortcutAction.OpenVideoDetail -> onGoToVideoDetail()
@@ -305,6 +309,11 @@ fun VideoPlayerController(
 
         // 非 confirm 键的 KeyUp 事件消费掉
         if (event.type == KeyEventType.KeyUp && event.key !in confirmKeys) {
+            // 相关推荐浮层位于按键分发路径下游，无法自行接收 KeyUp，
+            // 「向上」关闭浮层需在根处理器统一处理
+            if (event.key == Key.DirectionUp && showRelatedVideosController) {
+                showRelatedVideosController = false
+            }
             return true
         }
 
@@ -341,6 +350,12 @@ fun VideoPlayerController(
             Key.MediaPause -> {
                 if (uiState.playerState == PlayerState.Playing) onPause()
                 return true
+            }
+
+            Key.DirectionUp -> {
+                // 相关推荐浮层展示时消费 KeyDown，等待 KeyUp 统一关闭，
+                // 避免 KeyDown 落入焦点系统导致焦点逃逸出浮层
+                if (showRelatedVideosController) return true
             }
         }
 
@@ -482,8 +497,8 @@ fun VideoPlayerController(
                 }
             }
 
-            // 常显进度条
-            if (showPersistentSeek && !showInfoSeekController) {
+            // 常显进度条（控制条或下沉推荐泳道展开时隐藏，避免视觉层叠）
+            if (showPersistentSeek && !showInfoSeekController && !showRelatedVideosController) {
                 VideoProgressSeek(
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                     duration = seekerState.value.totalDuration,
@@ -537,6 +552,7 @@ fun VideoPlayerController(
                 show = showRelatedVideosController,
                 relatedVideos = uiState.relatedVideos,
                 onVideoClicked = onRelatedVideoClicked,
+                onClose = { showRelatedVideosController = false },
             )
 
             // 信息栏 + 进度条 + 按钮
@@ -552,6 +568,7 @@ fun VideoPlayerController(
                 videoShot = uiState.videoShot,
                 videoShotCache = videoShotCache,
                 isPgc = isPgc,
+                relatedAvailable = !isPgc && uiState.relatedVideos.isNotEmpty(),
                 danmakuEnabled = uiState.danmakuState.enabledTypes.isNotEmpty(),
                 isLooping = isLooping,
                 onDirectionLeft = ::onDirectionLeft,
@@ -567,7 +584,13 @@ fun VideoPlayerController(
                     startControllerAutoHide()
                 },
                 onShowSettings = { showMenuController = true },
-                onShowRelatedVideos = { showRelatedVideosController = true },
+                onShowRelatedVideos = {
+                    // PGC 无相关视频数据，空列表打开浮层会造成焦点死角
+                    if (!isPgc && uiState.relatedVideos.isNotEmpty()) {
+                        showInfoSeekController = false
+                        showRelatedVideosController = true
+                    }
+                },
                 onGoToVideoInfo = onGoToVideoDetail,
                 onToggleLoop = {
                     onToggleLoop()

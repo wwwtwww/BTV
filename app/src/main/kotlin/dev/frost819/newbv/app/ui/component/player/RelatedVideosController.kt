@@ -3,16 +3,21 @@ package dev.frost819.newbv.app.ui.component.player
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -31,15 +36,16 @@ import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.core.theme.BVTheme
 
 /**
- * 相关视频覆盖层。
+ * YouTube TV 风格下沉式相关推荐泳道浮层（Bottom Shelf）。
  *
- * 全屏淡入/淡出动画，中央显示一行相关视频卡片。
- * 背景为垂直渐变（上下透明，中间半透明黑色）。
+ * 位于屏幕底部 1/3 区域，采用自底向上滑入滑出动效。
+ * 顶部 2/3 区域继续保持视频画面播放，做到观影与选片两不误。
  *
- * @param modifier 修饰符
- * @param show 是否显示
- * @param relatedVideos 相关视频列表
- * @param onVideoClicked 点击视频卡片回调
+ * @param modifier 修饰符。
+ * @param show 是否显示。
+ * @param relatedVideos 相关视频列表。
+ * @param onVideoClicked 点击视频卡片回调。
+ * @param onClose 关闭浮层回调（返回键与「向上」键的关闭统一由根播放器按键处理器分发）。
  */
 @Composable
 fun RelatedVideosController(
@@ -47,64 +53,86 @@ fun RelatedVideosController(
     show: Boolean,
     relatedVideos: List<VideoCardData>,
     onVideoClicked: (VideoCardData) -> Unit,
+    onClose: () -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
 
     val backgroundBrush =
         remember {
             Brush.verticalGradient(
-                0.0f to Color.Transparent,
-                0.15f to Color.Black.copy(alpha = 0.5f),
-                0.85f to Color.Black.copy(alpha = 0.5f),
-                1.0f to Color.Transparent,
+                listOf(
+                    Color.Transparent,
+                    Color.Black.copy(alpha = 0.8f),
+                    Color.Black.copy(alpha = 0.96f),
+                ),
             )
         }
 
-    LaunchedEffect(show) {
-        if (show) {
-            runCatching { focusRequester.requestFocus() }
+    LaunchedEffect(show, relatedVideos.isNotEmpty()) {
+        if (show && relatedVideos.isNotEmpty()) {
+            focusRequester.requestFocus()
         }
     }
 
     Box(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .focusRequester(focusRequester),
-        contentAlignment = Alignment.Center,
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
             visible = show,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         ) {
             Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .height(310.dp)
                         .background(backgroundBrush)
-                        .padding(vertical = 12.dp),
+                        .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.Bottom,
             ) {
-                Text(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                    text = "相关视频",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                )
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "为你推荐",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                    )
+                    Text(
+                        text = "按「返回」或「向上」返回播放",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().focusGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding =
                         androidx.compose.foundation.layout
-                            .PaddingValues(horizontal = 24.dp),
+                            .PaddingValues(horizontal = 28.dp, vertical = 6.dp),
                 ) {
-                    items(
+                    itemsIndexed(
                         items = relatedVideos,
-                        key = { it.avid },
-                    ) { video ->
+                        key = { _, video -> video.avid },
+                    ) { index, video ->
                         SmallVideoCard(
-                            modifier = Modifier.width(240.dp),
+                            modifier =
+                                Modifier
+                                    .width(220.dp)
+                                    .then(if (index == 0) Modifier.focusRequester(focusRequester) else Modifier),
                             data = video,
-                            onClick = { onVideoClicked(video) },
+                            onClick = {
+                                onVideoClicked(video)
+                                onClose()
+                            },
                         )
                     }
                 }

@@ -130,6 +130,7 @@ class PlayerViewModelTest {
                 favoriteRepository = favoriteRepository,
                 oneClickTripleActionRepository = oneClickTripleActionRepository,
                 cdnSelector = cdnSelector,
+                ioDispatcher = testDispatcher,
             )
     }
 

@@ -98,6 +98,11 @@ class PrefsTest {
     }
 
     @Test
+    fun `default screensaverTimeout is ThreeMinutes`() {
+        assertThat(Prefs.screensaverTimeout).isEqualTo(ScreensaverTimeout.ThreeMinutes)
+    }
+
+    @Test
     fun `default playSpeed is X1`() {
         assertThat(Prefs.defaultPlaySpeed).isEqualTo(PlaySpeed.X1)
     }
@@ -138,8 +143,8 @@ class PrefsTest {
     }
 
     @Test
-    fun `default showVideoInfo is true`() {
-        assertThat(Prefs.showVideoInfo).isTrue()
+    fun `default showVideoInfo is false`() {
+        assertThat(Prefs.showVideoInfo).isFalse()
     }
 
     @Test
@@ -254,6 +259,7 @@ class PrefsTest {
             Prefs.defaultVideoCodec = VideoCodec.HEVC
             Prefs.defaultAudio = Audio.AHiRes
             Prefs.actionAfterPlay = ActionAfterPlay.Exit
+            Prefs.screensaverTimeout = ScreensaverTimeout.FiveMinutes
             Prefs.defaultPlaySpeed = PlaySpeed.X2
             Prefs.themeMode = ThemeMode.Dark
             Prefs.homeLeftNavItem = LeftNaviItem.Search
@@ -265,6 +271,7 @@ class PrefsTest {
             assertThat(Prefs.defaultVideoCodec).isEqualTo(VideoCodec.HEVC)
             assertThat(Prefs.defaultAudio).isEqualTo(Audio.AHiRes)
             assertThat(Prefs.actionAfterPlay).isEqualTo(ActionAfterPlay.Exit)
+            assertThat(Prefs.screensaverTimeout).isEqualTo(ScreensaverTimeout.FiveMinutes)
             assertThat(Prefs.defaultPlaySpeed).isEqualTo(PlaySpeed.X2)
             assertThat(Prefs.themeMode).isEqualTo(ThemeMode.Dark)
             assertThat(Prefs.homeLeftNavItem).isEqualTo(LeftNaviItem.Search)
@@ -400,6 +407,11 @@ class PrefsTest {
     @Test
     fun `ActionAfterPlay fromCode returns default for invalid`() {
         assertThat(ActionAfterPlay.fromCode(99999)).isEqualTo(ActionAfterPlay.PlayNext)
+    }
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns default for invalid`() {
+        assertThat(ScreensaverTimeout.fromCode(99999)).isEqualTo(ScreensaverTimeout.ThreeMinutes)
     }
 
     @Test

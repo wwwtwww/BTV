@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,8 +26,10 @@ import androidx.navigation.NavController
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.component.comment.CommentDialogMode
 import dev.frost819.newbv.app.ui.component.comment.CommentsDialog
+import dev.frost819.newbv.app.ui.component.player.ScreensaverOverlay
 import dev.frost819.newbv.app.ui.component.player.VideoInteractionDialog
 import dev.frost819.newbv.app.ui.component.player.VideoPlayerController
+import dev.frost819.newbv.app.ui.component.player.rememberScreensaverState
 import dev.frost819.newbv.app.ui.component.rememberDoublePressExit
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.app.ui.component.videocard.isPgc
@@ -47,6 +50,7 @@ import dev.frost819.newbv.danmaku.component.DanmakuPlayerCompose
 import dev.frost819.newbv.danmaku.util.DanmakuMaskFinder
 import dev.frost819.newbv.danmaku.util.calculateMaskDelay
 import dev.frost819.newbv.danmaku.util.danmakuMask
+import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.player.BvVideoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
@@ -240,163 +244,190 @@ fun VideoPlayerScreen(
         )
     BackHandler { handleBack() }
 
-    VideoPlayerController(
-        modifier = Modifier.fillMaxSize(),
-        isPgc = uiState.isPgc,
-        isLooping = uiState.isLooping,
-        videoShotCache = videoShotCache,
-        uiState = mergedUiState,
-        seekerState = seekerState,
-        onPlay = {
-            logger.info { "[PLAYBACK] play aid=${uiState.aid}, cid=${uiState.cid}" }
-            playerViewModel.togglePlayPause()
-        },
-        onPause = {
-            logger.info { "[PLAYBACK] pause aid=${uiState.aid}, cid=${uiState.cid}" }
-            playerViewModel.togglePlayPause()
-        },
-        onExit = {
-            logger.info { "[PLAYBACK] exit aid=${uiState.aid}, cid=${uiState.cid}" }
-            handleBack()
-        },
-        onGoTime = { time ->
-            logger.info { "[PLAYBACK] seek aid=${uiState.aid}, cid=${uiState.cid}, positionMs=$time" }
-            // 弹幕引擎时钟由进度喂入按位置跳变自动对齐，无需在此单独通知弹幕
-            playerViewModel.seekToTime(time)
-        },
-        onBackToStart = { playerViewModel.backToStart() },
-        onCancelSkipToNextEp = { playerViewModel.cancelPlayNext() },
-        onPlayNewVideo = { item: VideoListItem ->
-            logger.info { "[PLAYBACK] switch aid=${item.aid}, cid=${item.cid}" }
-            playerViewModel.playNewVideo(item)
-        },
-        onPlayPrevious = { playerViewModel.playPreviousNow() },
-        onPlayNext = { playerViewModel.playNextNow() },
-        onToggleLoop = {
-            logger.info { "[PLAYBACK] loopToggle enabled=${!uiState.isLooping}" }
-            playerViewModel.toggleLoop()
-        },
-        onToggleSubtitle = { subtitleViewModel.toggleSubtitle() },
-        onGoToUpPage = {
-            logger.info { "[NAV] playerToUp mid=${uiState.authorMid}" }
-            navController.navigate(UserSpaceRoute(mid = uiState.authorMid, name = uiState.authorName)) {
-                launchSingleTop = true
-            }
-        },
-        onGoToVideoDetail = {
-            logger.info { "[NAV] playerToVideoDetail aid=${uiState.aid}" }
-            navController.navigateToVideoDetailFromPlayer(uiState.aid)
-        },
-        onShowInteraction = {
-            logger.info { "[CARD] openVideoInteraction aid=${uiState.aid}" }
-            resumeAfterInteraction = uiState.playerState == PlayerState.Playing
-            playerViewModel.pausePlayback()
-            danmakuViewModel.pause()
-            showInteractionDialog = true
-        },
-        onShowComments = {
-            logger.info { "[CARD] openComments aid=${uiState.aid}" }
-            resumeAfterComments = uiState.playerState == PlayerState.Playing
-            playerViewModel.pausePlayback()
-            danmakuViewModel.pause()
-            showCommentsDialog = true
-        },
-        onMediaProfileSettingChange = { action -> playerViewModel.updateMediaProfile(action) },
-        onAspectRatioChange = { ratio -> playerViewModel.updateVideoAspectRatio(ratio) },
-        onPlaySpeedChange = { speed ->
-            logger.info { "[PLAYBACK] speedChange aid=${uiState.aid}, speed=$speed" }
-            playerViewModel.updatePlaySpeed(speed)
-            danmakuViewModel.updateSpeed(speed)
-        },
-        onDanmakuSettingChange = { action -> danmakuViewModel.updateDanmakuState(action) },
-        onSubtitleChange = { subtitle -> subtitleViewModel.selectSubtitle(subtitle.id) },
-        onSubtitleSettingChange = { action -> subtitleViewModel.updateSubtitleState(action) },
-        onRelatedVideoClicked = { video: VideoCardData ->
-            logger.info { "[CARD] relatedVideo aid=${video.avid}, cid=${video.cid ?: 0L}, epid=${video.epid}" }
-            if (video.isPgc) {
-                navController.navigateFromVideoCard(video)
-            } else {
-                playerViewModel.playNewVideo(
-                    VideoListItem(
-                        aid = video.avid,
-                        cid = video.cid ?: 0,
-                        title = video.title,
-                    ),
-                )
-            }
-        },
-        onToggleDanmaku = { danmakuViewModel.toggleDanmaku() },
-        onShowShortcutTip = { text -> playerViewModel.showShortcutTip(text) },
+    // 防烧屏屏保状态（仅在主动暂停或播放结束时激活；错误态保留展示错误原因，避免全黑遮挡提示）
+    val isPausedOrEnded =
+        uiState.playerState == PlayerState.Paused ||
+            uiState.playerState == PlayerState.Ended
+    val screensaverState =
+        rememberScreensaverState(
+            isPausedOrEnded = isPausedOrEnded,
+            timeoutMs = Prefs.screensaverTimeout.timeoutMs,
+        )
+
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent {
+                    screensaverState.onUserInteraction()
+                    false
+                },
     ) {
-        Box(
+        VideoPlayerController(
             modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            isPgc = uiState.isPgc,
+            isLooping = uiState.isLooping,
+            videoShotCache = videoShotCache,
+            uiState = mergedUiState,
+            seekerState = seekerState,
+            onPlay = {
+                logger.info { "[PLAYBACK] play aid=${uiState.aid}, cid=${uiState.cid}" }
+                playerViewModel.togglePlayPause()
+            },
+            onPause = {
+                logger.info { "[PLAYBACK] pause aid=${uiState.aid}, cid=${uiState.cid}" }
+                playerViewModel.togglePlayPause()
+            },
+            onExit = {
+                logger.info { "[PLAYBACK] exit aid=${uiState.aid}, cid=${uiState.cid}" }
+                handleBack()
+            },
+            onGoTime = { time ->
+                logger.info { "[PLAYBACK] seek aid=${uiState.aid}, cid=${uiState.cid}, positionMs=$time" }
+                // 弹幕引擎时钟由进度喂入按位置跳变自动对齐，无需在此单独通知弹幕
+                playerViewModel.seekToTime(time)
+            },
+            onBackToStart = { playerViewModel.backToStart() },
+            onCancelSkipToNextEp = { playerViewModel.cancelPlayNext() },
+            onPlayNewVideo = { item: VideoListItem ->
+                logger.info { "[PLAYBACK] switch aid=${item.aid}, cid=${item.cid}" }
+                playerViewModel.playNewVideo(item)
+            },
+            onPlayPrevious = { playerViewModel.playPreviousNow() },
+            onPlayNext = { playerViewModel.playNextNow() },
+            onToggleLoop = {
+                logger.info { "[PLAYBACK] loopToggle enabled=${!uiState.isLooping}" }
+                playerViewModel.toggleLoop()
+            },
+            onToggleSubtitle = { subtitleViewModel.toggleSubtitle() },
+            onGoToUpPage = {
+                logger.info { "[NAV] playerToUp mid=${uiState.authorMid}" }
+                navController.navigate(UserSpaceRoute(mid = uiState.authorMid, name = uiState.authorName)) {
+                    launchSingleTop = true
+                }
+            },
+            onGoToVideoDetail = {
+                logger.info { "[NAV] playerToVideoDetail aid=${uiState.aid}" }
+                navController.navigateToVideoDetailFromPlayer(uiState.aid)
+            },
+            onShowInteraction = {
+                logger.info { "[CARD] openVideoInteraction aid=${uiState.aid}" }
+                resumeAfterInteraction = uiState.playerState == PlayerState.Playing
+                playerViewModel.pausePlayback()
+                danmakuViewModel.pause()
+                showInteractionDialog = true
+            },
+            onShowComments = {
+                logger.info { "[CARD] openComments aid=${uiState.aid}" }
+                resumeAfterComments = uiState.playerState == PlayerState.Playing
+                playerViewModel.pausePlayback()
+                danmakuViewModel.pause()
+                showCommentsDialog = true
+            },
+            onMediaProfileSettingChange = { action -> playerViewModel.updateMediaProfile(action) },
+            onAspectRatioChange = { ratio -> playerViewModel.updateVideoAspectRatio(ratio) },
+            onPlaySpeedChange = { speed ->
+                logger.info { "[PLAYBACK] speedChange aid=${uiState.aid}, speed=$speed" }
+                playerViewModel.updatePlaySpeed(speed)
+                danmakuViewModel.updateSpeed(speed)
+            },
+            onDanmakuSettingChange = { action -> danmakuViewModel.updateDanmakuState(action) },
+            onSubtitleChange = { subtitle -> subtitleViewModel.selectSubtitle(subtitle.id) },
+            onSubtitleSettingChange = { action -> subtitleViewModel.updateSubtitleState(action) },
+            onRelatedVideoClicked = { video: VideoCardData ->
+                logger.info { "[CARD] relatedVideo aid=${video.avid}, cid=${video.cid ?: 0L}, epid=${video.epid}" }
+                if (video.isPgc) {
+                    navController.navigateFromVideoCard(video)
+                } else {
+                    playerViewModel.playNewVideo(
+                        VideoListItem(
+                            aid = video.avid,
+                            cid = video.cid ?: 0,
+                            title = video.title,
+                        ),
+                    )
+                }
+            },
+            onToggleDanmaku = { danmakuViewModel.toggleDanmaku() },
+            onShowShortcutTip = { text -> playerViewModel.showShortcutTip(text) },
         ) {
-            // 视频画面
-            val aspectRatio =
-                uiState.aspectRatio.ratio ?: run {
-                    if (uiState.videoWidth > 0 && uiState.videoHeight > 0) {
-                        uiState.videoWidth.toFloat() / uiState.videoHeight.toFloat()
-                    } else {
-                        16f / 9f
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                // 视频画面
+                val aspectRatio =
+                    uiState.aspectRatio.ratio ?: run {
+                        if (uiState.videoWidth > 0 && uiState.videoHeight > 0) {
+                            uiState.videoWidth.toFloat() / uiState.videoHeight.toFloat()
+                        } else {
+                            16f / 9f
+                        }
                     }
+
+                if (videoPlayer != null) {
+                    BvVideoPlayer(
+                        modifier = Modifier.fillMaxHeight().aspectRatio(aspectRatio),
+                        videoPlayer = videoPlayer,
+                    )
                 }
 
-            if (videoPlayer != null) {
-                BvVideoPlayer(
-                    modifier = Modifier.fillMaxHeight().aspectRatio(aspectRatio),
-                    videoPlayer = videoPlayer,
-                )
-            }
-
-            // 弹幕层
-            if (danmakuPlayer != null) {
-                DanmakuPlayerCompose(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .alpha(if (danmakuState.enabledTypes.isNotEmpty()) danmakuState.alpha else 0f)
-                            .danmakuMask(
-                                frame = currentDanmakuMaskFrame,
-                                aspectRatio = aspectRatio,
-                            ),
-                    danmakuPlayer = danmakuPlayer,
-                )
+                // 弹幕层
+                if (danmakuPlayer != null) {
+                    DanmakuPlayerCompose(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .alpha(if (danmakuState.enabledTypes.isNotEmpty()) danmakuState.alpha else 0f)
+                                .danmakuMask(
+                                    frame = currentDanmakuMaskFrame,
+                                    aspectRatio = aspectRatio,
+                                ),
+                        danmakuPlayer = danmakuPlayer,
+                    )
+                }
             }
         }
-    }
 
-    if (showInteractionDialog) {
-        VideoInteractionDialog(
-            actionState = sharedState?.takeIf { it.aid == uiState.aid },
-            onLike = { playerViewModel.toggleVideoLike() },
-            onCoin = { playerViewModel.sendVideoCoin() },
-            onFavorite = { playerViewModel.toggleVideoFavorite() },
-            onOneClickTriple = { playerViewModel.oneClickTripleAction() },
-            onDismiss = {
-                showInteractionDialog = false
-                if (resumeAfterInteraction) {
-                    playerViewModel.resumePlayback()
-                    danmakuViewModel.play()
-                }
-                resumeAfterInteraction = false
-            },
-        )
-    }
+        if (showInteractionDialog) {
+            VideoInteractionDialog(
+                actionState = sharedState?.takeIf { it.aid == uiState.aid },
+                onLike = { playerViewModel.toggleVideoLike() },
+                onCoin = { playerViewModel.sendVideoCoin() },
+                onFavorite = { playerViewModel.toggleVideoFavorite() },
+                onOneClickTriple = { playerViewModel.oneClickTripleAction() },
+                onDismiss = {
+                    showInteractionDialog = false
+                    if (resumeAfterInteraction) {
+                        playerViewModel.resumePlayback()
+                        danmakuViewModel.play()
+                    }
+                    resumeAfterInteraction = false
+                },
+            )
+        }
 
-    if (showCommentsDialog) {
-        CommentsDialog(
-            aid = uiState.aid,
-            mode = CommentDialogMode.Player,
-            viewModel = commentViewModel,
-            onDismiss = {
-                showCommentsDialog = false
-                if (resumeAfterComments) {
-                    playerViewModel.resumePlayback()
-                    danmakuViewModel.play()
-                }
-                resumeAfterComments = false
-            },
-        )
+        if (showCommentsDialog) {
+            CommentsDialog(
+                aid = uiState.aid,
+                mode = CommentDialogMode.Player,
+                viewModel = commentViewModel,
+                onDismiss = {
+                    showCommentsDialog = false
+                    if (resumeAfterComments) {
+                        playerViewModel.resumePlayback()
+                        danmakuViewModel.play()
+                    }
+                    resumeAfterComments = false
+                },
+            )
+        }
+
+        if (screensaverState.isScreensaverActive) {
+            ScreensaverOverlay(
+                title = uiState.title,
+                onDismiss = { screensaverState.dismissScreensaver() },
+            )
+        }
     }
 }

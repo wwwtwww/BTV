@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.app.data.VideoInfoRepository
+import dev.frost819.newbv.app.di.IoDispatcher
+import dev.frost819.newbv.app.di.MainDispatcher
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
@@ -48,6 +50,7 @@ import dev.frost819.newbv.player.VideoPlayerListener
 import dev.frost819.newbv.player.VideoPlayerOptions
 import dev.frost819.newbv.player.impl.exo.ExoPlayerFactory
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -96,6 +99,8 @@ private const val ONLINE_WATCH_REFRESH_MS = 60_000L
  * @param exoPlayerFactory ExoPlayer 工厂
  * @param videoCapabilityProvider 设备视频解码能力查询器（选流时过滤超能力组合）
  * @param cdnSelector CDN 测速选择器（开启自动选源时用于排序候选地址）
+ * @param ioDispatcher IO 协程调度器（测试中可替换为 TestDispatcher）
+ * @param mainDispatcher Main 协程调度器（测试中可替换为 TestDispatcher）
  */
 @HiltViewModel
 class PlayerViewModel
@@ -111,6 +116,8 @@ class PlayerViewModel
         private val favoriteRepository: FavoriteRepository,
         private val oneClickTripleActionRepository: OneClickTripleActionRepository,
         private val cdnSelector: CdnSelector,
+        @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        @MainDispatcher private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
     ) : ViewModel() {
         private val logger = Loggers.get("PlayerViewModel")
 
@@ -726,14 +733,19 @@ class PlayerViewModel
 
             // 异步加载详情 + 历史进度（不阻塞 playVideoWithResources）
             if (shouldUpdateDetail) {
-                viewModelScope.launch(Dispatchers.IO) {
-                    videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
-                    // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
-                    val sharedState = videoInfoRepository.videoSharedState.value
-                    val historyCid = sharedState?.lastPlayedCid ?: 0L
-                    val historyTime = sharedState?.lastPlayedTime ?: 0
-                    if (historyCid == newVideo.cid && historyTime > 0) {
-                        _uiState.update { it.copy(lastPlayed = historyTime) }
+                viewModelScope.launch(ioDispatcher) {
+                    runCatching {
+                        videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                        // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
+                        val sharedState = videoInfoRepository.videoSharedState.value
+                        val historyCid = sharedState?.lastPlayedCid ?: 0L
+                        val historyTime = sharedState?.lastPlayedTime ?: 0
+                        if (historyCid == newVideo.cid && historyTime > 0) {
+                            _uiState.update { it.copy(lastPlayed = historyTime) }
+                        }
+                    }.onFailure { e ->
+                        if (e is CancellationException && e !is TimeoutCancellationException) throw e
+                        logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                     }
                 }
             }
@@ -979,7 +991,7 @@ class PlayerViewModel
         ) {
             try {
                 val mediaUrls = fetchMediaUrls(aid, cid, epid)
-                withContext(Dispatchers.Main) { executePlayback(mediaUrls) }
+                withContext(mainDispatcher) { executePlayback(mediaUrls) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1289,7 +1301,7 @@ class PlayerViewModel
         private fun startSeekerUpdater() {
             if (seekerUpdateJob?.isActive == true) return
             seekerUpdateJob =
-                viewModelScope.launch(Dispatchers.Main) {
+                viewModelScope.launch(mainDispatcher) {
                     while (isActive) {
                         updateSeekerState()
                         delay(PlayerConstants.SEEKER_UPDATE_INTERVAL_MS)
@@ -1311,7 +1323,7 @@ class PlayerViewModel
             if (!Prefs.showPlayerDebugInfo) return
             if (debugInfoUpdateJob?.isActive == true) return
             debugInfoUpdateJob =
-                viewModelScope.launch(Dispatchers.Main) {
+                viewModelScope.launch(mainDispatcher) {
                     while (isActive) {
                         val player = videoPlayer ?: break
                         _seekerState.update { it.copy(debugInfo = player.debugInfo) }
@@ -1339,7 +1351,7 @@ class PlayerViewModel
         private fun startClockUpdater() {
             clockUpdateJob?.cancel()
             clockUpdateJob =
-                viewModelScope.launch(Dispatchers.Main) {
+                viewModelScope.launch(mainDispatcher) {
                     while (isActive) {
                         val cal = Calendar.getInstance()
                         _uiState.update {

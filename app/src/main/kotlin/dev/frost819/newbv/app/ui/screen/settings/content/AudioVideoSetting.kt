@@ -29,6 +29,7 @@ import dev.frost819.newbv.data.datastore.Audio
 import dev.frost819.newbv.data.datastore.PlaySpeed
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.datastore.Resolution
+import dev.frost819.newbv.data.datastore.ScreensaverTimeout
 import dev.frost819.newbv.data.datastore.VideoCodec
 
 /**
@@ -45,6 +46,7 @@ fun AudioVideoSetting(modifier: Modifier = Modifier) {
     var showVideoCodecDialog by remember { mutableStateOf(false) }
     var showPlaySpeedDialog by remember { mutableStateOf(false) }
     var showActionAfterPlayDialog by remember { mutableStateOf(false) }
+    var showScreensaverTimeoutDialog by remember { mutableStateOf(false) }
     var showPlayerCustomShortcutsDialog by remember { mutableStateOf(false) }
 
     var selectedResolution by remember { mutableStateOf(Prefs.defaultQuality) }
@@ -52,6 +54,7 @@ fun AudioVideoSetting(modifier: Modifier = Modifier) {
     var selectedAudioCodec by remember { mutableStateOf(Prefs.defaultAudio) }
     var selectedPlaySpeed by remember { mutableStateOf(Prefs.defaultPlaySpeed) }
     var selectedActionAfterPlay by remember { mutableStateOf(Prefs.actionAfterPlay) }
+    var selectedScreensaverTimeout by remember { mutableStateOf(Prefs.screensaverTimeout) }
     var playerCustomShortcuts by remember { mutableStateOf(PlayerCustomShortcutsStore.get()) }
 
     var enableFfmpegAudioRenderer by remember { mutableStateOf(Prefs.enableFfmpegAudioRenderer) }
@@ -97,6 +100,11 @@ fun AudioVideoSetting(modifier: Modifier = Modifier) {
             title = "播放结束动作",
             supportText = "当前：${selectedActionAfterPlay.displayName}",
             onClick = { showActionAfterPlayDialog = true },
+        )
+        SettingListItem(
+            title = "防烧屏屏保超时",
+            supportText = "当前：${selectedScreensaverTimeout.displayName}",
+            onClick = { showScreensaverTimeoutDialog = true },
         )
         SettingListItem(
             title = "自定义播放快捷键",
@@ -201,6 +209,19 @@ fun AudioVideoSetting(modifier: Modifier = Modifier) {
             onSelect = {
                 Prefs.actionAfterPlay = it
                 selectedActionAfterPlay = it
+            },
+            getDisplayName = { it.displayName },
+        )
+    }
+
+    if (showScreensaverTimeoutDialog) {
+        OptionDialog(
+            options = ScreensaverTimeout.entries.toTypedArray(),
+            selectedOption = selectedScreensaverTimeout,
+            onDismiss = { showScreensaverTimeoutDialog = false },
+            onSelect = {
+                Prefs.screensaverTimeout = it
+                selectedScreensaverTimeout = it
             },
             getDisplayName = { it.displayName },
         )

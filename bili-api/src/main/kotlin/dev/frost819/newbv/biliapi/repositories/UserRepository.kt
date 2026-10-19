@@ -21,10 +21,76 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
-class UserRepository(
+/**
+ * 用户数据仓库接口。
+ */
+interface UserRepository {
+    suspend fun followUser(
+        mid: Long,
+        preferApiType: ApiType,
+    ): Boolean
+
+    suspend fun unfollowUser(
+        mid: Long,
+        preferApiType: ApiType,
+    ): Boolean
+
+    suspend fun checkIsFollowing(mid: Long): Boolean?
+
+    suspend fun getFollowingUpCount(
+        mid: Long,
+        preferApiType: ApiType,
+    ): Int
+
+    suspend fun addSeasonFollow(
+        seasonId: Int,
+        preferApiType: ApiType,
+    ): String
+
+    suspend fun delSeasonFollow(
+        seasonId: Int,
+        preferApiType: ApiType,
+    ): String
+
+    /**
+     * 获取用户空间信息（昵称、头像、签名、等级、关注状态等）。
+     *
+     * 对应接口：`GET /x/space/acc/info`
+     */
+    suspend fun getUserInfo(mid: Long): UserSpaceInfo
+
+    suspend fun getSpaceVideos(
+        mid: Long,
+        order: SpaceVideoOrder = SpaceVideoOrder.PubDate,
+        page: SpaceVideoPage = SpaceVideoPage(),
+        preferApiType: ApiType,
+    ): SpaceVideoData
+
+    suspend fun getDynamicVideos(
+        page: Int,
+        offset: String,
+        updateBaseline: String,
+        preferApiType: ApiType,
+    ): DynamicVideoData
+
+    suspend fun getFollowedUsers(
+        mid: Long,
+        preferApiType: ApiType,
+    ): List<FollowedUser>
+}
+
+/**
+ * 构建默认的 [UserRepository] 实例。
+ */
+fun UserRepository(
+    authRepository: AuthRepository,
+    channelRepository: ChannelRepository,
+): UserRepository = UserRepositoryImpl(authRepository, channelRepository)
+
+open class UserRepositoryImpl(
     private val authRepository: AuthRepository,
     private val channelRepository: ChannelRepository,
-) {
+) : UserRepository {
     private val dynamicStub
         get() =
             runCatching {
@@ -57,17 +123,17 @@ class UserRepository(
         return response.code == 0
     }
 
-    suspend fun followUser(
+    override suspend fun followUser(
         mid: Long,
         preferApiType: ApiType,
     ): Boolean = modifyFollow(mid, FollowAction.AddFollow, preferApiType)
 
-    suspend fun unfollowUser(
+    override suspend fun unfollowUser(
         mid: Long,
         preferApiType: ApiType,
     ): Boolean = modifyFollow(mid, FollowAction.DelFollow, preferApiType)
 
-    suspend fun checkIsFollowing(mid: Long): Boolean? {
+    override suspend fun checkIsFollowing(mid: Long): Boolean? {
         if (authRepository.sessionData == null && authRepository.accessToken == null) return null
         return runCatching {
             val response = BiliHttpApi.getRelations(mid = mid).getResponseData()
@@ -81,7 +147,7 @@ class UserRepository(
         }.getOrNull()
     }
 
-    suspend fun getFollowingUpCount(
+    override suspend fun getFollowingUpCount(
         mid: Long,
         preferApiType: ApiType,
     ): Int {
@@ -103,7 +169,7 @@ class UserRepository(
         }.getOrNull() ?: 0
     }
 
-    suspend fun addSeasonFollow(
+    override suspend fun addSeasonFollow(
         seasonId: Int,
         preferApiType: ApiType,
     ): String =
@@ -125,7 +191,7 @@ class UserRepository(
                     .toast
         }
 
-    suspend fun delSeasonFollow(
+    override suspend fun delSeasonFollow(
         seasonId: Int,
         preferApiType: ApiType,
     ): String =
@@ -152,15 +218,15 @@ class UserRepository(
      *
      * 对应接口：`GET /x/space/acc/info`
      */
-    suspend fun getUserInfo(mid: Long): UserSpaceInfo {
+    override suspend fun getUserInfo(mid: Long): UserSpaceInfo {
         val response = BiliHttpApi.getUserInfo(uid = mid).getResponseData()
         return UserSpaceInfo.fromUserInfoData(response)
     }
 
-    suspend fun getSpaceVideos(
+    override suspend fun getSpaceVideos(
         mid: Long,
-        order: SpaceVideoOrder = SpaceVideoOrder.PubDate,
-        page: SpaceVideoPage = SpaceVideoPage(),
+        order: SpaceVideoOrder,
+        page: SpaceVideoPage,
         preferApiType: ApiType,
     ): SpaceVideoData =
         when (preferApiType) {
@@ -190,7 +256,7 @@ class UserRepository(
             }
         }
 
-    suspend fun getDynamicVideos(
+    override suspend fun getDynamicVideos(
         page: Int,
         offset: String,
         updateBaseline: String,
@@ -228,7 +294,7 @@ class UserRepository(
             }
         }
 
-    suspend fun getFollowedUsers(
+    override suspend fun getFollowedUsers(
         mid: Long,
         preferApiType: ApiType,
     ): List<FollowedUser> =

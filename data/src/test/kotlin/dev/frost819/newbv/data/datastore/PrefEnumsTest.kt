@@ -177,6 +177,38 @@ class PrefEnumsTest {
         assertThat(ActionAfterPlay.fromCode(3)).isEqualTo(ActionAfterPlay.PlayRelated)
     }
 
+    // ===== ScreensaverTimeout =====
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns Never for 0`() {
+        assertThat(ScreensaverTimeout.fromCode(0)).isEqualTo(ScreensaverTimeout.Never)
+        assertThat(ScreensaverTimeout.Never.timeoutMs).isEqualTo(0L)
+    }
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns OneMinute for 1`() {
+        assertThat(ScreensaverTimeout.fromCode(1)).isEqualTo(ScreensaverTimeout.OneMinute)
+        assertThat(ScreensaverTimeout.OneMinute.timeoutMs).isEqualTo(60_000L)
+    }
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns ThreeMinutes for 2`() {
+        assertThat(ScreensaverTimeout.fromCode(2)).isEqualTo(ScreensaverTimeout.ThreeMinutes)
+        assertThat(ScreensaverTimeout.ThreeMinutes.timeoutMs).isEqualTo(180_000L)
+    }
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns FiveMinutes for 3`() {
+        assertThat(ScreensaverTimeout.fromCode(3)).isEqualTo(ScreensaverTimeout.FiveMinutes)
+        assertThat(ScreensaverTimeout.FiveMinutes.timeoutMs).isEqualTo(300_000L)
+    }
+
+    @Test
+    fun `ScreensaverTimeout fromCode returns TenMinutes for 4`() {
+        assertThat(ScreensaverTimeout.fromCode(4)).isEqualTo(ScreensaverTimeout.TenMinutes)
+        assertThat(ScreensaverTimeout.TenMinutes.timeoutMs).isEqualTo(600_000L)
+    }
+
     // ===== Audio =====
 
     @Test

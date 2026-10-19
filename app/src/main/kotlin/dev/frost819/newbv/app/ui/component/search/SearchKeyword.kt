@@ -26,6 +26,15 @@ fun SearchKeyword(
         modifier = modifier,
         selected = false,
         onClick = onClick,
+        colors =
+            androidx.tv.material3.ListItemDefaults.colors(
+                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                focusedContainerColor = androidx.compose.ui.graphics.Color.White,
+                contentColor = androidx.compose.ui.graphics.Color.White,
+                focusedContentColor =
+                    androidx.compose.ui.graphics
+                        .Color(0xFF0F0F0F),
+            ),
         headlineContent = {
             Text(
                 text = keyword,
