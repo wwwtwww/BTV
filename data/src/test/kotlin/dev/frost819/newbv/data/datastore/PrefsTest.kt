@@ -178,8 +178,8 @@ class PrefsTest {
     }
 
     @Test
-    fun `default themeMode is FollowSystem`() {
-        assertThat(Prefs.themeMode).isEqualTo(ThemeMode.FollowSystem)
+    fun `default themeMode is Dark`() {
+        assertThat(Prefs.themeMode).isEqualTo(ThemeMode.Dark)
     }
 
     @Test

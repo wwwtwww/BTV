@@ -94,7 +94,7 @@ fun HomeFilterChips(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+                .padding(horizontal = 24.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -136,23 +136,23 @@ private fun FilterChipItem(
         onClick = onClick,
         modifier =
             modifier
-                .height(34.dp)
+                .height(36.dp)
                 .onFocusChanged { isFocused = it.hasFocus },
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(50)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(18.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor =
-                    if (isSelected) {
-                        Color.White
-                    } else {
-                        Color.White.copy(alpha = 0.10f)
+                    when {
+                        isFocused -> Color.White
+                        isSelected -> Color.White.copy(alpha = 0.16f)
+                        else -> Color.Transparent
                     },
                 contentColor =
-                    if (isSelected) {
-                        Color(0xFF0F0F0F)
-                    } else {
-                        BVColors.DarkOnSurfaceVariant
+                    when {
+                        isFocused -> Color(0xFF0F0F0F)
+                        isSelected -> Color.White
+                        else -> Color.White.copy(alpha = 0.65f)
                     },
                 focusedContainerColor = Color.White,
                 focusedContentColor = Color(0xFF0F0F0F),
@@ -160,13 +160,13 @@ private fun FilterChipItem(
         border =
             ClickableSurfaceDefaults.border(
                 border =
-                    if (isSelected) {
-                        Border.None
-                    } else {
+                    if (isSelected && !isFocused) {
                         Border(
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                            shape = RoundedCornerShape(18.dp),
                         )
+                    } else {
+                        Border.None
                     },
                 focusedBorder = Border.None,
             ),
@@ -177,7 +177,7 @@ private fun FilterChipItem(
         ) {
             Text(
                 text = tab.title,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
             )
         }

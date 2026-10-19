@@ -143,9 +143,9 @@ fun LeftNaviContent(
             SurfaceDefaults.colors(
                 containerColor =
                     if (isExpanded) {
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
+                        Color(0xFF141720)
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        Color(0xFF0E121A)
                     },
             ),
     ) {
@@ -293,7 +293,7 @@ private fun DrawerNavItem(
                     } else {
                         Color.Transparent
                     },
-                contentColor = Color.White,
+                contentColor = if (isSelected) Color.White else Color(0xFFD6D6D6),
                 focusedContainerColor = Color.White,
                 focusedContentColor = Color(0xFF0F0F0F),
             ),
@@ -332,7 +332,7 @@ private fun DrawerNavItem(
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isFocused) Color(0xFF444444) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isFocused) Color(0xFF444444) else Color(0xFFAAAAAA),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

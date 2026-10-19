@@ -403,10 +403,10 @@ object Prefs {
     /** 显示搜索热词。 */
     var showHotword by pref(PrefKeys.showHotword, true)
 
-    /** 主题模式（跟随系统/深色/浅色）。 */
+    /** 主题模式（跟随系统/深色/浅色，TV 客户端默认强制深色）。 */
     var themeMode by pref(
         PrefKeys.themeMode,
-        ThemeMode.FollowSystem,
+        ThemeMode.Dark,
         save = { it.ordinal },
         restore = { ThemeMode.fromOrdinal(it) },
     )
@@ -427,8 +427,8 @@ object Prefs {
             (delegateMap[PrefKeys.themeMode] as? PrefDelegate<ThemeMode, Int>)
                 ?.flow
                 ?.map { ThemeMode.fromOrdinal(it as? Int ?: 0) }
-                ?.stateIn(scope, SharingStarted.Eagerly, ThemeMode.FollowSystem)
-                ?: MutableStateFlow(ThemeMode.FollowSystem)
+                ?.stateIn(scope, SharingStarted.Eagerly, ThemeMode.Dark)
+                ?: MutableStateFlow(ThemeMode.Dark)
 
     /** Density Flow（实时响应设置变更）。 */
     val densityFlow: StateFlow<Float>
