@@ -153,8 +153,16 @@ class VideoDetailViewModel
             cid: Long,
             title: String,
         ) {
+            val pages = _uiState.value.detail?.pages
             videoInfoRepository.updateVideoList(
-                listOf(VideoListItem(aid = aid, cid = cid, title = title)),
+                listOf(
+                    VideoListItem(
+                        aid = aid,
+                        cid = cid,
+                        title = title,
+                        ugcPages = pages?.takeIf { it.size > 1 },
+                    ),
+                ),
             )
         }
 
@@ -169,7 +177,13 @@ class VideoDetailViewModel
             val detail = _uiState.value.detail ?: return
             val partVideoList =
                 detail.ugcSeason?.sections?.getOrNull(sectionIndex)?.episodes?.map {
-                    VideoListItem(aid = it.aid, cid = it.cid, title = it.title)
+                    val epPages = if (it.aid == detail.aid) detail.pages.takeIf { p -> p.size > 1 } else null
+                    VideoListItem(
+                        aid = it.aid,
+                        cid = it.cid,
+                        title = it.title,
+                        ugcPages = epPages,
+                    )
                 } ?: return
             videoInfoRepository.updateVideoList(partVideoList)
         }

@@ -766,6 +766,46 @@ class PlayerViewModelTest {
             }
         }
 
+    @Test
+    fun `checkAndPlayNext with multi-page video triggers countdown for next page`() =
+        runTest(testDispatcher) {
+            every { Prefs.actionAfterPlay } returns ActionAfterPlay.PlayNext
+            val parentItem = dev.frost819.newbv.app.entity.player.VideoListItem(
+                aid = 1L,
+                cid = 100L,
+                title = "Video 1",
+                ugcPages = listOf(
+                    dev.frost819.newbv.biliapi.entity.video.VideoPage(cid = 100L, page = 1, part = "P1"),
+                    dev.frost819.newbv.biliapi.entity.video.VideoPage(cid = 101L, page = 2, part = "P2"),
+                ),
+            )
+            every { videoInfoRepository.videoList } returns MutableStateFlow(listOf(parentItem))
+
+            viewModel.checkAndPlayNext()
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.showSkipToNextEp).isTrue()
+        }
+
+    @Test
+    fun `playNewVideo preserves current mediaProfile quality`() =
+        runTest(testDispatcher) {
+            updateUiState {
+                it.copy(
+                    mediaProfileState = dev.frost819.newbv.app.ui.state.player.MediaProfileState(
+                        qualityId = 120,
+                        videoCodec = dev.frost819.newbv.biliapi.entity.CodeType.CodeTypeHevc,
+                        audio = dev.frost819.newbv.biliapi.entity.Audio.AudioHiRes,
+                    ),
+                )
+            }
+
+            viewModel.playNewVideo(dev.frost819.newbv.app.entity.player.VideoListItem(aid = 1L, cid = 102L, title = "P2"))
+
+            assertThat(viewModel.uiState.value.mediaProfileState.qualityId).isEqualTo(120)
+            assertThat(viewModel.uiState.value.mediaProfileState.videoCodec).isEqualTo(dev.frost819.newbv.biliapi.entity.CodeType.CodeTypeHevc)
+        }
+
     // ── cancelPlayNext test ───────────────────────────────────
 
     @Test

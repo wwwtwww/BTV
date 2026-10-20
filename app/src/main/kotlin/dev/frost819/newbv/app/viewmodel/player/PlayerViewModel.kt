@@ -326,6 +326,40 @@ class PlayerViewModel
                         authorName = detail.author.name,
                     )
                 }
+
+                // 自动补全播放列表（多 P 分集与合集），确保即点即播时也能连播下一集
+                val currentList = videoInfoRepository.videoList.value
+                val isListIncomplete = currentList.isEmpty() ||
+                    (currentList.size == 1 && currentList[0].ugcPages.isNullOrEmpty())
+                if (isListIncomplete) {
+                    val ugcSeason = detail.ugcSeason
+                    if (ugcSeason != null && ugcSeason.sections.isNotEmpty()) {
+                        val targetSection = ugcSeason.sections.firstOrNull { section ->
+                            section.episodes.any { it.aid == detail.aid }
+                        } ?: ugcSeason.sections.first()
+                        val episodeList = targetSection.episodes.map { ep ->
+                            val epPages = if (ep.aid == detail.aid) detail.pages.takeIf { it.size > 1 } else null
+                            VideoListItem(
+                                aid = ep.aid,
+                                cid = ep.cid,
+                                title = ep.title,
+                                ugcPages = epPages,
+                            )
+                        }
+                        videoInfoRepository.updateVideoList(episodeList)
+                    } else if (detail.pages.size > 1) {
+                        videoInfoRepository.updateVideoList(
+                            listOf(
+                                VideoListItem(
+                                    aid = detail.aid,
+                                    cid = detail.cid,
+                                    title = detail.title,
+                                    ugcPages = detail.pages,
+                                ),
+                            ),
+                        )
+                    }
+                }
             }
             val sharedState = videoInfoRepository.videoSharedState.value
             val historyCid = sharedState?.lastPlayedCid ?: 0L
@@ -720,9 +754,9 @@ class PlayerViewModel
                     shortcutTipText = null,
                     mediaProfileState =
                         MediaProfileState(
-                            qualityId = Prefs.defaultQuality.code,
-                            videoCodec = Prefs.defaultVideoCodec,
-                            audio = Prefs.defaultAudio,
+                            qualityId = state.mediaProfileState.qualityId,
+                            videoCodec = state.mediaProfileState.videoCodec,
+                            audio = state.mediaProfileState.audio,
                         ),
                 )
             }
@@ -1469,7 +1503,12 @@ class PlayerViewModel
             when (target) {
                 is NextPlayTarget.UgcPage ->
                     playNewVideo(
-                        VideoListItem(aid = target.parentVideo.aid, cid = target.page.cid, title = target.title),
+                        VideoListItem(
+                            aid = target.parentVideo.aid,
+                            cid = target.page.cid,
+                            title = target.title,
+                            ugcPages = target.parentVideo.ugcPages,
+                        ),
                     )
                 is NextPlayTarget.VideoItem ->
                     playNewVideo(
@@ -1479,6 +1518,7 @@ class PlayerViewModel
                             title = target.title,
                             epid = target.video.epid,
                             seasonId = target.video.seasonId,
+                            ugcPages = target.video.ugcPages,
                         ),
                     )
             }
