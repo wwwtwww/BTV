@@ -129,8 +129,9 @@ class HomeViewModel
                 return
             }
 
+            _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
+
             recommendLoadJob = viewModelScope.launch {
-                _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
 
                 // 首次加载（列表为空）需要连续请求补齐首屏；已有数据时每次只追加一页，
                 val isFirstLoad = _uiState.value.recommendItems.isEmpty()
@@ -161,9 +162,9 @@ class HomeViewModel
 
                         if (data.items.isEmpty()) {
                             logger.debug {
-                                "loadRecommend received empty items on page $recommendNextPage"
+                                "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
                             }
-                            _uiState.update { it.copy(recommendHasMore = false) }
+                            // 遇到偶发空页时不推进游标，保持游标以便下次重试同一页（避免永久跳页丢失数据）
                             break
                         }
 
@@ -172,7 +173,6 @@ class HomeViewModel
                         _uiState.update {
                             it.copy(
                                 recommendItems = it.recommendItems + data.items,
-                                recommendHasMore = data.items.isNotEmpty(),
                             )
                         }
                         loadCount++
@@ -223,8 +223,9 @@ class HomeViewModel
                 return
             }
 
+            _uiState.update { it.copy(popularLoading = true, popularError = false) }
+
             popularLoadJob = viewModelScope.launch {
-                _uiState.update { it.copy(popularLoading = true, popularError = false) }
 
                 try {
                     runCatching {
@@ -283,8 +284,9 @@ class HomeViewModel
             val current = _uiState.value
             if (current.dynamicLoading || !current.dynamicHasMore) return
 
+            _uiState.update { it.copy(dynamicLoading = true, dynamicError = false) }
+
             dynamicLoadJob = viewModelScope.launch {
-                _uiState.update { it.copy(dynamicLoading = true, dynamicError = false) }
 
                 val nextPage = dynamicCurrentPage + 1
                 try {

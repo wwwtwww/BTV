@@ -12,6 +12,7 @@
 # Gradle
 .gradle/
 gradle-app.setting
+.kotlin/
 
 # ========================================
 # IDE

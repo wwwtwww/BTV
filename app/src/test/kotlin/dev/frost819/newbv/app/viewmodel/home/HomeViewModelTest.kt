@@ -223,23 +223,6 @@ class HomeViewModelTest {
             assertThat(state.recommendItems.first().aid).isEqualTo(111L)
         }
 
-    @Test
-    fun `loadRecommend sets recommendHasMore to false when empty items returned`() =
-        runTest(testDispatcher) {
-            viewModel = createViewModel()
-            advanceUntilIdle()
-
-            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
-                RecommendData(
-                    items = emptyList(),
-                    nextPage = RecommendPage(),
-                )
-
-            viewModel.loadRecommend()
-            advanceUntilIdle()
-
-            assertThat(viewModel.uiState.value.recommendHasMore).isFalse()
-        }
 
     @Test
     fun `refreshPopular clears and reloads`() =
