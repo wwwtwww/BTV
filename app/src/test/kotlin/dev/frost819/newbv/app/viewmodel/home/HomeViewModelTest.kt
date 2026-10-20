@@ -192,6 +192,56 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun `refreshRecommend cancels in-flight load and reloads fresh data`() =
+        runTest(testDispatcher) {
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } coAnswers {
+                kotlinx.coroutines.delay(1000)
+                RecommendData(
+                    items = listOf(fakeUgcItem(999)),
+                    nextPage = RecommendPage(),
+                )
+            }
+
+            viewModel.loadRecommend()
+            assertThat(viewModel.uiState.value.recommendLoading).isTrue()
+
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+                RecommendData(
+                    items = listOf(fakeUgcItem(111)),
+                    nextPage = RecommendPage(),
+                )
+
+            viewModel.refreshRecommend()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.recommendItems).isNotEmpty()
+            assertThat(state.recommendItems.none { it.aid == 999L }).isTrue()
+            assertThat(state.recommendItems.first().aid).isEqualTo(111L)
+        }
+
+    @Test
+    fun `loadRecommend sets recommendHasMore to false when empty items returned`() =
+        runTest(testDispatcher) {
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+                RecommendData(
+                    items = emptyList(),
+                    nextPage = RecommendPage(),
+                )
+
+            viewModel.loadRecommend()
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.recommendHasMore).isFalse()
+        }
+
+    @Test
     fun `refreshPopular clears and reloads`() =
         runTest(testDispatcher) {
             viewModel = createViewModel()

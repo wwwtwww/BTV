@@ -13,7 +13,9 @@ import dev.frost819.newbv.biliapi.repositories.RecommendVideoRepository
 import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
+import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,9 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import javax.inject.Inject
 import dev.frost819.newbv.biliapi.entity.ApiType as BiliApiType
 import dev.frost819.newbv.data.datastore.ApiType as DataApiType
 
@@ -86,6 +88,10 @@ class HomeViewModel
         private var dynamicHistoryOffset: String? = null
         private var dynamicUpdateBaseline: String? = null
 
+        private var recommendLoadJob: Job? = null
+        private var popularLoadJob: Job? = null
+        private var dynamicLoadJob: Job? = null
+
         init {
             _uiState.update { it.copy(isLogin = Prefs.isLogin) }
             loadRecommend()
@@ -117,22 +123,22 @@ class HomeViewModel
          * 最终为空时才置 [HomeUiState.recommendError]。
          */
         fun loadRecommend() {
-            viewModelScope.launch {
-                val current = _uiState.value
-                if (current.recommendLoading) {
-                    logger.debug { "loadRecommend skipped: loading=${current.recommendLoading}" }
-                    return@launch
-                }
+            val current = _uiState.value
+            if (current.recommendLoading || !current.recommendHasMore) {
+                logger.debug { "loadRecommend skipped: loading=${current.recommendLoading}, hasMore=${current.recommendHasMore}" }
+                return
+            }
 
+            recommendLoadJob = viewModelScope.launch {
                 _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
 
                 // 首次加载（列表为空）需要连续请求补齐首屏；已有数据时每次只追加一页，
-                val isFirstLoad = current.recommendItems.isEmpty()
+                val isFirstLoad = _uiState.value.recommendItems.isEmpty()
                 val maxLoadCount = if (isFirstLoad) 3 else 1
                 var loadCount = 0
                 var failed = false
                 try {
-                    while (loadCount < maxLoadCount) {
+                    while (loadCount < maxLoadCount && isActive) {
                         var fetchedData: RecommendData? = null
                         runCatching {
                             withTimeout(LOAD_TIMEOUT_MS) {
@@ -155,16 +161,19 @@ class HomeViewModel
 
                         if (data.items.isEmpty()) {
                             logger.debug {
-                                "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
+                                "loadRecommend received empty items on page $recommendNextPage"
                             }
-                            // 遇到偶发空页时不推进游标，保持游标以便下次重试同一页（避免永久跳页丢失数据）
+                            _uiState.update { it.copy(recommendHasMore = false) }
                             break
                         }
 
                         // 仅在成功获取非空数据后推进游标
                         recommendNextPage = data.nextPage
                         _uiState.update {
-                            it.copy(recommendItems = it.recommendItems + data.items)
+                            it.copy(
+                                recommendItems = it.recommendItems + data.items,
+                                recommendHasMore = data.items.isNotEmpty(),
+                            )
                         }
                         loadCount++
                         if (!isFirstLoad || _uiState.value.recommendItems.size >= 24) break
@@ -187,9 +196,15 @@ class HomeViewModel
          * 清空推荐数据并重新加载。
          */
         fun refreshRecommend() {
+            recommendLoadJob?.cancel()
             recommendNextPage = RecommendPage()
             _uiState.update {
-                it.copy(recommendItems = emptyList(), recommendHasMore = true, recommendError = false)
+                it.copy(
+                    recommendItems = emptyList(),
+                    recommendLoading = false,
+                    recommendHasMore = true,
+                    recommendError = false,
+                )
             }
             loadRecommend()
         }
@@ -200,15 +215,15 @@ class HomeViewModel
          * 超过 [LOAD_TIMEOUT_MS] 未返回时标记为加载失败。
          */
         fun loadPopular() {
-            viewModelScope.launch {
-                val current = _uiState.value
-                if (current.popularLoading || !current.popularHasMore) {
-                    logger.debug {
-                        "loadPopular skipped: loading=${current.popularLoading}, hasMore=${current.popularHasMore}"
-                    }
-                    return@launch
+            val current = _uiState.value
+            if (current.popularLoading || !current.popularHasMore) {
+                logger.debug {
+                    "loadPopular skipped: loading=${current.popularLoading}, hasMore=${current.popularHasMore}"
                 }
+                return
+            }
 
+            popularLoadJob = viewModelScope.launch {
                 _uiState.update { it.copy(popularLoading = true, popularError = false) }
 
                 try {
@@ -244,9 +259,15 @@ class HomeViewModel
          * 清空热门数据并重新加载。
          */
         fun refreshPopular() {
+            popularLoadJob?.cancel()
             popularNextPage = PopularVideoPage()
             _uiState.update {
-                it.copy(popularItems = emptyList(), popularHasMore = true, popularError = false)
+                it.copy(
+                    popularItems = emptyList(),
+                    popularLoading = false,
+                    popularHasMore = true,
+                    popularError = false,
+                )
             }
             loadPopular()
         }
@@ -259,10 +280,10 @@ class HomeViewModel
          */
         fun loadDynamic() {
             if (!_uiState.value.isLogin) return
-            viewModelScope.launch {
-                val current = _uiState.value
-                if (current.dynamicLoading || !current.dynamicHasMore) return@launch
+            val current = _uiState.value
+            if (current.dynamicLoading || !current.dynamicHasMore) return
 
+            dynamicLoadJob = viewModelScope.launch {
                 _uiState.update { it.copy(dynamicLoading = true, dynamicError = false) }
 
                 val nextPage = dynamicCurrentPage + 1
@@ -303,11 +324,17 @@ class HomeViewModel
          * 清空动态数据并重新加载。
          */
         fun refreshDynamic() {
+            dynamicLoadJob?.cancel()
             dynamicCurrentPage = 0
             dynamicHistoryOffset = null
             dynamicUpdateBaseline = null
             _uiState.update {
-                it.copy(dynamicItems = emptyList(), dynamicHasMore = true, dynamicError = false)
+                it.copy(
+                    dynamicItems = emptyList(),
+                    dynamicLoading = false,
+                    dynamicHasMore = true,
+                    dynamicError = false,
+                )
             }
             loadDynamic()
         }

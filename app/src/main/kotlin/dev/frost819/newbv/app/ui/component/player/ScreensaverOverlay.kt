@@ -60,7 +60,7 @@ import kotlin.random.Random
 @Stable
 class ScreensaverState internal constructor(
     initialActive: Boolean = false,
-    private val timeProvider: () -> Long = System::currentTimeMillis,
+    internal val timeProvider: () -> Long = System::currentTimeMillis,
 ) {
     /** 屏保是否处于激活展示状态。 */
     var isScreensaverActive by mutableStateOf(initialActive)
@@ -93,29 +93,31 @@ class ScreensaverState internal constructor(
  *
  * @param isPausedOrEnded 当前播放器是否处于暂停或播放结束状态。
  * @param timeoutMs 超时时长（毫秒）。若为 0 或负数则关闭屏保计时。
+ * @param timeProvider 当前时间戳提供者（毫秒），默认使用系统当前时间。
  */
 @Composable
 fun rememberScreensaverState(
     isPausedOrEnded: Boolean,
     timeoutMs: Long,
+    timeProvider: () -> Long = System::currentTimeMillis,
 ): ScreensaverState {
-    val state = remember { ScreensaverState() }
+    val state = remember(timeProvider) { ScreensaverState(timeProvider = timeProvider) }
 
-    LaunchedEffect(isPausedOrEnded, timeoutMs) {
+    LaunchedEffect(isPausedOrEnded, timeoutMs, state) {
         if (!isPausedOrEnded || timeoutMs <= 0L) {
             state.isScreensaverActive = false
             return@LaunchedEffect
         }
-        state.lastInteractionTime = System.currentTimeMillis()
+        state.lastInteractionTime = state.timeProvider()
         while (isActive) {
-            val elapsed = System.currentTimeMillis() - state.lastInteractionTime
+            val elapsed = state.timeProvider() - state.lastInteractionTime
             val remaining = timeoutMs - elapsed
             if (remaining <= 0) {
                 state.isScreensaverActive = true
                 // 屏保展示期间挂起协程，暂停每秒轮询以节省 CPU；
                 // 直到用户按键退出屏保（isScreensaverActive 重置为 false）再恢复并重置计时
                 snapshotFlow { state.isScreensaverActive }.first { !it }
-                state.lastInteractionTime = System.currentTimeMillis()
+                state.lastInteractionTime = state.timeProvider()
             } else {
                 delay(remaining.coerceAtLeast(500L))
             }

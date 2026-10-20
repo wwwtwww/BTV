@@ -247,9 +247,11 @@ fun VideoPlayerController(
         when (action) {
             PlayerCustomShortcutAction.OpenSettings -> showMenuController = true
             PlayerCustomShortcutAction.OpenRelatedVideos -> {
-                if (!isPgc && uiState.relatedVideos.isNotEmpty()) {
-                    showRelatedVideosController = true
+                if (uiState.relatedVideos.isEmpty()) {
+                    showShortcutTip(action, "暂无可展示内容")
+                    return
                 }
+                showRelatedVideosController = true
             }
             PlayerCustomShortcutAction.PlayPrevious -> onPlayPrevious()
             PlayerCustomShortcutAction.PlayNext -> onPlayNext()

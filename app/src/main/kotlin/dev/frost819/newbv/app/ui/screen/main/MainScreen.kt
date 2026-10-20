@@ -45,7 +45,7 @@ import dev.frost819.newbv.data.datastore.Prefs
  * 左侧 [NavigationDrawer]（焦点自动展开/折叠抽屉）+ 右侧内容区（[AnimatedContent] 切换）。
  *
  * 左侧栏：用户头像（点击显示 [UserPanel]）+ 6 导航项 + 设置。
- * 内容区：Home / Search / Personal / UGC / PGC / Live（后 5 项为占位）。
+ * 内容区：Home / Search / Personal / UGC / PGC / Live，按 [LeftNaviItem] 切换。
  *
  * 双击返回退出：首次返回显示 Toast，3 秒内再次返回退出 App。
  *
