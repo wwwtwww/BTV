@@ -28,7 +28,7 @@ import androidx.tv.material3.lightColorScheme as tvLight
 /**
  * new BV 根主题。
  *
- * 根据 [ThemeMode] 与系统状态选择深/浅色板，并提供自定义密度与字体缩放。
+ * 根据 [ThemeMode] 与系统状态选择深/浅色板，并提供统一的字体、圆角与屏幕密度缩放。
  * 可嵌套调用：播放器需要在浅色应用下固定使用深色主题时，用
  * `BVTheme(themeMode = ThemeMode.Dark, density = LocalDensity.current.density)` 包裹即可。
  *
@@ -130,10 +130,12 @@ fun BVTheme(
     TvMaterialTheme(
         colorScheme = tvColorScheme,
         typography = BVTypography.tv,
+        shapes = BVShape.tv,
     ) {
         CommonMaterialTheme(
             colorScheme = commonColorScheme,
             typography = BVTypography.common,
+            shapes = BVShape.common,
         ) {
             CompositionLocalProvider(
                 LocalRippleConfiguration provides null,

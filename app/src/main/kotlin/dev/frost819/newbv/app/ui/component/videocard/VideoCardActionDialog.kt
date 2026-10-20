@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.component.videocard
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +75,7 @@ fun VideoCardActionDialog(
             modifier =
                 Modifier
                     .width(420.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(BVShape.large)
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(20.dp),
         ) {
@@ -171,7 +173,7 @@ private fun ActionDialogItem(
             Modifier
                 .fillMaxWidth()
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.medium),
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),

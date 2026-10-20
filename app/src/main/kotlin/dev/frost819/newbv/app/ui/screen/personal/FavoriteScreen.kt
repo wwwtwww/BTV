@@ -36,6 +36,7 @@ import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.personal.PersonalViewModel
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -112,8 +113,7 @@ fun FavoriteScreen(
                         shape =
                             androidx.tv.material3.ClickableSurfaceDefaults.shape(
                                 shape =
-                                    androidx.compose.foundation.shape
-                                        .RoundedCornerShape(50),
+                                    BVShape.pill,
                             ),
                         colors =
                             focusInvertedColors(

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
+import dev.frost819.newbv.core.theme.BVShape
 import androidx.tv.material3.MaterialTheme
 
 /**
@@ -57,7 +58,7 @@ fun <T : Enum<T>> OptionDialog(
                 Modifier
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {

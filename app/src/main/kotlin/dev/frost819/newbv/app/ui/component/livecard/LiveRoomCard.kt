@@ -30,6 +30,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.BVTypography
 
 /**
  * 直播卡片。
@@ -125,7 +127,7 @@ private fun LiveCardCover(
                     Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(BVShape.small)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
@@ -149,13 +151,13 @@ private fun LiveCardCover(
                 modifier =
                     Modifier
                         .size(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
+                        .clip(BVShape.circle)
                         .background(MaterialTheme.colorScheme.error),
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = onlineString,
-                style = MaterialTheme.typography.labelSmall,
+                style = BVTypography.tabular(MaterialTheme.typography.labelSmall),
                 color = Color.White,
                 maxLines = 1,
             )

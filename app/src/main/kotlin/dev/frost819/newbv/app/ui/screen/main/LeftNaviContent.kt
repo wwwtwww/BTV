@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.main
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -284,7 +286,7 @@ private fun DrawerNavItem(
                 .onFocusChanged {
                     isFocused = it.hasFocus
                 }.selectionIndicator(indicatorColor),
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.medium),
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor =

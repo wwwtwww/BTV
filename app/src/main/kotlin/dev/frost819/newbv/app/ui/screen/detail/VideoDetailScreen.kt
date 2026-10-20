@@ -102,6 +102,7 @@ import dev.frost819.newbv.biliapi.entity.video.VideoPage
 import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -692,7 +693,7 @@ private fun VideoInfoHeader(
                             modifier =
                                 Modifier
                                     .size(24.dp)
-                                    .clip(RoundedCornerShape(12.dp)),
+                                    .clip(BVShape.circle),
                             contentScale = ContentScale.Crop,
                         )
                         Text(

@@ -306,7 +306,12 @@ private fun Clock(
         modifier = modifier,
         color = MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Bold,
-        style = TextStyle(shadow = Shadow(color = Color.Black, blurRadius = 1f)),
+        style =
+            TextStyle(
+                shadow = Shadow(color = Color.Black, blurRadius = 1f),
+                fontFeatureSettings = "tnum",
+                letterSpacing = 0.5.sp,
+            ),
         text =
             buildAnnotatedString {
                 withStyle(SpanStyle(fontSize = 32.sp)) {

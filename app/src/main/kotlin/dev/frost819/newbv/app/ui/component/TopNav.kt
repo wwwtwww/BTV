@@ -35,6 +35,7 @@ import androidx.tv.material3.TabRow
 import androidx.tv.material3.TabRowScope
 import androidx.tv.material3.Text
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * 顶部导航 Tab 栏。
@@ -121,9 +122,9 @@ private fun TabRowScope.NavItemTab(
         modifier =
             modifier
                 .onFocusChanged { hasFocus = it.hasFocus }
-                .clip(RoundedCornerShape(50))
+                .clip(BVShape.pill)
                 .background(containerColor)
-                .border(2.dp, borderColor, RoundedCornerShape(50))
+                .border(2.dp, borderColor, BVShape.pill)
                 .touchClickable(onClick = onClick),
         selected = selected,
         onFocus = onFocus,

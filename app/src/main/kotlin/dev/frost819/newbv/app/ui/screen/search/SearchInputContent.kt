@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.search
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -226,7 +228,7 @@ fun SearchInputContent(
                 value = inputState.keyword,
                 onValueChange = { inputViewModel.updateKeyword(it) },
                 maxLines = 1,
-                shape = RoundedCornerShape(12.dp),
+                shape = BVShape.medium,
                 colors =
                     OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -332,7 +334,7 @@ fun SearchInputContent(
                                 resultViewModel.switchType(type)
                             },
                             modifier = Modifier.height(32.dp),
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+                            shape = ClickableSurfaceDefaults.shape(BVShape.pill),
                             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                             colors =
                                 ClickableSurfaceDefaults.colors(
@@ -367,7 +369,7 @@ fun SearchInputContent(
                                     focusedBorder =
                                         Border(
                                             border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                                            shape = RoundedCornerShape(50),
+                                            shape = BVShape.pill,
                                         ),
                                 ),
                         ) {

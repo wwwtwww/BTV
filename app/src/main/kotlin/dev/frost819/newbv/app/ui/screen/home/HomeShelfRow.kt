@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.home
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,7 +96,7 @@ fun HomeShelfRow(
             if (onSeeAllClick != null) {
                 Surface(
                     onClick = onSeeAllClick,
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+                    shape = ClickableSurfaceDefaults.shape(BVShape.pill),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                     colors =
                         ClickableSurfaceDefaults.colors(

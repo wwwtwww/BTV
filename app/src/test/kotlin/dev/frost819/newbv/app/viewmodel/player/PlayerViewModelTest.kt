@@ -775,8 +775,20 @@ class PlayerViewModelTest {
                 cid = 100L,
                 title = "Video 1",
                 ugcPages = listOf(
-                    dev.frost819.newbv.biliapi.entity.video.VideoPage(cid = 100L, page = 1, part = "P1"),
-                    dev.frost819.newbv.biliapi.entity.video.VideoPage(cid = 101L, page = 2, part = "P2"),
+                    dev.frost819.newbv.biliapi.entity.video.VideoPage(
+                        cid = 100L,
+                        index = 1,
+                        title = "P1",
+                        duration = 100,
+                        dimension = dev.frost819.newbv.biliapi.entity.video.Dimension(1920, 1080),
+                    ),
+                    dev.frost819.newbv.biliapi.entity.video.VideoPage(
+                        cid = 101L,
+                        index = 2,
+                        title = "P2",
+                        duration = 100,
+                        dimension = dev.frost819.newbv.biliapi.entity.video.Dimension(1920, 1080),
+                    ),
                 ),
             )
             every { videoInfoRepository.videoList } returns MutableStateFlow(listOf(parentItem))
@@ -794,8 +806,8 @@ class PlayerViewModelTest {
                 it.copy(
                     mediaProfileState = dev.frost819.newbv.app.ui.state.player.MediaProfileState(
                         qualityId = 120,
-                        videoCodec = dev.frost819.newbv.biliapi.entity.CodeType.CodeTypeHevc,
-                        audio = dev.frost819.newbv.biliapi.entity.Audio.AudioHiRes,
+                        videoCodec = dev.frost819.newbv.data.datastore.VideoCodec.HEVC,
+                        audio = dev.frost819.newbv.data.datastore.Audio.AHiRes,
                     ),
                 )
             }
@@ -803,7 +815,7 @@ class PlayerViewModelTest {
             viewModel.playNewVideo(dev.frost819.newbv.app.entity.player.VideoListItem(aid = 1L, cid = 102L, title = "P2"))
 
             assertThat(viewModel.uiState.value.mediaProfileState.qualityId).isEqualTo(120)
-            assertThat(viewModel.uiState.value.mediaProfileState.videoCodec).isEqualTo(dev.frost819.newbv.biliapi.entity.CodeType.CodeTypeHevc)
+            assertThat(viewModel.uiState.value.mediaProfileState.videoCodec).isEqualTo(dev.frost819.newbv.data.datastore.VideoCodec.HEVC)
         }
 
     // ── cancelPlayNext test ───────────────────────────────────

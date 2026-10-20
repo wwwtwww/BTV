@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -228,7 +230,7 @@ private fun ThresholdOptionDialog(
                 Modifier
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {

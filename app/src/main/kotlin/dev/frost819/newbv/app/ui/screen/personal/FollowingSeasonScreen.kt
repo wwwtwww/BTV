@@ -49,6 +49,7 @@ import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonStatus
 import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonType
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -296,8 +297,7 @@ private fun FilterChip(
         shape =
             androidx.tv.material3.ClickableSurfaceDefaults.shape(
                 shape =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(50),
+                    BVShape.pill,
             ),
         colors =
             focusInvertedColors(

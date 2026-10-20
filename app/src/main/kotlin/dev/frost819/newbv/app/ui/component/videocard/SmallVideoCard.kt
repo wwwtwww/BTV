@@ -41,6 +41,8 @@ import coil3.compose.AsyncImage
 import dev.frost819.newbv.R
 import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.BVTypography
 
 /**
  * 小型视频卡片（对标 YouTube TV 风格）。
@@ -232,18 +234,13 @@ private fun CardCover(
                         Modifier
                             .background(
                                 color = Color.Black.copy(alpha = 0.82f),
-                                shape =
-                                    androidx.compose.foundation.shape
-                                        .RoundedCornerShape(4.dp),
+                                shape = BVShape.small,
                             ).padding(horizontal = 6.dp, vertical = 2.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = time,
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                            ),
+                        style = BVTypography.tabular(MaterialTheme.typography.bodySmall),
                         color = Color.White,
                         maxLines = 1,
                     )

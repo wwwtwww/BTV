@@ -77,6 +77,7 @@ import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 
 /** 集数超过该值时显示网格快速选集按钮。 */
 private const val SEASON_EPISODE_DIALOG_THRESHOLD = 20
@@ -599,7 +600,7 @@ private fun EpisodeCard(
                             Modifier
                                 .align(Alignment.BottomStart)
                                 .padding(4.dp),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = BVShape.small,
                         colors =
                             SurfaceDefaults.colors(
                                 containerColor = MaterialTheme.colorScheme.primary,

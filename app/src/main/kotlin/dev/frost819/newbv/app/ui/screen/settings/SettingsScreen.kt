@@ -44,6 +44,7 @@ import dev.frost819.newbv.app.ui.screen.settings.content.OtherSetting
 import dev.frost819.newbv.app.ui.screen.settings.content.StorageSetting
 import dev.frost819.newbv.app.ui.screen.settings.content.UISetting
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * 设置页主屏幕。
@@ -253,7 +254,7 @@ private fun SettingsMenuButton(
     ListItem(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(BVShape.medium)
                 .onFocusChanged { if (it.hasFocus) onFocus() }
                 .touchClickable(onClick = { onFocus() }),
         selected = selected,

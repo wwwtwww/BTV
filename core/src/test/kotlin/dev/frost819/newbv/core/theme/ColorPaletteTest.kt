@@ -8,7 +8,7 @@ import kotlin.math.pow
 /**
  * new BV 品牌色板测试。
  *
- * 验证主题使用低饱和品牌色，并检查主要文字组合满足可读性要求。
+ * 验证主题使用低饱和品牌色，并检查主要与次级文字组合满足 10-foot 电视可读性要求 (WCAG ≥ 4.5:1)。
  */
 class ColorPaletteTest {
     @Test
@@ -27,10 +27,26 @@ class ColorPaletteTest {
     }
 
     @Test
+    fun `dark theme secondary text has readable contrast`() {
+        assertThat(contrastRatio(BVColors.DarkBackground, BVColors.DarkOnSurfaceVariant))
+            .isAtLeast(MIN_TEXT_CONTRAST)
+        assertThat(contrastRatio(BVColors.DarkSurface, BVColors.DarkOnSurfaceVariant))
+            .isAtLeast(MIN_TEXT_CONTRAST)
+    }
+
+    @Test
     fun `light theme primary text has readable contrast`() {
         assertThat(contrastRatio(BVColors.LightBackground, BVColors.LightOnBackground))
             .isAtLeast(MIN_TEXT_CONTRAST)
         assertThat(contrastRatio(BVColors.LightSurface, BVColors.LightOnSurface))
+            .isAtLeast(MIN_TEXT_CONTRAST)
+    }
+
+    @Test
+    fun `light theme secondary text has readable contrast`() {
+        assertThat(contrastRatio(BVColors.LightBackground, BVColors.LightOnSurfaceVariant))
+            .isAtLeast(MIN_TEXT_CONTRAST)
+        assertThat(contrastRatio(BVColors.LightSurface, BVColors.LightOnSurfaceVariant))
             .isAtLeast(MIN_TEXT_CONTRAST)
     }
 

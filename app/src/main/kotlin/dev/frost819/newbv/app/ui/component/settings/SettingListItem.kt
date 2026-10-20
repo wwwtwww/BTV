@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.Text
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * 设置列表项。
@@ -39,7 +40,7 @@ fun SettingListItem(
     ListItem(
         modifier =
             modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(BVShape.medium)
                 .padding(horizontal = 12.dp)
                 .onFocusChanged { hasFocus = it.hasFocus }
                 .touchClickable(onClick = onClick),

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
 
 /**
@@ -51,7 +52,7 @@ fun VideoProgressSeek(
             modifier
                 .fillMaxWidth()
                 .height(trackWidthDp)
-                .clip(RoundedCornerShape(50)),
+                .clip(BVShape.pill),
     ) {
         val trackWidthPx = trackWidthDp.toPx()
 

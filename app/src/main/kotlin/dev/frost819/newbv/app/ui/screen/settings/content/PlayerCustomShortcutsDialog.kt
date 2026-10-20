@@ -44,6 +44,7 @@ import dev.frost819.newbv.app.entity.player.shortcut.PlayerCustomShortcutKeys
 import dev.frost819.newbv.app.entity.player.shortcut.PlayerCustomShortcutsStore
 import dev.frost819.newbv.app.ui.component.settings.SettingsMenuSelectItem
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * 自定义快捷键配置弹窗。
@@ -180,7 +181,7 @@ private fun MainStage(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {
@@ -261,7 +262,7 @@ private fun CaptureKeyStage(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.6f),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {
@@ -314,7 +315,7 @@ private fun PickActionStage(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {
@@ -376,7 +377,7 @@ private fun PickActionValueStage(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {
@@ -415,7 +416,7 @@ private fun ConfirmClearStage(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(0.7f),
-            shape = RoundedCornerShape(12.dp),
+            shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
         ) {

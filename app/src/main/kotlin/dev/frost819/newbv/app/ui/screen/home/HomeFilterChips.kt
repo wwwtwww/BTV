@@ -28,6 +28,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.core.theme.BVColors
+import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 
@@ -138,7 +139,7 @@ private fun FilterChipItem(
             modifier
                 .height(36.dp)
                 .onFocusChanged { isFocused = it.hasFocus },
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(18.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors =
             ClickableSurfaceDefaults.colors(
@@ -163,7 +164,7 @@ private fun FilterChipItem(
                     if (isSelected && !isFocused) {
                         Border(
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
-                            shape = RoundedCornerShape(18.dp),
+                            shape = BVShape.pill,
                         )
                     } else {
                         Border.None

@@ -62,7 +62,9 @@ import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.biliapi.entity.video.VideoShot
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
+import dev.frost819.newbv.core.theme.BVTypography
 import kotlinx.coroutines.delay
 
 /**
@@ -340,8 +342,7 @@ fun ControllerVideoInfoBottom(
                 text = "$timeText / ${seekerState.totalDuration.formatHourMinSec()}",
                 color = Color.White,
                 style =
-                    TextStyle(
-                        fontWeight = FontWeight.Medium,
+                    BVTypography.timecode.copy(
                         shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 3f),
                     ),
             )
@@ -358,9 +359,7 @@ fun ControllerVideoInfoBottom(
                             MaterialTheme.colorScheme.border.copy(
                                 alpha = if (isSeekFocused) 1f else 0f,
                             ),
-                        shape =
-                            androidx.compose.foundation.shape
-                                .RoundedCornerShape(8.dp),
+                        shape = BVShape.small,
                     ).focusable()
                     .focusRequester(seekFocusRequester)
                     .pointerInput(seekerState.totalDuration) {
@@ -580,7 +579,12 @@ private fun Clock(
         modifier = modifier,
         color = MaterialTheme.colorScheme.onSurface,
         fontWeight = FontWeight.Bold,
-        style = TextStyle(shadow = Shadow(color = Color.Black, blurRadius = 1f)),
+        style =
+            TextStyle(
+                shadow = Shadow(color = Color.Black, blurRadius = 1f),
+                fontFeatureSettings = "tnum",
+                letterSpacing = 0.5.sp,
+            ),
         text =
             buildAnnotatedString {
                 withStyle(SpanStyle(fontSize = 32.sp)) {

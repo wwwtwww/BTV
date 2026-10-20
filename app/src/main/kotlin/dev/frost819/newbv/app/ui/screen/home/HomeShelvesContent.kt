@@ -1,5 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.home
 
+import dev.frost819.newbv.core.theme.BVShape
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -168,7 +170,7 @@ private fun DynamicsLoginBanner(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .height(88.dp),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        shape = ClickableSurfaceDefaults.shape(BVShape.large),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
         colors =
             ClickableSurfaceDefaults.colors(
@@ -186,7 +188,7 @@ private fun DynamicsLoginBanner(
                                 width = 2.dp,
                                 color = MaterialTheme.colorScheme.primary,
                             ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = BVShape.large,
                     ),
             ),
     ) {
