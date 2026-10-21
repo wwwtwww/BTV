@@ -2,6 +2,7 @@ package dev.frost819.newbv.core.theme
 
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography as CommonTypography
 import androidx.tv.material3.Typography as TvTypography
@@ -24,13 +25,13 @@ object BVTypography {
             headlineSmall = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
             headlineMedium = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.SemiBold),
             headlineLarge = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold),
-            titleSmall = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp),
-            titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp),
+            titleSmall = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
             titleLarge = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
             bodySmall = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             bodyMedium = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
             bodyLarge = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Normal),
-            labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp),
+            labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),
             labelMedium = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             labelLarge = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
         )
@@ -44,13 +45,13 @@ object BVTypography {
             headlineSmall = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
             headlineMedium = TextStyle(fontSize = 28.sp, fontWeight = FontWeight.SemiBold),
             headlineLarge = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold),
-            titleSmall = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp),
-            titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp),
+            titleSmall = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
             titleLarge = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
             bodySmall = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             bodyMedium = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
             bodyLarge = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Normal),
-            labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp),
+            labelSmall = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),
             labelMedium = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             labelLarge = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
         )
@@ -65,12 +66,17 @@ object BVTypography {
         )
 
     /**
-     * 将给定的文本样式赋予等宽数字特性 (Tabular Figures, tnum)。
+     * 将给定的文本样式赋予等宽数字特性 (Tabular Figures, tnum) 与微调字距。
      *
-     * 消除时间码、倒计时、播放量等数字跳动时的水平晃动。
+     * 消除时间码、倒计时、播放量等数字跳动时的水平晃动，并赋予数字/英文微调字距（默认 0.5.sp），
+     * 同时保证常规中文标题与元数据保持自然舒展。
      */
-    fun tabular(baseStyle: TextStyle): TextStyle =
+    fun tabular(
+        baseStyle: TextStyle,
+        letterSpacing: TextUnit = 0.5.sp,
+    ): TextStyle =
         baseStyle.copy(
             fontFeatureSettings = "tnum",
+            letterSpacing = letterSpacing,
         )
 }

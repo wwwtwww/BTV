@@ -8,6 +8,7 @@ import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -24,6 +25,14 @@ import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import androidx.tv.material3.darkColorScheme as tvDark
 import androidx.tv.material3.lightColorScheme as tvLight
+
+/**
+ * 提供当前是否处于深色主题模式的 [CompositionLocal]。
+ *
+ * 由 [BVTheme] 根据 [ThemeMode] 与系统偏好权威确定并下发。
+ * 业务组件与交互动效统一读取此状态，避免使用 `surface.luminance() < 0.5f` 启发式推导出现偏差。
+ */
+val LocalIsDarkTheme = compositionLocalOf { true }
 
 /**
  * new BV 根主题。
@@ -140,6 +149,7 @@ fun BVTheme(
             CompositionLocalProvider(
                 LocalRippleConfiguration provides null,
                 LocalDensity provides Density(density = density, fontScale = fontScale),
+                LocalIsDarkTheme provides isDark,
             ) {
                 CommonSurface(color = Color.Transparent) {
                     TvSurface(shape = RoundedCornerShape(0.dp)) {

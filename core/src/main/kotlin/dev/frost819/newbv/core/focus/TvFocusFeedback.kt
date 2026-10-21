@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -44,6 +43,7 @@ import dev.frost819.newbv.core.interaction.InputMethod
 import dev.frost819.newbv.core.interaction.LocalInteractionTracker
 import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.LocalIsDarkTheme
 
 /**
  * 电视端三维立体焦点体系辅助配置与修饰符。
@@ -70,7 +70,7 @@ object TvFocusDefaults {
      */
     @Composable
     fun cardBorder(shape: Shape = BVShape.large): CardBorder {
-        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+        val isDark = LocalIsDarkTheme.current
         val borderColor = if (isDark) {
             MaterialTheme.colorScheme.border
         } else {
@@ -89,7 +89,7 @@ object TvFocusDefaults {
      */
     @Composable
     fun surfaceBorder(shape: Shape = BVShape.large): ClickableSurfaceBorder {
-        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+        val isDark = LocalIsDarkTheme.current
         val borderColor = if (isDark) {
             MaterialTheme.colorScheme.border
         } else {
@@ -157,7 +157,7 @@ fun Modifier.tvFocusFeedback(
                 hasFocus
             }
 
-        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+        val isDark = LocalIsDarkTheme.current
         val activeGlowColor = glowColor ?: BVColors.SecondaryLight
         val activeBorderColor = if (isDark) {
             MaterialTheme.colorScheme.border

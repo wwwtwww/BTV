@@ -54,11 +54,11 @@
 - **实施方案**（已合入 `core/theme/Typography.kt`）：
   - **核心元数据（UP 主名称、播放量、弹幕数）**：由 Regular 统一提升为 **Medium（500）**；
   - **核心标题（视频名、卡片标题）**：统一采用 **SemiBold（600）~ Bold（700）**；
-  - **字距微调**：英文与数字增加 `letterSpacing = 0.5.sp`，中文保持自然舒展，大幅提升远距离瞬间扫读舒适度。
+  - **字距微调**：英文与数字在等宽/时间码场景（通过 `tabular()` 与 `timecode`）微调字距 `letterSpacing = 0.5.sp`，中文保持自然舒展，大幅提升远距离瞬间扫读舒适度。
 
 #### 2. 时间码与数值等宽对齐（Tabular Figures，✅ 已于 P0 落地）
 - **现状分析**：原先播放器下方的实时播放时间（如 `01:23 / 45:10`）和倍速浮动提示在时间跳动时，因非等宽字符导致数字宽度频繁微变，产生微弱的水平视觉抖动。
-- **实施方案**（已合入 `VideoProgressSeek.kt`、`ControllerVideoInfo.kt` 等组件）：
+- **实施方案**（已合入 `ControllerVideoInfo.kt`、`LiveControllerInfo.kt`、`SmallVideoCard.kt`、`LiveRoomCard.kt` 等组件）：
   - 为播放时间码、弹幕数量、视频时长引入等宽字体特性（`FontFeatureSettings("tnum")`，Tabular Numbers）；
   - 彻底消除数字跳动时的水平排版抖动。
 
@@ -152,7 +152,7 @@ flowchart LR
 | 阶段 | 状态 | 优化项 | 涉及核心文件/模块 | 复杂度 | 预估工期 | 风险点与避坑指南 |
 |---|---|---|---|---|---|---|
 | **P0** | **✅ 已完成** | **1. 全局 Shape Tokens 收敛** | `core/theme/BVTheme.kt`<br>全仓各 UI 组件 (~54 处) | **低** | **0.5 ~ 1 人天** | 需全仓替换硬编码的 `RoundedCornerShape(4.dp/8.dp)`，重点检查卡片外沿与封面图片裁切边界是否越界溢出。 |
-| **P0** | **✅ 已完成** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`VideoProgressSeek.kt`<br>`ControllerVideoInfo.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
+| **P0** | **✅ 已完成** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`ControllerVideoInfo.kt`<br>`SmallVideoCard.kt`<br>`LiveRoomCard.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与 `tabular()` 微调字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
 | **P0** | **✅ 已完成** | **3. 双主题色板升级与文字色阶** | `core/theme/Color.kt`<br>`core/theme/BVTheme.kt`<br>各 Screen 标题/副标题 | **中** | **1 ~ 1.5 人天** | 重点排查业务组件中是否存在写死 `Color.White` 或 `Color.Black` 的情况，确保切换浅色主题时自动变为高对比深靛灰。 |
 | **P1** | **⚠️ 部分落地** | **4. 双主题自适应获焦微动效** | `core/focus/TvFocusFeedback.kt`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 1.06x 物理放大与深浅自适应边框已全仓接入生产组件；Glow 发光与 Elevation 投影已完成底层封装储备，因容器边界裁剪暂未接入组件链。 |
 | **P2** | **⏳ 待办 (TODO)** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（键盘宽度由 40% 缩减至 28~30%），右侧视频卡片网格从 2 列升为 3 列，需重点调试遥控器在键盘与网格之间的自然寻焦。 |

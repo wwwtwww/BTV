@@ -2,6 +2,7 @@ package dev.frost819.newbv.app.ui.screen.main
 
 import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.LocalIsDarkTheme
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -51,7 +52,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
+
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -122,7 +123,7 @@ fun LeftNaviContent(
     }
 
     val isExpanded = focusSettled && hasLocalFocus
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDarkTheme = LocalIsDarkTheme.current
 
     val drawerWidth by animateDpAsState(
         targetValue = if (isExpanded) 220.dp else 72.dp,
