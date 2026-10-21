@@ -32,6 +32,12 @@ object BVShape {
     /** 正圆，用于头像、圆形按钮。 */
     val circle = CircleShape
 
+    /** 右侧滑出面板的左侧入场大圆角（16.dp，用于评论抽屉等）。 */
+    val drawerStart = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+
+    /** 左侧贴边弹出的提示横幅右侧中圆角（12.dp，用于跳过片头等提示）。 */
+    val bannerEnd = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+
     /** TV Material3 Shapes 配置。 */
     val tv = TvShapes(
         extraSmall = RoundedCornerShape(4.dp),

@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import dev.frost819.newbv.core.theme.BVShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -220,7 +220,7 @@ fun CommentsDialog(
                         .fillMaxHeight()
                         .width(if (mode == CommentDialogMode.Player) 520.dp else 680.dp)
                         .focusRequester(focusRequester),
-                shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
+                shape = BVShape.drawerStart,
                 colors =
                     SurfaceDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -759,7 +759,7 @@ private fun CommentImageOverlay(
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.6f), BVShape.small)
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
