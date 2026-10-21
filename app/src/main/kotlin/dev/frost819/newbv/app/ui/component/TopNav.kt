@@ -158,7 +158,7 @@ private fun TabRowScope.NavItemTab(
         onClick = onClick,
         colors =
             TabDefaults.underlinedIndicatorTabColors(
-                activeContentColor = contentActiveColor,
+                contentColor = contentActiveColor,
                 focusedContentColor = contentFocusedColor,
                 selectedContentColor = contentSelectedColor,
             ),
@@ -171,6 +171,7 @@ private fun TabRowScope.NavItemTab(
         ) {
             Text(
                 text = topNavItem.displayName,
+                color = if (selected || hasFocus) contentFocusedColor else contentActiveColor,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (selected || hasFocus) FontWeight.Bold else FontWeight.Medium,
             )
