@@ -340,25 +340,25 @@ fun SearchInputContent(
                                 ClickableSurfaceDefaults.colors(
                                     containerColor =
                                         if (isSelected) {
-                                            Color.White
+                                            MaterialTheme.colorScheme.inverseSurface
                                         } else {
                                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                                         },
                                     contentColor =
                                         if (isSelected) {
-                                            Color.Black
+                                            MaterialTheme.colorScheme.inverseOnSurface
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                         },
                                     focusedContainerColor =
                                         if (isSelected) {
-                                            Color.White
+                                            MaterialTheme.colorScheme.inverseSurface
                                         } else {
                                             MaterialTheme.colorScheme.surfaceVariant
                                         },
                                     focusedContentColor =
                                         if (isSelected) {
-                                            Color.Black
+                                            MaterialTheme.colorScheme.inverseOnSurface
                                         } else {
                                             MaterialTheme.colorScheme.onSurface
                                         },

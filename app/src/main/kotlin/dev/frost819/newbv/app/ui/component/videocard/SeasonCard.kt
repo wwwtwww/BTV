@@ -27,6 +27,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.touchClickable
 
 /**
@@ -57,14 +58,8 @@ fun SeasonCard(
                 pressedContainerColor = MaterialTheme.colorScheme.surface,
             ),
         shape = ClickableSurfaceDefaults.shape(shape = MaterialTheme.shapes.large),
-        border =
-            ClickableSurfaceDefaults.border(
-                focusedBorder =
-                    Border(
-                        border = BorderStroke(width = 3.dp, color = MaterialTheme.colorScheme.border),
-                        shape = MaterialTheme.shapes.large,
-                    ),
-            ),
+        scale = TvFocusDefaults.surfaceScale(),
+        border = TvFocusDefaults.surfaceBorder(),
     ) {
         Column {
             Box(

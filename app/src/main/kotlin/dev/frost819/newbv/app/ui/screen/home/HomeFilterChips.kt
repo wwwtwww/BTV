@@ -19,6 +19,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -132,6 +133,7 @@ private fun FilterChipItem(
     onClick: () -> Unit,
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     Surface(
         onClick = onClick,
@@ -145,25 +147,25 @@ private fun FilterChipItem(
             ClickableSurfaceDefaults.colors(
                 containerColor =
                     when {
-                        isFocused -> Color.White
-                        isSelected -> Color.White.copy(alpha = 0.16f)
+                        isFocused -> MaterialTheme.colorScheme.inverseSurface
+                        isSelected -> if (isDarkTheme) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant
                         else -> Color.Transparent
                     },
                 contentColor =
                     when {
-                        isFocused -> Color(0xFF0F0F0F)
-                        isSelected -> Color.White
-                        else -> Color.White.copy(alpha = 0.65f)
+                        isFocused -> MaterialTheme.colorScheme.inverseOnSurface
+                        isSelected -> MaterialTheme.colorScheme.onSurface
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                focusedContainerColor = Color.White,
-                focusedContentColor = Color(0xFF0F0F0F),
+                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ),
         border =
             ClickableSurfaceDefaults.border(
                 border =
                     if (isSelected && !isFocused) {
                         Border(
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)),
                             shape = BVShape.pill,
                         )
                     } else {

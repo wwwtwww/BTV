@@ -29,6 +29,7 @@ import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTypography
@@ -57,14 +58,8 @@ fun LiveRoomCard(
                     .aspectRatio(1.78f)
                     .touchClickable(onClick = onClick),
             shape = CardDefaults.shape(MaterialTheme.shapes.large),
-            border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border = androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.border),
-                            shape = MaterialTheme.shapes.large,
-                        ),
-                ),
+            scale = TvFocusDefaults.cardScale(),
+            border = TvFocusDefaults.cardBorder(),
         ) {
             LiveCardCover(
                 cover = data.cover,

@@ -40,6 +40,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.frost819.newbv.R
 import dev.frost819.newbv.core.focus.isMenuKey
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTypography
@@ -101,15 +102,8 @@ fun SmallVideoCard(
                         onLongClick = { if (hasAnyAction) showActions = true },
                     ),
             shape = CardDefaults.shape(MaterialTheme.shapes.large),
-            scale = CardDefaults.scale(focusedScale = 1.06f),
-            border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border = androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.border),
-                            shape = MaterialTheme.shapes.large,
-                        ),
-                ),
+            scale = TvFocusDefaults.cardScale(),
+            border = TvFocusDefaults.cardBorder(),
         ) {
             CardCover(
                 cover = data.cover,

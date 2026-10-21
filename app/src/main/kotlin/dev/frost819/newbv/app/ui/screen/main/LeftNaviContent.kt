@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -120,6 +121,7 @@ fun LeftNaviContent(
     }
 
     val isExpanded = focusSettled && hasLocalFocus
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
 
     val drawerWidth by animateDpAsState(
         targetValue = if (isExpanded) 220.dp else 72.dp,
@@ -144,10 +146,10 @@ fun LeftNaviContent(
         colors =
             SurfaceDefaults.colors(
                 containerColor =
-                    if (isExpanded) {
-                        Color(0xFF141720)
+                    if (isDarkTheme) {
+                        if (isExpanded) Color(0xFF141720) else Color(0xFF0C101A)
                     } else {
-                        Color(0xFF0E121A)
+                        if (isExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     },
             ),
     ) {
@@ -291,13 +293,13 @@ private fun DrawerNavItem(
             ClickableSurfaceDefaults.colors(
                 containerColor =
                     if (isSelected && !isFocused) {
-                        Color.White.copy(alpha = 0.12f)
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     } else {
                         Color.Transparent
                     },
-                contentColor = if (isSelected) Color.White else Color(0xFFD6D6D6),
-                focusedContainerColor = Color.White,
-                focusedContentColor = Color(0xFF0F0F0F),
+                contentColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ),
     ) {
         Row(
@@ -334,7 +336,7 @@ private fun DrawerNavItem(
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isFocused) Color(0xFF444444) else Color(0xFFAAAAAA),
+                            color = if (isFocused) MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
