@@ -569,7 +569,7 @@ private fun EpisodeCard(
                             Border(
                                 border =
                                     androidx.compose.foundation.BorderStroke(
-                                        TvFocusDefaults.BorderWidth,
+                                        TvFocusDefaults.borderWidth,
                                         MaterialTheme.colorScheme.primary,
                                     ),
                                 shape = BVShape.large,

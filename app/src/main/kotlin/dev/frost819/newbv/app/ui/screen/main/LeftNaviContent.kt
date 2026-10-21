@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app.ui.screen.main
 
+import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
 
 import androidx.compose.animation.AnimatedVisibility
@@ -147,7 +148,7 @@ fun LeftNaviContent(
             SurfaceDefaults.colors(
                 containerColor =
                     if (isDarkTheme) {
-                        if (isExpanded) Color(0xFF141720) else Color(0xFF0C101A)
+                        if (isExpanded) BVColors.DarkSurface else BVColors.DarkBackground
                     } else {
                         if (isExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     },

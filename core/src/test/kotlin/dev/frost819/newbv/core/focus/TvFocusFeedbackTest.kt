@@ -10,8 +10,8 @@ class TvFocusFeedbackTest {
     @Test
     fun `tv focus defaults follow 10-foot design standards`() {
         assertThat(TvFocusDefaults.FOCUSED_SCALE).isEqualTo(1.06f)
-        assertThat(TvFocusDefaults.BorderWidth).isEqualTo(2.5.dp)
-        assertThat(TvFocusDefaults.GlowRadius).isEqualTo(8.dp)
+        assertThat(TvFocusDefaults.borderWidth).isEqualTo(2.5.dp)
+        assertThat(TvFocusDefaults.glowRadius).isEqualTo(8.dp)
     }
 
     @Test

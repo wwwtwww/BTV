@@ -13,7 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
@@ -22,10 +22,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawStyle
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
 import androidx.tv.material3.CardDefaults
@@ -54,10 +60,10 @@ object TvFocusDefaults {
     const val FOCUSED_SCALE = 1.06f
 
     /** 边框线宽。 */
-    val BorderWidth: Dp = 2.5.dp
+    val borderWidth: Dp = 2.5.dp
 
     /** 极光发光扩散范围。 */
-    val GlowRadius: Dp = 8.dp
+    val glowRadius: Dp = 8.dp
 
     /**
      * 构建卡片自适应边框（深色高亮微光，浅色深色对比边）。
@@ -72,7 +78,7 @@ object TvFocusDefaults {
         }
         return CardDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(BorderWidth, borderColor),
+                border = BorderStroke(borderWidth, borderColor),
                 shape = shape,
             ),
         )
@@ -91,7 +97,7 @@ object TvFocusDefaults {
         }
         return ClickableSurfaceDefaults.border(
             focusedBorder = Border(
-                border = BorderStroke(BorderWidth, borderColor),
+                border = BorderStroke(borderWidth, borderColor),
                 shape = shape,
             ),
         )
@@ -129,13 +135,15 @@ object TvFocusDefaults {
  * @param shape 组件形状（默认 [BVShape.large]）
  * @param focusedScale 获焦缩放比例（默认 1.06f）
  * @param glowColor 深色模式极光辉光主色（默认取低饱和电光青 [BVColors.SecondaryLight]）
+ * @param glowRadius 极光发光扩散范围（默认 [TvFocusDefaults.glowRadius]）
  * @param borderWidth 边框宽度（默认 2.5dp）
  */
 fun Modifier.tvFocusFeedback(
     shape: Shape = BVShape.large,
     focusedScale: Float = TvFocusDefaults.FOCUSED_SCALE,
     glowColor: Color? = null,
-    borderWidth: Dp = TvFocusDefaults.BorderWidth,
+    glowRadius: Dp = TvFocusDefaults.glowRadius,
+    borderWidth: Dp = TvFocusDefaults.borderWidth,
 ): Modifier =
     composed {
         val tracker = LocalInteractionTracker.current
@@ -169,13 +177,14 @@ fun Modifier.tvFocusFeedback(
 
         // 发光透明度动画
         val glowAlpha by animateFloatAsState(
-            targetValue = if (showFeedback && isDark) 0.35f else 0f,
+            targetValue = if (showFeedback && isDark) 0.45f else 0f,
             animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
             label = "tv-focus-glow-alpha",
         )
 
         val baseModifier = this
             .onFocusChanged { hasFocus = it.hasFocus }
+            .zIndex(if (showFeedback) 1f else 0f)
             .scale(scale)
 
         val withShadow = if (!isDark && showFeedback) {
@@ -185,22 +194,43 @@ fun Modifier.tvFocusFeedback(
         }
 
         val withGlow = if (isDark && glowAlpha > 0f) {
-            withShadow.drawBehind {
-                val spreadPx = 6.dp.toPx()
-                val cornerPx = 16.dp.toPx()
-                drawRoundRect(
+            withShadow.drawWithContent {
+                val spreadPx = glowRadius.toPx()
+                val expandedSize = Size(size.width + spreadPx * 2, size.height + spreadPx * 2)
+                val outerOutline = shape.createOutline(expandedSize, layoutDirection, this)
+
+                // 1. 在组件底层沿真实 shape 轮廓投射极光外发光（由 zIndex 保证不被相邻卡片遮挡）
+                translate(left = -spreadPx, top = -spreadPx) {
+                    drawShapeOutline(
+                        outline = outerOutline,
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                activeGlowColor.copy(alpha = glowAlpha),
+                                activeGlowColor.copy(alpha = glowAlpha * 0.35f),
+                                Color.Transparent,
+                            ),
+                            center = Offset(expandedSize.width / 2f, expandedSize.height / 2f),
+                            radius = expandedSize.maxDimension * 0.75f,
+                        ),
+                    )
+                }
+
+                // 2. 绘制卡片内容本身
+                drawContent()
+
+                // 3. 在内容表面边缘叠加极光内轮廓微光（解决铺满不透明封面时外层光晕被完全遮盖的视觉痛点）
+                val innerOutline = shape.createOutline(size, layoutDirection, this)
+                drawShapeOutline(
+                    outline = innerOutline,
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            activeGlowColor.copy(alpha = glowAlpha),
-                            activeGlowColor.copy(alpha = glowAlpha * 0.3f),
                             Color.Transparent,
+                            activeGlowColor.copy(alpha = glowAlpha * 0.25f),
                         ),
                         center = center,
-                        radius = size.maxDimension * 0.8f,
+                        radius = size.maxDimension * 0.6f,
                     ),
-                    topLeft = Offset(-spreadPx, -spreadPx),
-                    size = Size(size.width + spreadPx * 2, size.height + spreadPx * 2),
-                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    style = Stroke(width = borderWidth.toPx().coerceAtLeast(2f)),
                 )
             }
         } else {
@@ -213,3 +243,33 @@ fun Modifier.tvFocusFeedback(
             shape = shape,
         )
     }
+
+/**
+ * 依据 [Outline] 的具体类型绘制轮廓填充或边框。
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShapeOutline(
+    outline: Outline,
+    brush: Brush,
+    style: DrawStyle = Fill,
+) {
+    when (outline) {
+        is Outline.Rectangle -> drawRect(
+            brush = brush,
+            topLeft = Offset(outline.rect.left, outline.rect.top),
+            size = Size(outline.rect.width, outline.rect.height),
+            style = style,
+        )
+        is Outline.Rounded -> drawRoundRect(
+            brush = brush,
+            topLeft = Offset(outline.roundRect.left, outline.roundRect.top),
+            size = Size(outline.roundRect.width, outline.roundRect.height),
+            cornerRadius = outline.roundRect.bottomLeftCornerRadius,
+            style = style,
+        )
+        is Outline.Generic -> drawPath(
+            path = outline.path,
+            brush = brush,
+            style = style,
+        )
+    }
+}
