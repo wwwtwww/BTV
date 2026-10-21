@@ -51,6 +51,13 @@ android {
             isIncludeAndroidResources = true
         }
     }
+
+    sourceSets {
+        named("test") {
+            // 复用 :bili-api 模块的弹幕蒙版测试二进制资源，避免重复存储大文件
+            resources.directories.add(project(":bili-api").file("src/test/resources").absolutePath)
+        }
+    }
 }
 
 dependencies {
