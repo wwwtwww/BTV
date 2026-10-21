@@ -77,6 +77,7 @@ import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
 
 /** 集数超过该值时显示网格快速选集按钮。 */
@@ -298,19 +299,9 @@ private fun SeasonInfoHeader(
                     .aspectRatio(0.7f)
                     .touchClickable(onClick = onPlay),
             onClick = onPlay,
-            shape = CardDefaults.shape(MaterialTheme.shapes.large),
-            border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border =
-                                androidx.compose.foundation.BorderStroke(
-                                    3.dp,
-                                    MaterialTheme.colorScheme.border,
-                                ),
-                            shape = MaterialTheme.shapes.large,
-                        ),
-                ),
+            shape = CardDefaults.shape(BVShape.large),
+            scale = TvFocusDefaults.cardScale(),
+            border = TvFocusDefaults.cardBorder(BVShape.large),
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),
@@ -569,23 +560,24 @@ private fun EpisodeCard(
                     .aspectRatio(1.6f)
                     .touchClickable(onClick = onClick),
             onClick = onClick,
-            shape = CardDefaults.shape(MaterialTheme.shapes.large),
+            shape = CardDefaults.shape(BVShape.large),
+            scale = TvFocusDefaults.cardScale(),
             border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border =
-                                androidx.compose.foundation.BorderStroke(
-                                    3.dp,
-                                    if (isLastWatched) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.border
-                                    },
-                                ),
-                            shape = MaterialTheme.shapes.large,
-                        ),
-                ),
+                if (isLastWatched) {
+                    CardDefaults.border(
+                        focusedBorder =
+                            Border(
+                                border =
+                                    androidx.compose.foundation.BorderStroke(
+                                        TvFocusDefaults.BorderWidth,
+                                        MaterialTheme.colorScheme.primary,
+                                    ),
+                                shape = BVShape.large,
+                            ),
+                    )
+                } else {
+                    TvFocusDefaults.cardBorder(BVShape.large)
+                },
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncImage(

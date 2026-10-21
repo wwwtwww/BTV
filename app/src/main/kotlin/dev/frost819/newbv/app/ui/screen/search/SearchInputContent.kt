@@ -209,7 +209,7 @@ fun SearchInputContent(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
@@ -241,7 +241,7 @@ fun SearchInputContent(
                     Text(
                         text = "搜索视频、番剧、UP主...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
             )

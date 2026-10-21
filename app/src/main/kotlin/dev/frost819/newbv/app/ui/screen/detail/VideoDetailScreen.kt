@@ -102,6 +102,7 @@ import dev.frost819.newbv.biliapi.entity.video.VideoPage
 import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -597,19 +598,9 @@ private fun VideoInfoHeader(
                     .aspectRatio(1.6f)
                     .touchClickable(onClick = onPlayVideo),
             onClick = onPlayVideo,
-            shape = CardDefaults.shape(MaterialTheme.shapes.large),
-            border =
-                CardDefaults.border(
-                    focusedBorder =
-                        Border(
-                            border =
-                                androidx.compose.foundation.BorderStroke(
-                                    3.dp,
-                                    MaterialTheme.colorScheme.border,
-                                ),
-                            shape = MaterialTheme.shapes.large,
-                        ),
-                ),
+            shape = CardDefaults.shape(BVShape.large),
+            scale = TvFocusDefaults.cardScale(),
+            border = TvFocusDefaults.cardBorder(BVShape.large),
         ) {
             AsyncImage(
                 modifier = Modifier.fillMaxSize(),

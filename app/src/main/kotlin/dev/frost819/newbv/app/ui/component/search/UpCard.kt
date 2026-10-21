@@ -43,10 +43,14 @@ fun UpCard(
     Surface(
         modifier = modifier.width(200.dp).touchClickable(onClick = onClick),
         onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(BVShape.large),
+        scale = TvFocusDefaults.surfaceScale(),
+        border = TvFocusDefaults.surfaceBorder(BVShape.large),
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surface,
-                focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                pressedContainerColor = MaterialTheme.colorScheme.surface,
             ),
     ) {
         Column(
