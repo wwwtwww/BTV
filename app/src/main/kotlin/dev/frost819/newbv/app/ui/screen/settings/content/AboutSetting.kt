@@ -77,7 +77,9 @@ fun AboutSetting(modifier: Modifier = Modifier) {
         }
         Text(
             modifier = Modifier.align(Alignment.BottomCenter),
-            text = "https://github.com/Frost819/newBV",
+            text = "项目开源地址：https://github.com/wwwtwww/BTV",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
         )
     }
 

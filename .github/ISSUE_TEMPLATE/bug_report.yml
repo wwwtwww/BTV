@@ -1,5 +1,5 @@
 name: Bug 报告
-description: 报告 newBV 使用中遇到的问题
+description: 报告 BTV 使用中遇到的问题
 title: "[Bug] "
 labels:
   - bug
@@ -57,7 +57,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: newBV 版本
+      label: BTV 版本
       description: 见「设置 → 关于」，形如 0.1.0.r1234.abc123
       placeholder: 0.1.0.r1234.abc123
     validations:
