@@ -23,6 +23,7 @@ val signingProperties = Properties()
 if (signingPropertiesFile.exists()) {
     signingPropertiesFile.inputStream().use { signingProperties.load(it) }
 }
+val defaultReleaseKeyFile = rootProject.file("btv-release.jks")
 
 android {
     namespace = AppConfiguration.appId
@@ -33,15 +34,20 @@ android {
             enableV1Signing = true
             enableV2Signing = true
         }
-        if (signingPropertiesFile.exists()) {
-            create("release") {
+        create("release") {
+            if (signingPropertiesFile.exists()) {
                 storeFile = rootProject.file(signingProperties.getProperty("releaseStoreFile"))
                 storePassword = signingProperties.getProperty("releaseStorePassword")
                 keyAlias = signingProperties.getProperty("releaseKeyAlias")
                 keyPassword = signingProperties.getProperty("releaseKeyPassword")
-                enableV1Signing = true
-                enableV2Signing = true
+            } else if (defaultReleaseKeyFile.exists()) {
+                storeFile = defaultReleaseKeyFile
+                storePassword = "btv_release_key"
+                keyAlias = "btv"
+                keyPassword = "btv_release_key"
             }
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
@@ -72,11 +78,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            if (signingPropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false

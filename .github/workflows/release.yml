@@ -41,7 +41,7 @@ jobs:
             echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
             echo "$SIGN_KEY" | base64 -d > key.jks
           else
-            echo "No signing secrets found. Falling back to default debug keystore."
+            echo "No custom signing secrets found. Using repository default stable btv-release.jks..."
           fi
 
       - name: Build release APK

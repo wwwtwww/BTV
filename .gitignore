@@ -1,36 +1,42 @@
 # ========================================
-# Build outputs
+# Android / Gradle
 # ========================================
-/build/
-/*/build/
-**/build/
-/captures/
+.gradle/
+build/
+*/build/
+captures/
 .externalNativeBuild/
 .cxx/
-/app/release/
+*.apk
+*.ap_
+*.aab
+*.dex
 
-# Gradle
-.gradle/
-gradle-app.setting
-.kotlin/
+# Local configuration file (sdk.dir, etc)
+local.properties
+
+# Proguard / R8
+proguard/
 
 # ========================================
 # IDE
 # ========================================
 .idea/
 *.iml
-*.iws
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/copyright/
+.idea/inspectionProfiles/
 *.ipr
+*.iws
+.project
+.classpath
+.settings/
 .vscode/
 
 # ========================================
-# OS
-# ========================================
-.DS_Store
-Thumbs.db
-
-# ========================================
-# Credentials & secrets (do not commit)
+# Project-specific secrets & configs
 # ========================================
 # B 站测试凭证 / SDK 路径
 local.properties
@@ -39,6 +45,8 @@ local.properties
 signing.properties
 *.keystore
 *.jks
+# 公共发布默认签名密钥（保证 GitHub Actions Release 始终拥有统一且固定的签名证书，支持应用内无缝自更新）
+!btv-release.jks
 # 崩溃上报端点配置
 crash-report.properties
 
@@ -49,10 +57,12 @@ crash-report.properties
 logs/
 
 # ========================================
-# Read-only reference (原版 BV 源码，不纳入版本控制)
+# OS-specific
+# ========================================
+.DS_Store
+Thumbs.db
+
+# ========================================
+# Read-only reference (原版 BV 源码，不提交修改)
 # ========================================
 /bv/
-.playwright-mcp/
-
-# B 站 API 参考文档（第三方，不纳入版本控制）
-/docs/bilibili-API-collect-master/
