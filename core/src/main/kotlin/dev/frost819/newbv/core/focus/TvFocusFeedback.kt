@@ -113,7 +113,12 @@ object TvFocusDefaults {
 }
 
 /**
- * 电视端通用立体焦点反馈修饰符。
+ * 电视端通用立体焦点反馈修饰符（实验性 / 扩展动效封装）。
+ *
+ * 注：当前卡片等生产组件（如 SmallVideoCard、SeasonCard、LiveRoomCard）优先使用
+ * [TvFocusDefaults.cardScale] 与 [TvFocusDefaults.cardBorder] 实现 1.06x 物理放大与双主题自适应边框。
+ * 本修饰符额外提供了深色极光发光（Glow）与浅色悬浮投影（Drop Shadow）扩展绘制能力，
+ * 暂作底层能力储备，待后续大屏容器重构消除外溢裁剪后再统一评估接入。
  *
  * 自动感知遥控器 D-Pad 获焦状态，并根据当前深浅主题自适应应用：
  * - 物理缩放（默认 [focusedScale] = 1.06f）

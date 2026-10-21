@@ -75,7 +75,7 @@ BTV 设置项支持「跟随系统 / 深色模式 / 浅色模式」，色彩体�
 | **背景底色（Background）** | **True OLED 微蓝黑**<br>`#090D16` ~ `#0C101A`<br>（高对比、通透、暗场纯黑） | **雅致冷瓷白 / 雾面灰**<br>`#F4F6FA`<br>（杜绝纯白 `#FFFFFF` 导致大屏过曝刺眼） | 禁止硬编码 `Color.Black`，由 `MaterialTheme.colorScheme.background` 派生 |
 | **卡片/容器（Surface）** | **深空微透黑**<br>`rgba(255, 255, 255, 0.05)`<br>微弱磨砂质感 | **纯白悬浮面板**<br>`#FFFFFF`<br>与冷瓷白底形成轻量对比悬浮 | 绑定 `MaterialTheme.colorScheme.surface` |
 | **前景色阶（文字）** | **纯白不透明阶梯**<br>• 一级：`#FFFFFF` (100%)<br>• 二级：`rgba(255,255,255,0.75)`<br>• 三级：`rgba(255,255,255,0.50)` | **深靛/石板灰阶梯**<br>• 一级标题：`#111827` (近黑 100%)<br>• 二级正文：`#4B5563` (石板灰 75%)<br>• 三级弱文本：`#9CA3AF` (冷灰 50%) | 禁止硬编码 `Color.White`，统一使用 `onSurface` / `onSurfaceVariant` |
-| **焦点获焦反馈 (Focus)** | **极光呼吸发光（Neon Glow）**<br>1.06x 放大 + 电光青/粉紫光晕 | **环境弥散投影（Drop Shadow）**<br>1.06x 放大 + 柔和加深阴影 + 品牌色加粗外框 | 封装 `tvFocusFeedback()` Modifier，内部读取 `isDark` 自动切换 Glow 或 Shadow |
+| **焦点获焦反馈 (Focus)** | **极光高光边框与物理放大**<br>1.06x 放大 + 高光对比边框 | **环境深靛边框与物理放大**<br>1.06x 放大 + 品牌色加粗外框 | 生产组件全量接入 `TvFocusDefaults.cardScale()` / `cardBorder()`；实验性 Glow/Shadow 引擎封装于 `tvFocusFeedback()` 待按需启用 |
 | **播放器全屏沉浸特例** | **默认深色** | **强制/嵌套深色**（全屏观影时 OSD 防刺眼暗场） | 播放器外围遵从全局，但全屏播放界面内部固定包裹 `BVTheme(ThemeMode.Dark)` |
 
 #### 2. 深色模式细节：OLED 深度幽蓝黑与极光流光（✅ 已于 P0/P1 落地）
@@ -102,14 +102,14 @@ BTV 设置项支持「跟随系统 / 深色模式 / 浅色模式」，色彩体�
 | `Shape.Large` | `16.dp` | 视频卡片、弹窗对话框、功能浮层卡片 |
 | `Shape.Pill` | `50%`（全圆角胶囊） | 筛选胶囊（Filter Chips）、快捷按键圆形徽章 |
 
-#### 2. 从「平面单线框」进化为「三维立体双态焦点体系」（✅ 已于 P1 落地）
+#### 2. 从「平面单线框」进化为「三维立体双态焦点体系」（⚠️ 边框与缩放已落地，Glow/Shadow 作为能力储备）
 - **现状分析**：原先卡片获焦主要依赖描边 `border(2.dp, PrimaryLight)`，属于扁平化反馈，远距离操作时缺乏立体感。
-- **实施方案**（已封装于 `core/focus/TvFocusFeedback.kt`，全仓卡片组件接入）：
-  1. **物理放大（Scale）**：获焦卡片整体以平滑弹簧曲线放大 `1.06x`，邻近卡片自动微微避让；
-  2. **双态氛围反馈**：
-     - **深色模式**：投射青紫色极光晕影（Ambient Glow），视线焦点极易捕捉；
-     - **浅色模式**：投射悬浮投影（Drop Shadow）+ 加深轮廓线，对比清晰醒目；
-  3. **微渐变/高对比边框**：边框随主题明暗呈现精致光泽感。
+- **实施方案**：
+  1. **生产组件已全量落地**（`SmallVideoCard`、`SeasonCard`、`LiveRoomCard`、`UpCard` 等）：
+     - **物理放大（Scale）**：统一绑定 `TvFocusDefaults.cardScale()`，获焦平滑放大至 1.06x；
+     - **自适应高对比边框**：深色模式使用高光边框 `colorScheme.border`，浅色模式使用深靛品牌色边框 `BVColors.PrimaryStrong`（`TvFocusDefaults.cardBorder()`）；
+  2. **实验性能力储备**：
+     - 极光发光（Ambient Glow）与悬浮投影（Drop Shadow）引擎已封装于 `core/focus/TvFocusFeedback.kt`（`Modifier.tvFocusFeedback`）；因 TV 端 LazyRow 容器边界裁剪（Clipping）及低端电视芯片硬件开销，生产卡片暂未直接启用，后续视大屏容器重构进度按需接入。
 
 ---
 
@@ -124,10 +124,10 @@ flowchart LR
         A3["字重提升 (Medium/SemiBold) 与等宽时间码"]
     end
 
-    subgraph P1["P1：焦点交互与微质感提升 (✅ 已完成)"]
+    subgraph P1["P1：焦点交互与微质感提升 (✅ 核心落地)"]
         direction TB
         B1["卡片获焦立体放大 (1.06x)"]
-        B2["双主题自适应反馈 (深色发光 / 浅色投影)"]
+        B2["双主题自适应边框 (深色高光 / 浅色深靛)"]
         B3["全仓文本颜色规范清理 (消除硬编码)"]
     end
 
@@ -154,12 +154,12 @@ flowchart LR
 | **P0** | **✅ 已完成** | **1. 全局 Shape Tokens 收敛** | `core/theme/BVTheme.kt`<br>全仓各 UI 组件 (~54 处) | **低** | **0.5 ~ 1 人天** | 需全仓替换硬编码的 `RoundedCornerShape(4.dp/8.dp)`，重点检查卡片外沿与封面图片裁切边界是否越界溢出。 |
 | **P0** | **✅ 已完成** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`VideoProgressSeek.kt`<br>`ControllerVideoInfo.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
 | **P0** | **✅ 已完成** | **3. 双主题色板升级与文字色阶** | `core/theme/Color.kt`<br>`core/theme/BVTheme.kt`<br>各 Screen 标题/副标题 | **中** | **1 ~ 1.5 人天** | 重点排查业务组件中是否存在写死 `Color.White` 或 `Color.Black` 的情况，确保切换浅色主题时自动变为高对比深靛灰。 |
-| **P1** | **✅ 已完成** | **4. 双主题自适应获焦微动效** | `core/focus/TvFocusFeedback.kt`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 封装跨组件通用的 `TvFocusDefaults` / `Modifier.tvFocusFeedback`：深色模式绘制 Glow 发光，浅色模式绘制 Elevation 投影与加粗轮廓。 |
+| **P1** | **⚠️ 部分落地** | **4. 双主题自适应获焦微动效** | `core/focus/TvFocusFeedback.kt`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 1.06x 物理放大与深浅自适应边框已全仓接入生产组件；Glow 发光与 Elevation 投影已完成底层封装储备，因容器边界裁剪暂未接入组件链。 |
 | **P2** | **⏳ 待办 (TODO)** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（键盘宽度由 40% 缩减至 28~30%），右侧视频卡片网格从 2 列升为 3 列，需重点调试遥控器在键盘与网格之间的自然寻焦。 |
 | **P2** | **⏳ 待办 (TODO)** | **6. 播放器底部横向胶囊选集轨** | `ui/component/player/VideoListController.kt`<br>`VideoPlayerController.kt` | **高** | **2 ~ 3 人天** | 替代原本左侧 300dp 的大竖向抽屉，重构为底部水平微轨。需处理：当前播放集自动居中滚动、遥控器上/下键的呼出与隐藏、进度条协同。 |
 | **P2** | **⏳ 待办 (TODO)** | **7. 首页 Hero Showcase 沉浸看板** | `ui/screen/home/HomeScreen.kt`<br>新组件 `HomeHeroBanner.kt` | **高** | **3 ~ 3.5 人天** | 典型大屏体验组件：卡片获焦需 400ms 防抖避免频繁切换背景海报、大图渐变淡入淡出、低内存设备 Bitmap 释放与复用。 |
 
 ### 总工期与推进建议
 * **P0 基石规范（Shape + 字体 + 双色板）**：约 **2 ~ 3 人天**（已完成并发布 v0.3.0）。
-* **P1 交互与质感（双态焦点动效）**：约 **2 ~ 2.5 人天**（已完成并提交）。
+* **P1 交互与质感（卡片缩放与自适应边框）**：约 **2 ~ 2.5 人天**（核心缩放与边框已全量落地，氛围发光/投影作为底层能力储备）。
 * **P2 高级大屏布局（搜索、选集轨、Hero 看板）**：约 **6.5 ~ 8.5 人天**（暂缓实现，已整理至 [TODO.md](../TODO.md) 待排期）。
