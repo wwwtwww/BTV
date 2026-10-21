@@ -33,12 +33,12 @@ import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.Prefs
 
 /**
- * YouTube TV 风格主页内容。
+ * 主页内容。
  *
- * 采用轻量级顶部 [HomeFilterChips] 替代原先阻断式 Tab 栏，
+ * 采用全站统一的极简文字与黑白滑动指示条顶部导航栏 [HomeFilterChips]，
  * 内容区默认呈现多横向泳道视图 [HomeShelvesContent]，或无缝切换至单分类沉浸瀑布流。
  *
- * 支持通过遥控器「菜单键 (Menu)」（焦点位于顶部 Chips 行时）或重复点击分类 Chip 刷新当前数据；
+ * 支持通过遥控器「菜单键 (Menu)」（焦点位于顶部导航行时）或重复点击分类 Tab 刷新当前数据；
  * 焦点位于内容区卡片上时菜单键放行给卡片，用于唤起快捷操作弹窗。
  *
  * @param navFocusRequester 顶部导航焦点请求器。
@@ -63,7 +63,7 @@ fun HomeContent(
 
     CollectWatchLaterEffects(watchLaterViewModel)
 
-    // 菜单键刷新仅在焦点位于 Chips 行时生效，避免与内容区卡片的菜单键弹窗冲突
+    // 菜单键刷新仅在焦点位于导航行时生效，避免与内容区卡片的菜单键弹窗冲突
     var chipsHasFocus by remember { mutableStateOf(false) }
 
     fun refreshCurrentTab(tab: HomeFilterTab) {
@@ -93,7 +93,7 @@ fun HomeContent(
                     false
                 },
     ) {
-        // YouTube TV 风格顶部 Filter Chips 导航栏
+        // 全站统一极简文字 + 黑白滑动指示条顶部导航栏
         Box(modifier = Modifier.onFocusChanged { chipsHasFocus = it.hasFocus }) {
             HomeFilterChips(
                 selectedTab = selectedTab,

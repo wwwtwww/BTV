@@ -1,14 +1,11 @@
 package dev.frost819.newbv.app.ui.component
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -20,68 +17,100 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Tab
+import androidx.tv.material3.TabDefaults
 import androidx.tv.material3.TabRow
+import androidx.tv.material3.TabRowDefaults
 import androidx.tv.material3.TabRowScope
 import androidx.tv.material3.Text
 import dev.frost819.newbv.core.focus.touchClickable
-import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.BVTheme
+import dev.frost819.newbv.core.theme.LocalIsDarkTheme
 
 /**
- * 顶部导航 Tab 栏。
- *
- * TV Material3 [TabRow] 封装，支持 D-Pad 焦点导航。
- * Tab 切换时触发 [onSelectedChanged]，点击同一 Tab 触发 [onClick]（用于刷新）。
- *
- * @param items Tab 项列表（已按首选项排序）。
- * @param selectedIndex 当前选中的 Tab 索引（由外部控制，用于导航返回后恢复）。
- * @param isLargePadding 内容区未获焦点时使用较大内边距。
- * @param onSelectedChanged Tab 焦点切换回调。
- * @param onClick Tab 点击回调。
+ * 顶部导航项接口。
  */
+interface TopNavItem {
+    val displayName: String
+}
+
+/**
+ * 顶部导航 Tab 栏（极简文字 + 单色黑白滑动指示条）。
+ *
+ * 遵循 10-foot 大屏视觉与交互规范，去除非必要的胶囊/矩形背景框与彩色边框，
+ * 采用靠左对齐排版、纯平稳字阶对比（零几何放大跳跃）与精致平滑的单色滑动指示条。
+ *
+ * @param modifier 修饰符。
+ * @param items Tab 项列表。
+ * @param selectedIndex 当前选中的 Tab 索引。
+ * @param isLargePadding 内容区未获焦点时是否使用较大内边距。
+ * @param onSelectedChanged Tab 焦点切换回调。
+ * @param onClick Tab 点击回调（常用于刷新）。
+ */
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TopNav(
     modifier: Modifier = Modifier,
     items: List<TopNavItem>,
     selectedIndex: Int = 0,
-    isLargePadding: Boolean,
+    isLargePadding: Boolean = false,
     onSelectedChanged: (TopNavItem) -> Unit = {},
     onClick: (TopNavItem) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
+    val isDarkTheme = LocalIsDarkTheme.current
 
     var selectedTabIndex by remember { mutableIntStateOf(selectedIndex) }
 
     LaunchedEffect(selectedIndex) {
         selectedTabIndex = selectedIndex
     }
+
     val verticalPadding by animateDpAsState(
         targetValue = if (isLargePadding) 12.dp else 6.dp,
         label = "top-nav-padding",
     )
 
+    // 单色极简指示条色值：深色模式纯白，浅色模式纯黑/深灰
+    val indicatorActiveColor = if (isDarkTheme) Color.White else Color(0xFF111827)
+    val indicatorInactiveColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color(0xFF111827).copy(alpha = 0.6f)
+
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(12.dp, verticalPadding),
-        horizontalArrangement = Arrangement.Center,
+                .padding(start = 24.dp, end = 24.dp, top = verticalPadding, bottom = verticalPadding),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         TabRow(
             modifier =
                 Modifier
                     .focusRestorer(focusRequester),
             selectedTabIndex = selectedTabIndex,
-            separator = { Spacer(modifier = Modifier.width(12.dp)) },
+            containerColor = Color.Transparent,
+            separator = { Spacer(modifier = Modifier.width(8.dp)) },
+            indicator = { tabPositions, doesTabRowHaveFocus ->
+                if (selectedTabIndex in tabPositions.indices) {
+                    TabRowDefaults.UnderlinedIndicator(
+                        currentTabPosition = tabPositions[selectedTabIndex],
+                        doesTabRowHaveFocus = doesTabRowHaveFocus,
+                        activeColor = indicatorActiveColor,
+                        inactiveColor = indicatorInactiveColor,
+                    )
+                }
+            },
         ) {
             items.forEachIndexed { index, tab ->
                 NavItemTab(
@@ -99,6 +128,7 @@ fun TopNav(
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun TabRowScope.NavItemTab(
     modifier: Modifier = Modifier,
@@ -107,51 +137,45 @@ private fun TabRowScope.NavItemTab(
     onClick: () -> Unit,
     onFocus: () -> Unit,
 ) {
-    // 统一使用品牌青绿作为 TopNav 强调色，避免各页面颜色不一致
-    val accentColor = MaterialTheme.colorScheme.secondary
+    val isDarkTheme = LocalIsDarkTheme.current
     var hasFocus by remember { mutableStateOf(false) }
-    val containerColor =
-        if (selected) {
-            accentColor.copy(alpha = if (hasFocus) 0.24f else 0.14f)
-        } else {
-            Color.Transparent
-        }
-    val borderColor = if (hasFocus) accentColor else Color.Transparent
+
+    // 纯平稳字阶对比：未选中 50% 弱灰，选中/获焦 100% 纯白或纯黑
+    val contentActiveColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.5f) else Color(0xFF111827).copy(alpha = 0.5f)
+    val contentFocusedColor =
+        if (isDarkTheme) Color.White else Color(0xFF111827)
+    val contentSelectedColor =
+        if (isDarkTheme) Color.White else Color(0xFF111827)
+
     Tab(
         modifier =
             modifier
                 .onFocusChanged { hasFocus = it.hasFocus }
-                .clip(BVShape.pill)
-                .background(containerColor)
-                .border(2.dp, borderColor, BVShape.pill)
                 .touchClickable(onClick = onClick),
         selected = selected,
         onFocus = onFocus,
         onClick = onClick,
+        colors =
+            TabDefaults.underlinedIndicatorTabColors(
+                activeContentColor = contentActiveColor,
+                focusedContentColor = contentFocusedColor,
+                selectedContentColor = contentSelectedColor,
+            ),
     ) {
-        // 用固定高度的 Box 居中文字：直接对 Text 设 height 会把字形顶对齐，
-        // 字体行高与剩余空间不等时文字就偏上，不同字体/字号下表现不一致。
         Box(
             modifier =
                 Modifier
-                    .height(32.dp)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = topNavItem.displayName,
-                color = if (selected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected || hasFocus) FontWeight.Bold else FontWeight.Medium,
             )
         }
     }
-}
-
-/**
- * 顶部导航项接口。
- */
-interface TopNavItem {
-    val displayName: String
 }
 
 private data class DummyTopNavItem(
@@ -161,10 +185,11 @@ private data class DummyTopNavItem(
 @Preview(showBackground = true)
 @Composable
 private fun TopNavPreview() {
-    dev.frost819.newbv.core.theme.BVTheme {
+    BVTheme {
         TopNav(
             items =
                 listOf(
+                    DummyTopNavItem("精选"),
                     DummyTopNavItem("推荐"),
                     DummyTopNavItem("热门"),
                     DummyTopNavItem("动态"),
