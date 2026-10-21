@@ -59,7 +59,7 @@
 - **涉及文件**：
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/VideoListController.kt`
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/VideoPlayerController.kt`
-  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/player/PlayerViewModel.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/player/PlayerViewModel.kt`
 
 #### 现状分析与痛点
 - 当前选集列表为左侧 300dp 的大竖向抽屉面板，呼出时严重遮挡视频画面超 1/3；
@@ -85,7 +85,7 @@
 - **涉及文件**：
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeScreen.kt`
   - 新建 `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/home/HomeHeroBanner.kt`
-  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeViewModel.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/home/HomeViewModel.kt`
 
 #### 现状分析与痛点
 - 当前首页顶部仅有 Filter Chips，缺少顶级 TV 客户端的品牌感与沉浸式大视觉抓手；
