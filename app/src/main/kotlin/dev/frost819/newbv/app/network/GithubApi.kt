@@ -97,6 +97,7 @@ object GithubApi {
                 .firstOrNull {
                     it.name.contains("release") || it.name.contains("alpha")
                 }?.browserDownloadUrl
+                ?: release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }?.browserDownloadUrl
                 ?: throw IllegalStateException("Didn't find download url")
 
         client

@@ -78,24 +78,26 @@ fun UpdateDialog(
         updateStatus = UpdateStatus.UpdatingInfo
         scope.launch(Dispatchers.IO) {
             runCatching {
-                latestRelease = GithubApi.getLatestBuild()
-                val revision =
-                    latestRelease!!
-                        .assets
-                        .first { (it.name.startsWith("BTV") || it.name.startsWith("newBV")) && it.name.contains("release") }
-                        .name
-                        .split("_")[1]
-                        .toInt()
-                if (revision <= BuildConfig.VERSION_CODE) {
-                    updateStatus = UpdateStatus.NoAvailableUpdate
-                    return@launch
+                val release = GithubApi.getLatestBuild()
+                latestRelease = release
+                val targetCode = release.parseVersionCode()
+                if (targetCode != null) {
+                    if (targetCode <= BuildConfig.VERSION_CODE) {
+                        updateStatus = UpdateStatus.NoAvailableUpdate
+                        return@launch
+                    }
+                } else {
+                    if (release.tagName.trimStart('v') == BuildConfig.VERSION_NAME.trimStart('v')) {
+                        updateStatus = UpdateStatus.NoAvailableUpdate
+                        return@launch
+                    }
                 }
+                updateStatus = UpdateStatus.Ready
             }.onFailure {
                 logger.error(it) { "Failed to get latest version" }
                 updateStatus = UpdateStatus.CheckError
             }.onSuccess {
-                logger.info { "Find latest version ${latestRelease!!.name}" }
-                updateStatus = UpdateStatus.Ready
+                logger.info { "Find latest version ${latestRelease?.name}" }
             }
         }
     }
@@ -126,17 +128,17 @@ fun UpdateDialog(
         updateStatus = UpdateStatus.Downloading
         downloadJob =
             scope.launch(Dispatchers.IO) {
-                val tempFilename =
-                    latestRelease!!
-                        .assets
-                        .first { it.name.startsWith("newBV") && it.name.contains("release") }
-                        .name
-                val tempDir = File(context.cacheDir, "update_downloader")
-                if (!tempDir.exists()) tempDir.mkdirs()
-                val tempFile = File(tempDir, tempFilename)
-                tempFile.createNewFile()
                 runCatching {
-                    GithubApi.downloadUpdate(latestRelease!!, tempFile) { downloaded, total ->
+                    val release = latestRelease ?: error("未获取到可用更新信息")
+                    val apkAsset = release.findApkAsset() ?: error("未找到可用的安装包资产 (APK)")
+                    val tempFilename = apkAsset.name
+                    val tempDir = File(context.cacheDir, "update_downloader")
+                    if (!tempDir.exists()) tempDir.mkdirs()
+                    val tempFile = File(tempDir, tempFilename)
+                    if (tempFile.exists()) tempFile.delete()
+                    tempFile.createNewFile()
+
+                    GithubApi.downloadUpdate(release, tempFile) { downloaded, total ->
                         bytesSentTotal = downloaded
                         contentLength = total
                         targetProgress =
