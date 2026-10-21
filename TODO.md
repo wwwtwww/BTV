@@ -23,7 +23,7 @@
 ## 🎨 大屏 UI/UX 优化 P2 阶段（高级大屏布局革新）
 
 > **预估总工作量**：约 6.5 ~ 8.5 人天  
-> **涉及核心模块**：`app/src/main/kotlin/dev/frost819/newbv/app/ui/` (`screen/search`, `component/player`, `screen/home`)
+> **涉及核心模块**：`app/src/main/kotlin/dev/frost819/newbv/app/ui/` (`screen/search`, `component/player`, `screen/home`) + `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/` (`player`, `home`)
 
 ---
 
