@@ -30,6 +30,8 @@ import androidx.tv.material3.Text
 import dev.frost819.newbv.BuildConfig
 import dev.frost819.newbv.app.network.GithubApi
 import dev.frost819.newbv.app.network.entity.GithubRelease
+import dev.frost819.newbv.app.network.entity.findApkAsset
+import dev.frost819.newbv.app.network.entity.parseVersionCode
 import dev.frost819.newbv.app.util.CacheManager
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.Loggers
@@ -138,7 +140,7 @@ fun UpdateDialog(
                     if (tempFile.exists()) tempFile.delete()
                     tempFile.createNewFile()
 
-                    GithubApi.downloadUpdate(release, tempFile) { downloaded, total ->
+                    GithubApi.downloadUpdate(apkAsset.browserDownloadUrl, tempFile) { downloaded: Long, total: Long ->
                         bytesSentTotal = downloaded
                         contentLength = total
                         targetProgress =

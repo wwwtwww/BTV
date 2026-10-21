@@ -1,16 +1,15 @@
-package dev.frost819.newbv.app.ui.component.settings
+package dev.frost819.newbv.app.network.entity
 
 import com.google.common.truth.Truth.assertThat
-import dev.frost819.newbv.app.network.entity.GithubRelease
 import org.junit.jupiter.api.Test
 
 /**
- * [UpdateReleaseExt] 扩展函数的单元测试。
+ * [GithubRelease] 资产匹配与版本号解析的单元测试。
  *
  * 验证对当前 BTV 产物命名、旧版 newBV / BV 产物命名的安全匹配，
- * 确保即使附件命名格式异常也不会抛出 NoSuchElementException 导致应用崩溃闪退。
+ * 确保即使附件命名格式异常或包含同名的非 APK 文件（如 zip），也绝不会误选或抛异常。
  */
-class UpdateReleaseExtTest {
+class GithubReleaseExtTest {
 
     private fun createRelease(
         tagName: String = "v0.3.0",
@@ -23,7 +22,11 @@ class UpdateReleaseExtTest {
                     name = name,
                     size = 1024,
                     browserDownloadUrl = "https://example.com/$name",
-                    contentType = "application/vnd.android.package-archive",
+                    contentType = if (name.endsWith(".apk")) {
+                        "application/vnd.android.package-archive"
+                    } else {
+                        "application/octet-stream"
+                    },
                     downloadCount = 0,
                     state = "uploaded",
                     url = "https://api.github.com/assets/$index",
@@ -59,6 +62,23 @@ class UpdateReleaseExtTest {
     }
 
     @Test
+    fun `findApkAsset rejects non-apk asset even if containing release keyword`() {
+        // 关键用例：防止名字包含 "release" 的 zip/tar.gz 资产被误选为更新包
+        val release = createRelease(
+            assetNames = listOf(
+                "BTV_3_source_release.zip",
+                "checksum_release.txt",
+                "BTV_3_v0.3.0_release.apk",
+            ),
+        )
+        val apk = release.findApkAsset()
+
+        assertThat(apk).isNotNull()
+        assertThat(apk?.name).isEqualTo("BTV_3_v0.3.0_release.apk")
+        assertThat(apk?.browserDownloadUrl).isEqualTo("https://example.com/BTV_3_v0.3.0_release.apk")
+    }
+
+    @Test
     fun `findApkAsset matches legacy newBV and BV releases`() {
         val newBvRelease = createRelease(
             assetNames = listOf("newBV_2_v0.2.0_release.apk"),
@@ -85,7 +105,7 @@ class UpdateReleaseExtTest {
     @Test
     fun `findApkAsset returns null safely when no apk present`() {
         val release = createRelease(
-            assetNames = listOf("notes.txt", "checksums.sha256"),
+            assetNames = listOf("notes.txt", "source.zip", "checksums.sha256"),
         )
         assertThat(release.findApkAsset()).isNull()
     }

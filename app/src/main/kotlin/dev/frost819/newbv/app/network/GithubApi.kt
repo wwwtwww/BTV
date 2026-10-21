@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.network
 
 import dev.frost819.newbv.app.network.entity.GithubRelease
+import dev.frost819.newbv.app.network.entity.findApkAsset
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.BrowserUserAgent
@@ -93,13 +94,16 @@ object GithubApi {
         onProgress: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
     ) {
         val downloadUrl =
-            release.assets
-                .firstOrNull {
-                    it.name.contains("release") || it.name.contains("alpha")
-                }?.browserDownloadUrl
-                ?: release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }?.browserDownloadUrl
-                ?: throw IllegalStateException("Didn't find download url")
+            release.findApkAsset()?.browserDownloadUrl
+                ?: throw IllegalStateException("未在 Release ${release.tagName} 中找到可用的 APK 附件")
+        downloadUpdate(downloadUrl, file, onProgress)
+    }
 
+    suspend fun downloadUpdate(
+        downloadUrl: String,
+        file: File,
+        onProgress: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
+    ) {
         client
             .prepareRequest {
                 url(toGhProxyUrl(downloadUrl))
