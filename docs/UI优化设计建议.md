@@ -112,21 +112,21 @@ BTV 设置项支持「跟随系统 / 深色模式 / 浅色模式」，因此色�
 
 ```mermaid
 flowchart LR
-    subgraph P0["P0：基石与规范收敛 (约 2 ~ 3 人天)"]
+    subgraph P0["P0：基石与规范收敛 (✅ 已完成，v0.3.0)"]
         direction TB
         A1["收敛全局 Shape Tokens (8/12/16/Pill)"]
         A2["双主题色板升级 (OLED黑 vs 冷瓷白)"]
         A3["字重提升 (Medium/SemiBold) 与等宽时间码"]
     end
 
-    subgraph P1["P1：焦点交互与微质感提升 (约 2 ~ 2.5 人天)"]
+    subgraph P1["P1：焦点交互与微质感提升 (✅ 已完成)"]
         direction TB
         B1["卡片获焦立体放大 (1.06x)"]
         B2["双主题自适应反馈 (深色发光 / 浅色投影)"]
         B3["全仓文本颜色规范清理 (消除硬编码)"]
     end
 
-    subgraph P2["P2：大屏高级布局革新 (约 6.5 ~ 8.5 人天)"]
+    subgraph P2["P2：大屏高级布局革新 (⏳ 暂缓实现，转入 TODO)"]
         direction TB
         C1["搜索页键盘紧凑化与宽幅 3 列卡片网格"]
         C2["播放器底部横向胶囊选集轨 (替代左侧大面板)"]
@@ -136,24 +136,25 @@ flowchart LR
     P0 --> P1 --> P2
 ```
 
+> **说明**：P2 阶段涉及大屏高级布局与核心控制器交互重构，改动范围大，当前已暂缓并详细归档至 [TODO.md](../TODO.md)，待后续作为独立特性单独排期开发。
+
 ---
 
 ## 4. 各阶段工作量评估与任务拆解
 
 以标准人天（Man-Days，1 人天 = 8 小时全职开发 + 自测）为单位评估：
 
-| 阶段 | 优化项 | 涉及核心文件/模块 | 复杂度 | 预估工期 | 风险点与避坑指南 |
-|---|---|---|---|---|---|
-| **P0** | **1. 全局 Shape Tokens 收敛** | `core/theme/BVTheme.kt`<br>全仓各 UI 组件 (~54 处) | **低** | **0.5 ~ 1 人天** | 需全仓替换硬编码的 `RoundedCornerShape(4.dp/8.dp)`，重点检查卡片外沿与封面图片裁切边界是否越界溢出。 |
-| **P0** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`VideoProgressSeek.kt`<br>`ControllerVideoInfo.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
-| **P0** | **3. 双主题色板升级与文字色阶** | `core/theme/Color.kt`<br>`core/theme/BVTheme.kt`<br>各 Screen 标题/副标题 | **中** | **1 ~ 1.5 人天** | 重点排查业务组件中是否存在写死 `Color.White` 或 `Color.Black` 的情况，确保切换浅色主题时自动变为高对比深靛灰。 |
-| **P1** | **4. 双主题自适应获焦微动效** | `core/ui/modifier/`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 封装跨组件通用的 `Modifier.tvFocusable()`：深色模式绘制 Glow 发光，浅色模式绘制 Elevation 投影与加粗轮廓。需在低配电视盒上验证 Overdraw 与流畅度。 |
-| **P2** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（键盘宽度由 40% 缩减至 28~30%），右侧视频卡片网格从 2 列升为 3 列，需重点调试遥控器在键盘与网格之间的自然寻焦。 |
-| **P2** | **6. 播放器底部横向胶囊选集轨** | `ui/component/player/VideoListController.kt`<br>`VideoPlayerController.kt` | **高** | **2 ~ 3 人天** | 替代原本左侧 300dp 的大竖向抽屉，重构为底部水平微轨。需处理：当前播放集自动居中滚动、遥控器上/下键的呼出与隐藏、进度条协同。 |
-| **P2** | **7. 首页 Hero Showcase 沉浸看板** | `ui/screen/home/HomeScreen.kt`<br>新组件 `HomeHeroBanner.kt` | **高** | **3 ~ 3.5 人天** | 典型大屏体验组件：卡片获焦需 400ms 防抖避免频繁切换背景海报、大图渐变淡入淡出、低内存设备 Bitmap 释放与复用。 |
+| 阶段 | 状态 | 优化项 | 涉及核心文件/模块 | 复杂度 | 预估工期 | 风险点与避坑指南 |
+|---|---|---|---|---|---|---|
+| **P0** | **✅ 已完成** | **1. 全局 Shape Tokens 收敛** | `core/theme/BVTheme.kt`<br>全仓各 UI 组件 (~54 处) | **低** | **0.5 ~ 1 人天** | 需全仓替换硬编码的 `RoundedCornerShape(4.dp/8.dp)`，重点检查卡片外沿与封面图片裁切边界是否越界溢出。 |
+| **P0** | **✅ 已完成** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`VideoProgressSeek.kt`<br>`ControllerVideoInfo.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
+| **P0** | **✅ 已完成** | **3. 双主题色板升级与文字色阶** | `core/theme/Color.kt`<br>`core/theme/BVTheme.kt`<br>各 Screen 标题/副标题 | **中** | **1 ~ 1.5 人天** | 重点排查业务组件中是否存在写死 `Color.White` 或 `Color.Black` 的情况，确保切换浅色主题时自动变为高对比深靛灰。 |
+| **P1** | **✅ 已完成** | **4. 双主题自适应获焦微动效** | `core/focus/TvFocusFeedback.kt`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 封装跨组件通用的 `TvFocusDefaults` / `Modifier.tvFocusFeedback`：深色模式绘制 Glow 发光，浅色模式绘制 Elevation 投影与加粗轮廓。 |
+| **P2** | **⏳ 待办 (TODO)** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（键盘宽度由 40% 缩减至 28~30%），右侧视频卡片网格从 2 列升为 3 列，需重点调试遥控器在键盘与网格之间的自然寻焦。 |
+| **P2** | **⏳ 待办 (TODO)** | **6. 播放器底部横向胶囊选集轨** | `ui/component/player/VideoListController.kt`<br>`VideoPlayerController.kt` | **高** | **2 ~ 3 人天** | 替代原本左侧 300dp 的大竖向抽屉，重构为底部水平微轨。需处理：当前播放集自动居中滚动、遥控器上/下键的呼出与隐藏、进度条协同。 |
+| **P2** | **⏳ 待办 (TODO)** | **7. 首页 Hero Showcase 沉浸看板** | `ui/screen/home/HomeScreen.kt`<br>新组件 `HomeHeroBanner.kt` | **高** | **3 ~ 3.5 人天** | 典型大屏体验组件：卡片获焦需 400ms 防抖避免频繁切换背景海报、大图渐变淡入淡出、低内存设备 Bitmap 释放与复用。 |
 
 ### 总工期与推进建议
-* **P0 基石规范（Shape + 字体 + 双色板）**：约 **2 ~ 3 人天**（建议优先集中攻坚，低成本立竿见影）。
-* **P1 交互与质感（双态焦点动效）**：约 **2 ~ 2.5 人天**（打磨遥控器操作核心手感）。
-* **P2 高级大屏布局（搜索、选集轨、Hero 看板）**：约 **6.5 ~ 8.5 人天**（结构性大特性重构，建议分特性单独立项推进）。
-* **全量总工期**：约 **10.5 ~ 14 人天**。
+* **P0 基石规范（Shape + 字体 + 双色板）**：约 **2 ~ 3 人天**（已完成并发布 v0.3.0）。
+* **P1 交互与质感（双态焦点动效）**：约 **2 ~ 2.5 人天**（已完成并提交）。
+* **P2 高级大屏布局（搜索、选集轨、Hero 看板）**：约 **6.5 ~ 8.5 人天**（暂缓实现，已整理至 [TODO.md](../TODO.md) 待排期）。
