@@ -1,7 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.search
 
-import dev.frost819.newbv.core.theme.BVShape
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -47,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -90,6 +87,7 @@ import dev.frost819.newbv.app.viewmodel.search.SearchResultViewModel
 import dev.frost819.newbv.biliapi.repositories.SearchType
 import dev.frost819.newbv.core.focus.isKeyDown
 import dev.frost819.newbv.core.focus.isMenuKey
+import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.data.datastore.ApiType
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.flow.distinctUntilChanged

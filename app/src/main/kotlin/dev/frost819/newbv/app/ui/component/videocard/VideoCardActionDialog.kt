@@ -1,7 +1,5 @@
 package dev.frost819.newbv.app.ui.component.videocard
 
-import dev.frost819.newbv.core.theme.BVShape
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +32,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * 视频卡片上下文快捷菜单浮层（对标 YouTube TV 菜单弹窗）。

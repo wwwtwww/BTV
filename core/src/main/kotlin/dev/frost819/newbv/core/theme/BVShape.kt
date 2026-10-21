@@ -39,20 +39,22 @@ object BVShape {
     val bannerEnd = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
 
     /** TV Material3 Shapes 配置。 */
-    val tv = TvShapes(
-        extraSmall = RoundedCornerShape(4.dp),
-        small = small,
-        medium = medium,
-        large = large,
-        extraLarge = RoundedCornerShape(24.dp),
-    )
+    val tv =
+        TvShapes(
+            extraSmall = RoundedCornerShape(4.dp),
+            small = small,
+            medium = medium,
+            large = large,
+            extraLarge = RoundedCornerShape(24.dp),
+        )
 
     /** Common Material3 Shapes 配置。 */
-    val common = CommonShapes(
-        extraSmall = RoundedCornerShape(4.dp),
-        small = small,
-        medium = medium,
-        large = large,
-        extraLarge = RoundedCornerShape(24.dp),
-    )
+    val common =
+        CommonShapes(
+            extraSmall = RoundedCornerShape(4.dp),
+            small = small,
+            medium = medium,
+            large = large,
+            extraLarge = RoundedCornerShape(24.dp),
+        )
 }

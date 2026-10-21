@@ -223,7 +223,6 @@ class HomeViewModelTest {
             assertThat(state.recommendItems.first().aid).isEqualTo(111L)
         }
 
-
     @Test
     fun `refreshPopular clears and reloads`() =
         runTest(testDispatcher) {

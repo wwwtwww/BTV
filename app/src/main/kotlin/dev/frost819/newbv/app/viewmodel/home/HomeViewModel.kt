@@ -13,7 +13,6 @@ import dev.frost819.newbv.biliapi.repositories.RecommendVideoRepository
 import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -26,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import javax.inject.Inject
 import dev.frost819.newbv.biliapi.entity.ApiType as BiliApiType
 import dev.frost819.newbv.data.datastore.ApiType as DataApiType
 
@@ -125,71 +125,73 @@ class HomeViewModel
         fun loadRecommend() {
             val current = _uiState.value
             if (current.recommendLoading || !current.recommendHasMore) {
-                logger.debug { "loadRecommend skipped: loading=${current.recommendLoading}, hasMore=${current.recommendHasMore}" }
+                logger.debug {
+                    "loadRecommend skipped: loading=${current.recommendLoading}, hasMore=${current.recommendHasMore}"
+                }
                 return
             }
 
             _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
 
-            recommendLoadJob = viewModelScope.launch {
+            recommendLoadJob =
+                viewModelScope.launch {
+                    // 首次加载（列表为空）需要连续请求补齐首屏；已有数据时每次只追加一页，
+                    val isFirstLoad = _uiState.value.recommendItems.isEmpty()
+                    val maxLoadCount = if (isFirstLoad) 3 else 1
+                    var loadCount = 0
+                    var failed = false
+                    try {
+                        while (loadCount < maxLoadCount && isActive) {
+                            var fetchedData: RecommendData? = null
+                            runCatching {
+                                withTimeout(LOAD_TIMEOUT_MS) {
+                                    recommendVideoRepository.getRecommendVideos(
+                                        page = recommendNextPage,
+                                        preferApiType = prefApiType(),
+                                    )
+                                }
+                            }.onSuccess { data ->
+                                fetchedData = data
+                            }.onFailure { error ->
+                                if (error is CancellationException && error !is TimeoutCancellationException) {
+                                    throw error
+                                }
+                                logger.error(error) { "Failed to load recommend videos" }
+                                failed = true
+                            }
 
-                // 首次加载（列表为空）需要连续请求补齐首屏；已有数据时每次只追加一页，
-                val isFirstLoad = _uiState.value.recommendItems.isEmpty()
-                val maxLoadCount = if (isFirstLoad) 3 else 1
-                var loadCount = 0
-                var failed = false
-                try {
-                    while (loadCount < maxLoadCount && isActive) {
-                        var fetchedData: RecommendData? = null
-                        runCatching {
-                            withTimeout(LOAD_TIMEOUT_MS) {
-                                recommendVideoRepository.getRecommendVideos(
-                                    page = recommendNextPage,
-                                    preferApiType = prefApiType(),
+                            val data = fetchedData ?: break
+
+                            if (data.items.isEmpty()) {
+                                logger.debug {
+                                    "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
+                                }
+                                // 遇到偶发空页时不推进游标，保持游标以便下次重试同一页（避免永久跳页丢失数据）
+                                break
+                            }
+
+                            // 仅在成功获取非空数据后推进游标
+                            recommendNextPage = data.nextPage
+                            _uiState.update {
+                                it.copy(
+                                    recommendItems = it.recommendItems + data.items,
                                 )
                             }
-                        }.onSuccess { data ->
-                            fetchedData = data
-                        }.onFailure { error ->
-                            if (error is CancellationException && error !is TimeoutCancellationException) {
-                                throw error
-                            }
-                            logger.error(error) { "Failed to load recommend videos" }
-                            failed = true
+                            loadCount++
+                            if (!isFirstLoad || _uiState.value.recommendItems.size >= 24) break
                         }
 
-                        val data = fetchedData ?: break
-
-                        if (data.items.isEmpty()) {
-                            logger.debug {
-                                "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
-                            }
-                            // 遇到偶发空页时不推进游标，保持游标以便下次重试同一页（避免永久跳页丢失数据）
-                            break
+                        // 首屏补齐失败时，只要已拿到部分数据就静默停止（避免"部分列表 + 报错"）；
+                        // 加载更多失败则照常报错，让底部提示可重试
+                        val hasItems = _uiState.value.recommendItems.isNotEmpty()
+                        val showError = failed && (!hasItems || !isFirstLoad)
+                        if (showError) {
+                            _uiState.update { it.copy(recommendError = true) }
                         }
-
-                        // 仅在成功获取非空数据后推进游标
-                        recommendNextPage = data.nextPage
-                        _uiState.update {
-                            it.copy(
-                                recommendItems = it.recommendItems + data.items,
-                            )
-                        }
-                        loadCount++
-                        if (!isFirstLoad || _uiState.value.recommendItems.size >= 24) break
+                    } finally {
+                        _uiState.update { it.copy(recommendLoading = false) }
                     }
-
-                    // 首屏补齐失败时，只要已拿到部分数据就静默停止（避免"部分列表 + 报错"）；
-                    // 加载更多失败则照常报错，让底部提示可重试
-                    val hasItems = _uiState.value.recommendItems.isNotEmpty()
-                    val showError = failed && (!hasItems || !isFirstLoad)
-                    if (showError) {
-                        _uiState.update { it.copy(recommendError = true) }
-                    }
-                } finally {
-                    _uiState.update { it.copy(recommendLoading = false) }
                 }
-            }
         }
 
         /**
@@ -225,35 +227,35 @@ class HomeViewModel
 
             _uiState.update { it.copy(popularLoading = true, popularError = false) }
 
-            popularLoadJob = viewModelScope.launch {
-
-                try {
-                    runCatching {
-                        withTimeout(LOAD_TIMEOUT_MS) {
-                            val data =
-                                recommendVideoRepository.getPopularVideos(
-                                    page = popularNextPage,
-                                    preferApiType = prefApiType(),
-                                )
-                            popularNextPage = data.nextPage
-                            _uiState.update {
-                                it.copy(
-                                    popularItems = it.popularItems + data.list,
-                                    popularHasMore = !data.noMore,
-                                )
+            popularLoadJob =
+                viewModelScope.launch {
+                    try {
+                        runCatching {
+                            withTimeout(LOAD_TIMEOUT_MS) {
+                                val data =
+                                    recommendVideoRepository.getPopularVideos(
+                                        page = popularNextPage,
+                                        preferApiType = prefApiType(),
+                                    )
+                                popularNextPage = data.nextPage
+                                _uiState.update {
+                                    it.copy(
+                                        popularItems = it.popularItems + data.list,
+                                        popularHasMore = !data.noMore,
+                                    )
+                                }
                             }
+                        }.onFailure { error ->
+                            if (error is CancellationException && error !is TimeoutCancellationException) {
+                                throw error
+                            }
+                            logger.error(error) { "Failed to load popular videos" }
+                            _uiState.update { it.copy(popularError = true) }
                         }
-                    }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
-                        logger.error(error) { "Failed to load popular videos" }
-                        _uiState.update { it.copy(popularError = true) }
+                    } finally {
+                        _uiState.update { it.copy(popularLoading = false) }
                     }
-                } finally {
-                    _uiState.update { it.copy(popularLoading = false) }
                 }
-            }
         }
 
         /**
@@ -286,40 +288,40 @@ class HomeViewModel
 
             _uiState.update { it.copy(dynamicLoading = true, dynamicError = false) }
 
-            dynamicLoadJob = viewModelScope.launch {
-
-                val nextPage = dynamicCurrentPage + 1
-                try {
-                    runCatching {
-                        withTimeout(LOAD_TIMEOUT_MS) {
-                            val data =
-                                userRepository.getDynamicVideos(
-                                    page = nextPage,
-                                    offset = dynamicHistoryOffset.orEmpty(),
-                                    updateBaseline = dynamicUpdateBaseline.orEmpty(),
-                                    preferApiType = prefApiType(),
-                                )
-                            dynamicCurrentPage = nextPage
-                            dynamicHistoryOffset = data.historyOffset
-                            dynamicUpdateBaseline = data.updateBaseline
-                            _uiState.update {
-                                it.copy(
-                                    dynamicItems = it.dynamicItems + data.videos,
-                                    dynamicHasMore = data.hasMore,
-                                )
+            dynamicLoadJob =
+                viewModelScope.launch {
+                    val nextPage = dynamicCurrentPage + 1
+                    try {
+                        runCatching {
+                            withTimeout(LOAD_TIMEOUT_MS) {
+                                val data =
+                                    userRepository.getDynamicVideos(
+                                        page = nextPage,
+                                        offset = dynamicHistoryOffset.orEmpty(),
+                                        updateBaseline = dynamicUpdateBaseline.orEmpty(),
+                                        preferApiType = prefApiType(),
+                                    )
+                                dynamicCurrentPage = nextPage
+                                dynamicHistoryOffset = data.historyOffset
+                                dynamicUpdateBaseline = data.updateBaseline
+                                _uiState.update {
+                                    it.copy(
+                                        dynamicItems = it.dynamicItems + data.videos,
+                                        dynamicHasMore = data.hasMore,
+                                    )
+                                }
                             }
+                        }.onFailure { error ->
+                            if (error is CancellationException && error !is TimeoutCancellationException) {
+                                throw error
+                            }
+                            logger.error(error) { "Failed to load dynamic videos" }
+                            _uiState.update { it.copy(dynamicError = true) }
                         }
-                    }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
-                        logger.error(error) { "Failed to load dynamic videos" }
-                        _uiState.update { it.copy(dynamicError = true) }
+                    } finally {
+                        _uiState.update { it.copy(dynamicLoading = false) }
                     }
-                } finally {
-                    _uiState.update { it.copy(dynamicLoading = false) }
                 }
-            }
         }
 
         /**

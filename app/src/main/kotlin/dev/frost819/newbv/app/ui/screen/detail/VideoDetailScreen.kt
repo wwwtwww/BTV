@@ -99,9 +99,9 @@ import dev.frost819.newbv.biliapi.entity.video.Tag
 import dev.frost819.newbv.biliapi.entity.video.VideoDetail
 import dev.frost819.newbv.biliapi.entity.video.VideoPage
 import dev.frost819.newbv.biliapi.entity.video.season.Episode
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
-import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
 import java.text.SimpleDateFormat
 import java.util.Locale

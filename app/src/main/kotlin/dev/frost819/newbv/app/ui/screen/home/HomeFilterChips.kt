@@ -26,7 +26,6 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.core.theme.LocalIsDarkTheme
@@ -147,7 +146,14 @@ private fun FilterChipItem(
                 containerColor =
                     when {
                         isFocused -> MaterialTheme.colorScheme.inverseSurface
-                        isSelected -> if (isDarkTheme) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant
+                        isSelected ->
+                            if (isDarkTheme) {
+                                Color.White.copy(
+                                    alpha = 0.16f,
+                                )
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
                         else -> Color.Transparent
                     },
                 contentColor =

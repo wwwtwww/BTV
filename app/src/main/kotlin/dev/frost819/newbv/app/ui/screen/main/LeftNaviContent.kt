@@ -1,9 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.main
 
-import dev.frost819.newbv.core.theme.BVColors
-import dev.frost819.newbv.core.theme.BVShape
-import dev.frost819.newbv.core.theme.LocalIsDarkTheme
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -51,7 +47,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -72,6 +67,9 @@ import dev.frost819.newbv.app.ui.component.FocusSaver
 import dev.frost819.newbv.app.ui.component.focusSaverItem
 import dev.frost819.newbv.core.focus.isDpadRight
 import dev.frost819.newbv.core.focus.isKeyDown
+import dev.frost819.newbv.core.theme.BVColors
+import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.core.theme.LocalIsDarkTheme
 import dev.frost819.newbv.data.datastore.LeftNaviItem
 
 /**
@@ -150,7 +148,14 @@ fun LeftNaviContent(
                     if (isDarkTheme) {
                         if (isExpanded) BVColors.DarkSurface else BVColors.DarkBackground
                     } else {
-                        if (isExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        if (isExpanded) {
+                            MaterialTheme.colorScheme.surface
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                                .copy(
+                                    alpha = 0.5f,
+                                )
+                        }
                     },
             ),
     ) {
@@ -298,7 +303,12 @@ private fun DrawerNavItem(
                     } else {
                         Color.Transparent
                     },
-                contentColor = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                contentColor =
+                    if (isSelected) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 focusedContainerColor = MaterialTheme.colorScheme.inverseSurface,
                 focusedContentColor = MaterialTheme.colorScheme.inverseOnSurface,
             ),
@@ -337,7 +347,14 @@ private fun DrawerNavItem(
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isFocused) MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color =
+                                if (isFocused) {
+                                    MaterialTheme.colorScheme.inverseOnSurface.copy(
+                                        alpha = 0.7f,
+                                    )
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

@@ -770,27 +770,33 @@ class PlayerViewModelTest {
     fun `checkAndPlayNext with multi-page video triggers countdown for next page`() =
         runTest(testDispatcher) {
             every { Prefs.actionAfterPlay } returns ActionAfterPlay.PlayNext
-            val parentItem = dev.frost819.newbv.app.entity.player.VideoListItem(
-                aid = 1L,
-                cid = 100L,
-                title = "Video 1",
-                ugcPages = listOf(
-                    dev.frost819.newbv.biliapi.entity.video.VideoPage(
-                        cid = 100L,
-                        index = 1,
-                        title = "P1",
-                        duration = 100,
-                        dimension = dev.frost819.newbv.biliapi.entity.video.Dimension(1920, 1080),
-                    ),
-                    dev.frost819.newbv.biliapi.entity.video.VideoPage(
-                        cid = 101L,
-                        index = 2,
-                        title = "P2",
-                        duration = 100,
-                        dimension = dev.frost819.newbv.biliapi.entity.video.Dimension(1920, 1080),
-                    ),
-                ),
-            )
+            val parentItem =
+                dev.frost819.newbv.app.entity.player.VideoListItem(
+                    aid = 1L,
+                    cid = 100L,
+                    title = "Video 1",
+                    ugcPages =
+                        listOf(
+                            dev.frost819.newbv.biliapi.entity.video.VideoPage(
+                                cid = 100L,
+                                index = 1,
+                                title = "P1",
+                                duration = 100,
+                                dimension =
+                                    dev.frost819.newbv.biliapi.entity.video
+                                        .Dimension(1920, 1080),
+                            ),
+                            dev.frost819.newbv.biliapi.entity.video.VideoPage(
+                                cid = 101L,
+                                index = 2,
+                                title = "P2",
+                                duration = 100,
+                                dimension =
+                                    dev.frost819.newbv.biliapi.entity.video
+                                        .Dimension(1920, 1080),
+                            ),
+                        ),
+                )
             every { videoInfoRepository.videoList } returns MutableStateFlow(listOf(parentItem))
 
             viewModel.checkAndPlayNext()
@@ -804,18 +810,24 @@ class PlayerViewModelTest {
         runTest(testDispatcher) {
             updateUiState {
                 it.copy(
-                    mediaProfileState = dev.frost819.newbv.app.ui.state.player.MediaProfileState(
-                        qualityId = 120,
-                        videoCodec = dev.frost819.newbv.data.datastore.VideoCodec.HEVC,
-                        audio = dev.frost819.newbv.data.datastore.Audio.AHiRes,
-                    ),
+                    mediaProfileState =
+                        dev.frost819.newbv.app.ui.state.player.MediaProfileState(
+                            qualityId = 120,
+                            videoCodec = dev.frost819.newbv.data.datastore.VideoCodec.HEVC,
+                            audio = dev.frost819.newbv.data.datastore.Audio.AHiRes,
+                        ),
                 )
             }
 
-            viewModel.playNewVideo(dev.frost819.newbv.app.entity.player.VideoListItem(aid = 1L, cid = 102L, title = "P2"))
+            viewModel.playNewVideo(
+                dev.frost819.newbv.app.entity.player
+                    .VideoListItem(aid = 1L, cid = 102L, title = "P2"),
+            )
 
             assertThat(viewModel.uiState.value.mediaProfileState.qualityId).isEqualTo(120)
-            assertThat(viewModel.uiState.value.mediaProfileState.videoCodec).isEqualTo(dev.frost819.newbv.data.datastore.VideoCodec.HEVC)
+            assertThat(
+                viewModel.uiState.value.mediaProfileState.videoCodec,
+            ).isEqualTo(dev.frost819.newbv.data.datastore.VideoCodec.HEVC)
         }
 
     // ── cancelPlayNext test ───────────────────────────────────

@@ -1,7 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
 
-import dev.frost819.newbv.core.theme.BVShape
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +38,7 @@ import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
 import dev.frost819.newbv.app.util.CacheManager
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.CrashHandler
+import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

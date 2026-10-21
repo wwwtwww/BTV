@@ -80,16 +80,20 @@ data class GithubRelease(
 fun GithubRelease.findApkAsset(): GithubRelease.Asset? =
     assets.firstOrNull { asset ->
         val name = asset.name
-        (name.startsWith("BTV", ignoreCase = true) ||
-            name.startsWith("newBV", ignoreCase = true) ||
-            name.startsWith("BV", ignoreCase = true)) &&
+        (
+            name.startsWith("BTV", ignoreCase = true) ||
+                name.startsWith("newBV", ignoreCase = true) ||
+                name.startsWith("BV", ignoreCase = true)
+        ) &&
             name.contains("release", ignoreCase = true) &&
             name.endsWith(".apk", ignoreCase = true)
     } ?: assets.firstOrNull { asset ->
         val name = asset.name
-        (name.startsWith("BTV", ignoreCase = true) ||
-            name.startsWith("newBV", ignoreCase = true) ||
-            name.startsWith("BV", ignoreCase = true)) &&
+        (
+            name.startsWith("BTV", ignoreCase = true) ||
+                name.startsWith("newBV", ignoreCase = true) ||
+                name.startsWith("BV", ignoreCase = true)
+        ) &&
             name.endsWith(".apk", ignoreCase = true)
     } ?: assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
 
@@ -109,4 +113,34 @@ fun GithubRelease.parseVersionCode(): Int? {
         }
     }
     return tagName.removePrefix("v").toIntOrNull()
+}
+
+/**
+ * 比较两个语义版本字符串（如 "v0.3.0" 与 "0.2.9"）。
+ *
+ * @return 若 [remote] 大于 [local] 返回正数；相等返回 0；小于返回负数；若无法解析为标准数字语义格式则返回 null。
+ */
+fun compareSemanticVersions(
+    remote: String,
+    local: String,
+): Int? {
+    val cleanRemote = remote.trim().removePrefix("v").substringBefore("-")
+    val cleanLocal = local.trim().removePrefix("v").substringBefore("-")
+
+    val remoteParts = cleanRemote.split(".").map { it.toIntOrNull() }
+    val localParts = cleanLocal.split(".").map { it.toIntOrNull() }
+
+    if (remoteParts.any { it == null } || localParts.any { it == null }) {
+        return null
+    }
+
+    val maxLen = maxOf(remoteParts.size, localParts.size)
+    for (i in 0 until maxLen) {
+        val r = remoteParts.getOrNull(i) ?: 0
+        val l = localParts.getOrNull(i) ?: 0
+        if (r != l) {
+            return r.compareTo(l)
+        }
+    }
+    return 0
 }

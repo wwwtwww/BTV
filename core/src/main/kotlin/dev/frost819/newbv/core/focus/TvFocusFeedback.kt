@@ -17,17 +17,19 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -71,16 +73,18 @@ object TvFocusDefaults {
     @Composable
     fun cardBorder(shape: Shape = BVShape.large): CardBorder {
         val isDark = LocalIsDarkTheme.current
-        val borderColor = if (isDark) {
-            MaterialTheme.colorScheme.border
-        } else {
-            BVColors.PrimaryStrong
-        }
+        val borderColor =
+            if (isDark) {
+                MaterialTheme.colorScheme.border
+            } else {
+                BVColors.PrimaryStrong
+            }
         return CardDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(borderWidth, borderColor),
-                shape = shape,
-            ),
+            focusedBorder =
+                Border(
+                    border = BorderStroke(borderWidth, borderColor),
+                    shape = shape,
+                ),
         )
     }
 
@@ -90,16 +94,18 @@ object TvFocusDefaults {
     @Composable
     fun surfaceBorder(shape: Shape = BVShape.large): ClickableSurfaceBorder {
         val isDark = LocalIsDarkTheme.current
-        val borderColor = if (isDark) {
-            MaterialTheme.colorScheme.border
-        } else {
-            BVColors.PrimaryStrong
-        }
+        val borderColor =
+            if (isDark) {
+                MaterialTheme.colorScheme.border
+            } else {
+                BVColors.PrimaryStrong
+            }
         return ClickableSurfaceDefaults.border(
-            focusedBorder = Border(
-                border = BorderStroke(borderWidth, borderColor),
-                shape = shape,
-            ),
+            focusedBorder =
+                Border(
+                    border = BorderStroke(borderWidth, borderColor),
+                    shape = shape,
+                ),
         )
     }
 
@@ -107,8 +113,7 @@ object TvFocusDefaults {
      * 构建 TV Card 推荐缩放配置（1.06x 放大）。
      */
     @Composable
-    fun cardScale(focusedScale: Float = FOCUSED_SCALE): CardScale =
-        CardDefaults.scale(focusedScale = focusedScale)
+    fun cardScale(focusedScale: Float = FOCUSED_SCALE): CardScale = CardDefaults.scale(focusedScale = focusedScale)
 
     /**
      * 构建 TV ClickableSurface 推荐缩放配置（1.06x 放大）。
@@ -116,6 +121,14 @@ object TvFocusDefaults {
     @Composable
     fun surfaceScale(focusedScale: Float = FOCUSED_SCALE): ClickableSurfaceScale =
         ClickableSurfaceDefaults.scale(focusedScale = focusedScale)
+}
+
+/**
+ * 电视立体焦点语义标识（用于 Compose 自动化测试与辅助功能断言）。
+ */
+object TvFocusSemantics {
+    /** 标记当前是否激活大屏立体焦点反馈（物理放大、发光或投影）。 */
+    val IsFocusFeedbackActive = SemanticsPropertyKey<Boolean>("IsFocusFeedbackActive")
 }
 
 /**
@@ -131,6 +144,9 @@ object TvFocusDefaults {
  * - 深色模式极光呼吸发光（Glow）
  * - 浅色模式环境悬浮投影（Drop Shadow）
  * - 高光/加粗边框
+ *
+ * 注意：根据 Compose 焦点事件冒泡机制，修饰符链中 [tvFocusFeedback] 应当置于 [.focusable()] 之前，
+ * 或直接应用于内部自带焦点的组件（如 TV Material3 的 Card/ClickableSurface）。
  *
  * @param shape 组件形状（默认 [BVShape.large]）
  * @param focusedScale 获焦缩放比例（默认 1.06f）
@@ -159,19 +175,21 @@ fun Modifier.tvFocusFeedback(
 
         val isDark = LocalIsDarkTheme.current
         val activeGlowColor = glowColor ?: BVColors.SecondaryLight
-        val activeBorderColor = if (isDark) {
-            MaterialTheme.colorScheme.border
-        } else {
-            BVColors.PrimaryStrong
-        }
+        val activeBorderColor =
+            if (isDark) {
+                MaterialTheme.colorScheme.border
+            } else {
+                BVColors.PrimaryStrong
+            }
 
         // 平滑弹性缩放动画
         val scale by animateFloatAsState(
             targetValue = if (showFeedback) focusedScale else 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
+            animationSpec =
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
             label = "tv-focus-scale",
         )
 
@@ -182,60 +200,69 @@ fun Modifier.tvFocusFeedback(
             label = "tv-focus-glow-alpha",
         )
 
-        val baseModifier = this
-            .onFocusChanged { hasFocus = it.hasFocus }
-            .zIndex(if (showFeedback) 1f else 0f)
-            .scale(scale)
+        val baseModifier =
+            this
+                .onFocusChanged { hasFocus = it.hasFocus }
+                .semantics {
+                    set(TvFocusSemantics.IsFocusFeedbackActive, showFeedback)
+                }.zIndex(if (showFeedback) 1f else 0f)
+                .scale(scale)
 
-        val withShadow = if (!isDark && showFeedback) {
-            baseModifier.shadow(elevation = 8.dp, shape = shape)
-        } else {
-            baseModifier
-        }
+        val withShadow =
+            if (!isDark && showFeedback) {
+                baseModifier.shadow(elevation = 8.dp, shape = shape)
+            } else {
+                baseModifier
+            }
 
-        val withGlow = if (isDark && glowAlpha > 0f) {
-            withShadow.drawWithContent {
-                val spreadPx = glowRadius.toPx()
-                val expandedSize = Size(size.width + spreadPx * 2, size.height + spreadPx * 2)
-                val outerOutline = shape.createOutline(expandedSize, layoutDirection, this)
+        val withGlow =
+            if (isDark && glowAlpha > 0f) {
+                withShadow.drawWithContent {
+                    val spreadPx = glowRadius.toPx()
+                    val expandedSize = Size(size.width + spreadPx * 2, size.height + spreadPx * 2)
+                    val outerOutline = shape.createOutline(expandedSize, layoutDirection, this)
 
-                // 1. 在组件底层沿真实 shape 轮廓投射极光外发光（由 zIndex 保证不被相邻卡片遮挡）
-                translate(left = -spreadPx, top = -spreadPx) {
+                    // 1. 在组件底层沿真实 shape 轮廓投射极光外发光（由 zIndex 保证不被相邻卡片遮挡）
+                    translate(left = -spreadPx, top = -spreadPx) {
+                        drawShapeOutline(
+                            outline = outerOutline,
+                            brush =
+                                Brush.radialGradient(
+                                    colors =
+                                        listOf(
+                                            activeGlowColor.copy(alpha = glowAlpha),
+                                            activeGlowColor.copy(alpha = glowAlpha * 0.35f),
+                                            Color.Transparent,
+                                        ),
+                                    center = Offset(expandedSize.width / 2f, expandedSize.height / 2f),
+                                    radius = expandedSize.maxDimension * 0.75f,
+                                ),
+                        )
+                    }
+
+                    // 2. 绘制卡片内容本身
+                    drawContent()
+
+                    // 3. 在内容表面边缘叠加极光内轮廓微光（解决铺满不透明封面时外层光晕被完全遮盖的视觉痛点）
+                    val innerOutline = shape.createOutline(size, layoutDirection, this)
                     drawShapeOutline(
-                        outline = outerOutline,
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                activeGlowColor.copy(alpha = glowAlpha),
-                                activeGlowColor.copy(alpha = glowAlpha * 0.35f),
-                                Color.Transparent,
+                        outline = innerOutline,
+                        brush =
+                            Brush.radialGradient(
+                                colors =
+                                    listOf(
+                                        Color.Transparent,
+                                        activeGlowColor.copy(alpha = glowAlpha * 0.25f),
+                                    ),
+                                center = center,
+                                radius = size.maxDimension * 0.6f,
                             ),
-                            center = Offset(expandedSize.width / 2f, expandedSize.height / 2f),
-                            radius = expandedSize.maxDimension * 0.75f,
-                        ),
+                        style = Stroke(width = borderWidth.toPx().coerceAtLeast(2f)),
                     )
                 }
-
-                // 2. 绘制卡片内容本身
-                drawContent()
-
-                // 3. 在内容表面边缘叠加极光内轮廓微光（解决铺满不透明封面时外层光晕被完全遮盖的视觉痛点）
-                val innerOutline = shape.createOutline(size, layoutDirection, this)
-                drawShapeOutline(
-                    outline = innerOutline,
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            activeGlowColor.copy(alpha = glowAlpha * 0.25f),
-                        ),
-                        center = center,
-                        radius = size.maxDimension * 0.6f,
-                    ),
-                    style = Stroke(width = borderWidth.toPx().coerceAtLeast(2f)),
-                )
+            } else {
+                withShadow
             }
-        } else {
-            withShadow
-        }
 
         withGlow.border(
             width = borderWidth,
@@ -253,23 +280,29 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShapeOutline(
     style: DrawStyle = Fill,
 ) {
     when (outline) {
-        is Outline.Rectangle -> drawRect(
-            brush = brush,
-            topLeft = Offset(outline.rect.left, outline.rect.top),
-            size = Size(outline.rect.width, outline.rect.height),
-            style = style,
-        )
-        is Outline.Rounded -> drawRoundRect(
-            brush = brush,
-            topLeft = Offset(outline.roundRect.left, outline.roundRect.top),
-            size = Size(outline.roundRect.width, outline.roundRect.height),
-            cornerRadius = outline.roundRect.bottomLeftCornerRadius,
-            style = style,
-        )
-        is Outline.Generic -> drawPath(
-            path = outline.path,
-            brush = brush,
-            style = style,
-        )
+        is Outline.Rectangle ->
+            drawRect(
+                brush = brush,
+                topLeft = Offset(outline.rect.left, outline.rect.top),
+                size = Size(outline.rect.width, outline.rect.height),
+                style = style,
+            )
+        is Outline.Rounded -> {
+            val path =
+                Path().apply {
+                    addRoundRect(outline.roundRect)
+                }
+            drawPath(
+                path = path,
+                brush = brush,
+                style = style,
+            )
+        }
+        is Outline.Generic ->
+            drawPath(
+                path = outline.path,
+                brush = brush,
+                style = style,
+            )
     }
 }

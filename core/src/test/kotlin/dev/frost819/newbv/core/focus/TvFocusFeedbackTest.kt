@@ -8,7 +8,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.CardBorder
@@ -33,12 +37,11 @@ import org.robolectric.annotation.Config
  * 电视端立体焦点系统 ([TvFocusDefaults] / [Modifier.tvFocusFeedback]) 的单元与组合测试。
  *
  * 通过 Robolectric + Compose 测试规则驱动真实修饰符与主题，覆盖深/浅主题下的边框计算、
- * 获焦动画、极光外发光 (Glow) 与悬浮投影 (Shadow) 绘制分支。
+ * 非均匀圆角绘制、获焦语义流转、极光外发光 (Glow) 与悬浮投影 (Shadow) 行为断言。
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class TvFocusFeedbackTest {
-
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -59,21 +62,25 @@ class TvFocusFeedbackTest {
         composeRule.setContent {
             BVTheme(themeMode = ThemeMode.Dark) {
                 darkBorder = TvFocusDefaults.cardBorder(shape = BVShape.large)
-                expectedDark = CardDefaults.border(
-                    focusedBorder = Border(
-                        border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.DarkBorder),
-                        shape = BVShape.large,
-                    ),
-                )
+                expectedDark =
+                    CardDefaults.border(
+                        focusedBorder =
+                            Border(
+                                border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.DarkBorder),
+                                shape = BVShape.large,
+                            ),
+                    )
             }
             BVTheme(themeMode = ThemeMode.Light) {
                 lightBorder = TvFocusDefaults.cardBorder(shape = BVShape.medium)
-                expectedLight = CardDefaults.border(
-                    focusedBorder = Border(
-                        border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.PrimaryStrong),
-                        shape = BVShape.medium,
-                    ),
-                )
+                expectedLight =
+                    CardDefaults.border(
+                        focusedBorder =
+                            Border(
+                                border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.PrimaryStrong),
+                                shape = BVShape.medium,
+                            ),
+                    )
             }
         }
         composeRule.waitForIdle()
@@ -92,21 +99,25 @@ class TvFocusFeedbackTest {
         composeRule.setContent {
             BVTheme(themeMode = ThemeMode.Dark) {
                 darkBorder = TvFocusDefaults.surfaceBorder(shape = BVShape.large)
-                expectedDark = ClickableSurfaceDefaults.border(
-                    focusedBorder = Border(
-                        border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.DarkBorder),
-                        shape = BVShape.large,
-                    ),
-                )
+                expectedDark =
+                    ClickableSurfaceDefaults.border(
+                        focusedBorder =
+                            Border(
+                                border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.DarkBorder),
+                                shape = BVShape.large,
+                            ),
+                    )
             }
             BVTheme(themeMode = ThemeMode.Light) {
                 lightBorder = TvFocusDefaults.surfaceBorder(shape = BVShape.medium)
-                expectedLight = ClickableSurfaceDefaults.border(
-                    focusedBorder = Border(
-                        border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.PrimaryStrong),
-                        shape = BVShape.medium,
-                    ),
-                )
+                expectedLight =
+                    ClickableSurfaceDefaults.border(
+                        focusedBorder =
+                            Border(
+                                border = BorderStroke(TvFocusDefaults.borderWidth, BVColors.PrimaryStrong),
+                                shape = BVShape.medium,
+                            ),
+                    )
             }
         }
         composeRule.waitForIdle()
@@ -116,29 +127,65 @@ class TvFocusFeedbackTest {
     }
 
     @Test
-    fun `tvFocusFeedback renders and animates focus in dark theme`() {
+    fun `tvFocusFeedback with asymmetric shapes renders roundRect path correctly`() {
+        // 关键断言：验证非均匀圆角（如 drawerStart 与 bannerEnd）在获焦时通过 Path 精确绘制，不抛出异常
         val focusRequester = FocusRequester()
 
         composeRule.setContent {
             BVTheme(themeMode = ThemeMode.Dark) {
                 Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .focusRequester(focusRequester)
-                        .focusable()
-                        .tvFocusFeedback(
-                            shape = BVShape.large,
-                            focusedScale = 1.06f,
-                            borderWidth = 2.5.dp,
-                        ),
+                    modifier =
+                        Modifier
+                            .size(120.dp)
+                            .testTag("asymmetric_card")
+                            .focusRequester(focusRequester)
+                            .tvFocusFeedback(
+                                shape = BVShape.drawerStart,
+                                focusedScale = 1.06f,
+                            ).focusable(),
                 )
             }
         }
         composeRule.waitForIdle()
 
-        // 初始非获焦态
-        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.runOnUiThread {
+            focusRequester.requestFocus()
+        }
         composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(400)
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag("asymmetric_card")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, true))
+    }
+
+    @Test
+    fun `tvFocusFeedback renders and animates focus in dark theme with behavior assertions`() {
+        val focusRequester = FocusRequester()
+
+        composeRule.setContent {
+            BVTheme(themeMode = ThemeMode.Dark) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(120.dp)
+                            .testTag("focus_box_dark")
+                            .focusRequester(focusRequester)
+                            .tvFocusFeedback(
+                                shape = BVShape.large,
+                                focusedScale = 1.06f,
+                                borderWidth = 2.5.dp,
+                            ).focusable(),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // 初始未获焦态断言：反馈未激活
+        composeRule
+            .onNodeWithTag("focus_box_dark")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, false))
 
         // 请求焦点触发动效流转与深色 Glow 绘制
         composeRule.runOnUiThread {
@@ -149,42 +196,54 @@ class TvFocusFeedbackTest {
         // 推进动效时钟使 spring 动画完整收敛
         composeRule.mainClock.advanceTimeBy(400)
         composeRule.waitForIdle()
+
+        // 获焦态断言：深色模式大屏立体焦点反馈激活
+        composeRule
+            .onNodeWithTag("focus_box_dark")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, true))
     }
 
     @Test
-    fun `tvFocusFeedback renders and animates focus in light theme`() {
+    fun `tvFocusFeedback renders and animates focus in light theme with behavior assertions`() {
         val focusRequester = FocusRequester()
 
         composeRule.setContent {
             BVTheme(themeMode = ThemeMode.Light) {
                 Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .focusRequester(focusRequester)
-                        .focusable()
-                        .tvFocusFeedback(
-                            shape = BVShape.medium,
-                            focusedScale = 1.06f,
-                            borderWidth = 2.5.dp,
-                        ),
+                    modifier =
+                        Modifier
+                            .size(120.dp)
+                            .testTag("focus_box_light")
+                            .focusRequester(focusRequester)
+                            .tvFocusFeedback(
+                                shape = BVShape.medium,
+                                focusedScale = 1.06f,
+                                borderWidth = 2.5.dp,
+                            ).focusable(),
                 )
             }
         }
         composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag("focus_box_light")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, false))
 
         // 请求焦点触发浅色 Drop Shadow 与深色对比边框分支
         composeRule.runOnUiThread {
             focusRequester.requestFocus()
         }
         composeRule.waitForIdle()
-
-        // 推进动效时钟
         composeRule.mainClock.advanceTimeBy(400)
         composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithTag("focus_box_light")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, true))
     }
 
     @Test
-    fun `tvFocusFeedback respects interaction tracker input method`() {
+    fun `tvFocusFeedback respects interaction tracker input method with behavior assertions`() {
         val focusRequester = FocusRequester()
         val tracker = InteractionTracker(initial = InputMethod.Touch)
 
@@ -194,11 +253,13 @@ class TvFocusFeedbackTest {
                     LocalInteractionTracker provides tracker,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .focusRequester(focusRequester)
-                            .focusable()
-                            .tvFocusFeedback(),
+                        modifier =
+                            Modifier
+                                .size(100.dp)
+                                .testTag("tracker_box")
+                                .focusRequester(focusRequester)
+                                .tvFocusFeedback()
+                                .focusable(),
                     )
                 }
             }
@@ -211,11 +272,22 @@ class TvFocusFeedbackTest {
         }
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(300)
+        composeRule.waitForIdle()
+
+        // 行为断言：Touch 输入模式下反馈必须被门控拦截抑制
+        composeRule
+            .onNodeWithTag("tracker_box")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, false))
 
         // 切换为 DPad 模式，激活遥控器大屏立体反馈
         tracker.onDpadKey()
         composeRule.waitForIdle()
         composeRule.mainClock.advanceTimeBy(300)
         composeRule.waitForIdle()
+
+        // 行为断言：切换为 DPad 后反馈立刻激活生效
+        composeRule
+            .onNodeWithTag("tracker_box")
+            .assert(SemanticsMatcher.expectValue(TvFocusSemantics.IsFocusFeedbackActive, true))
     }
 }

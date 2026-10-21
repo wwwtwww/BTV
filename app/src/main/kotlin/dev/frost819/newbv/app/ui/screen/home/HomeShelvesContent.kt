@@ -1,7 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.home
 
-import dev.frost819.newbv.core.theme.BVShape
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +36,7 @@ import dev.frost819.newbv.app.ui.navigation.UserSpaceRoute
 import dev.frost819.newbv.app.ui.navigation.navigateFromVideoCard
 import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.home.HomeViewModel
+import dev.frost819.newbv.core.theme.BVShape
 
 /**
  * YouTube TV 风格主页综合横向泳道视图（Home Shelves Content）。

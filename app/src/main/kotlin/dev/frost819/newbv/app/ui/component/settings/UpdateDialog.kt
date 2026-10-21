@@ -1,6 +1,9 @@
 package dev.frost819.newbv.app.ui.component.settings
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +33,7 @@ import androidx.tv.material3.Text
 import dev.frost819.newbv.BuildConfig
 import dev.frost819.newbv.app.network.GithubApi
 import dev.frost819.newbv.app.network.entity.GithubRelease
+import dev.frost819.newbv.app.network.entity.compareSemanticVersions
 import dev.frost819.newbv.app.network.entity.findApkAsset
 import dev.frost819.newbv.app.network.entity.parseVersionCode
 import dev.frost819.newbv.app.util.CacheManager
@@ -83,16 +87,20 @@ fun UpdateDialog(
                 val release = GithubApi.getLatestBuild()
                 latestRelease = release
                 val targetCode = release.parseVersionCode()
-                if (targetCode != null) {
-                    if (targetCode <= BuildConfig.VERSION_CODE) {
-                        updateStatus = UpdateStatus.NoAvailableUpdate
-                        return@launch
+                val hasUpdate =
+                    when {
+                        targetCode != null -> targetCode > BuildConfig.VERSION_CODE
+                        else -> {
+                            val semVerDiff = compareSemanticVersions(release.tagName, BuildConfig.VERSION_NAME)
+                            when {
+                                semVerDiff != null -> semVerDiff > 0
+                                else -> false
+                            }
+                        }
                     }
-                } else {
-                    if (release.tagName.trimStart('v') == BuildConfig.VERSION_NAME.trimStart('v')) {
-                        updateStatus = UpdateStatus.NoAvailableUpdate
-                        return@launch
-                    }
+                if (!hasUpdate) {
+                    updateStatus = UpdateStatus.NoAvailableUpdate
+                    return@launch
                 }
                 updateStatus = UpdateStatus.Ready
             }.onFailure {
@@ -107,6 +115,22 @@ fun UpdateDialog(
     val installUpdate: (File) -> Unit = { file ->
         updateStatus = UpdateStatus.Installing
         runCatching {
+            // Android 8.0+ 检查并引导未知来源应用安装权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !context.packageManager.canRequestPackageInstalls()
+            ) {
+                val manageIntent =
+                    Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${BuildConfig.APPLICATION_ID}"),
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                context.startActivity(manageIntent)
+                updateStatus = UpdateStatus.Ready
+                return@runCatching
+            }
+
             val uri =
                 FileProvider.getUriForFile(
                     context,
@@ -137,6 +161,13 @@ fun UpdateDialog(
                     val tempDir = File(context.cacheDir, "update_downloader")
                     if (!tempDir.exists()) tempDir.mkdirs()
                     val tempFile = File(tempDir, tempFilename)
+
+                    // 若本地已有完整下载且大小一致的安装包，直接调起安装避免重复拉取
+                    if (tempFile.exists() && tempFile.length() > 0 && tempFile.length() == apkAsset.size.toLong()) {
+                        if (show) installUpdate(tempFile)
+                        return@launch
+                    }
+
                     if (tempFile.exists()) tempFile.delete()
                     tempFile.createNewFile()
 

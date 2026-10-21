@@ -74,9 +74,9 @@ import dev.frost819.newbv.app.viewmodel.pgc.SeasonDetailUiState
 import dev.frost819.newbv.app.viewmodel.pgc.SeasonDetailViewModel
 import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.touchClickable
-import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
 
 /** 集数超过该值时显示网格快速选集按钮。 */

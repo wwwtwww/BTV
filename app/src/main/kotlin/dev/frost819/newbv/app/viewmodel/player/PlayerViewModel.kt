@@ -329,23 +329,26 @@ class PlayerViewModel
 
                 // 自动补全播放列表（多 P 分集与合集），确保即点即播时也能连播下一集
                 val currentList = videoInfoRepository.videoList.value
-                val isListIncomplete = currentList.isEmpty() ||
-                    (currentList.size == 1 && currentList[0].ugcPages.isNullOrEmpty())
+                val isListIncomplete =
+                    currentList.isEmpty() ||
+                        (currentList.size == 1 && currentList[0].ugcPages.isNullOrEmpty())
                 if (isListIncomplete) {
                     val ugcSeason = detail.ugcSeason
                     if (ugcSeason != null && ugcSeason.sections.isNotEmpty()) {
-                        val targetSection = ugcSeason.sections.firstOrNull { section ->
-                            section.episodes.any { it.aid == detail.aid }
-                        } ?: ugcSeason.sections.first()
-                        val episodeList = targetSection.episodes.map { ep ->
-                            val epPages = if (ep.aid == detail.aid) detail.pages.takeIf { it.size > 1 } else null
-                            VideoListItem(
-                                aid = ep.aid,
-                                cid = ep.cid,
-                                title = ep.title,
-                                ugcPages = epPages,
-                            )
-                        }
+                        val targetSection =
+                            ugcSeason.sections.firstOrNull { section ->
+                                section.episodes.any { it.aid == detail.aid }
+                            } ?: ugcSeason.sections.first()
+                        val episodeList =
+                            targetSection.episodes.map { ep ->
+                                val epPages = if (ep.aid == detail.aid) detail.pages.takeIf { it.size > 1 } else null
+                                VideoListItem(
+                                    aid = ep.aid,
+                                    cid = ep.cid,
+                                    title = ep.title,
+                                    ugcPages = epPages,
+                                )
+                            }
                         videoInfoRepository.updateVideoList(episodeList)
                     } else if (detail.pages.size > 1) {
                         videoInfoRepository.updateVideoList(
