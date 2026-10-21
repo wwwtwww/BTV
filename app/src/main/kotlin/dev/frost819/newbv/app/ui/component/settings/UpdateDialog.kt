@@ -131,6 +131,8 @@ fun UpdateDialog(
                 return@runCatching
             }
 
+            file.setReadable(true, false)
+
             val uri =
                 FileProvider.getUriForFile(
                     context,
@@ -144,8 +146,22 @@ fun UpdateDialog(
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
+            val resolveInfos =
+                context.packageManager.queryIntentActivities(
+                    intent,
+                    android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
+                )
+            for (resolveInfo in resolveInfos) {
+                context.grantUriPermission(
+                    resolveInfo.activityInfo.packageName,
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+
             context.startActivity(intent)
         }.onFailure {
+            logger.error(it) { "Failed to launch package installer" }
             updateStatus = UpdateStatus.InstallError
         }
     }
@@ -158,18 +174,23 @@ fun UpdateDialog(
                     val release = latestRelease ?: error("未获取到可用更新信息")
                     val apkAsset = release.findApkAsset() ?: error("未找到可用的安装包资产 (APK)")
                     val tempFilename = apkAsset.name
-                    val tempDir = File(context.cacheDir, "update_downloader")
+                    val tempDir =
+                        context.externalCacheDir?.let { File(it, "update_downloader") }
+                            ?: context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "update_downloader") }
+                            ?: File(context.cacheDir, "update_downloader")
                     if (!tempDir.exists()) tempDir.mkdirs()
                     val tempFile = File(tempDir, tempFilename)
 
                     // 若本地已有完整下载且大小一致的安装包，直接调起安装避免重复拉取
                     if (tempFile.exists() && tempFile.length() > 0 && tempFile.length() == apkAsset.size.toLong()) {
+                        tempFile.setReadable(true, false)
                         if (show) installUpdate(tempFile)
                         return@launch
                     }
 
                     if (tempFile.exists()) tempFile.delete()
                     tempFile.createNewFile()
+                    tempFile.setReadable(true, false)
 
                     GithubApi.downloadUpdate(apkAsset.browserDownloadUrl, tempFile) { downloaded: Long, total: Long ->
                         bytesSentTotal = downloaded

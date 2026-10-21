@@ -35,9 +35,10 @@ class CacheManager(
      */
     constructor(context: Context) : this(
         cacheDirs =
-            listOf(
+            listOfNotNull(
                 File(context.cacheDir, IMAGE_CACHE_DIR),
                 File(context.cacheDir, OTHER_CACHE_DIR),
+                context.externalCacheDir?.let { File(it, OTHER_CACHE_DIR) },
             ),
     )
 

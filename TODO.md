@@ -24,6 +24,11 @@
   - 内置永久发布密钥 `btv-release.jks`，彻底解决自更新签名不匹配问题；
   - 修正设置中心「关于」页面的项目开源地址为 `https://github.com/wwwtwww/BTV` 并优化前缀说明；
   - 全面清理仓库中残留的旧项目与模板引用。
+- [x] **v0.4.3：应用内更新存储与权限底层健壮性增强（v0.4.3 已发布）**
+  - 将更新包存储迁移至外部公共应用缓存（`externalCacheDir`），避免旧进程被系统杀死时 FileProvider 管道与私有存储权限断开；
+  - 为更新 APK 补充全局可读标志（`file.setReadable(true, false)`）；
+  - 显式通过 `grantUriPermission` 为系统包安装器底层服务授予跨进程读取权限；
+  - 完善 `file_paths.xml` 声明 `<external-cache-path>` 与 `<external-files-path>`。
 - [ ] **P2：大屏高级布局革新（暂缓实现，记录于下方）**
   - 暂缓原因：改动范围广、涉及播放器控制器重构与大屏全局看板生命周期管理，后续建议作为单独的大特性分批立项推进。
 
