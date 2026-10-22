@@ -34,11 +34,16 @@
 - [x] **v0.4.5：发布签名安全加固与密钥轮换门禁（v0.4.5 已发布）**
   - 从仓库移出硬编码 release 签名密钥至 GitHub Secrets，引入 apksigner 与 versionCode 门禁；
   - 完善 docs/SECURITY_SIGNING_ROTATION.md 规范。
-- [x] **v0.4.6：全面对齐原版 newBV 纯粹 OTA 机制（v0.4.6 待发布）**
+- [x] **v0.4.6：全面对齐原版 newBV 纯粹 OTA 机制（v0.4.6 已发布）**
   - 彻底移除 `revokeUriPermission`，修复调起安装器后权限被提前撤销导致系统读取失败的致命 Bug；
   - 彻底移除 `AndroidManifest.xml` 中的 `REQUEST_INSTALL_PACKAGES`，避免国产 TV 系统因缺失 AppOps 授权界面触发安全拦截；
   - 彻底收敛更新包至内部私有目录 `cacheDir/ota_packages`，彻底规避 Android 10/11+ 外部存储沙盒限制；
   - 恢复纯粹的隐式系统安装器调用机制。
+- [x] **v0.4.7：全新大屏专属经典粉蓝应用图标与 Leanback Banner 横幅（v0.4.7 待发布）**
+  - 采用全新方案 4：经典 B 站粉蓝对角流光渐变背景与呆萌小电视造型；
+  - 重新渲染全密度 `mipmap` 正方形 Squircle 与圆形 Round 应用图标；
+  - 重新设计并生成 16:9 Leanback 电视横幅 `ic_banner.png` (640x360)；
+  - 修正 Adaptive Icon 默认底色为 `#FB7299`，杜绝电视桌面上出现多余暗黑边框。
 - [ ] **P2：大屏高级布局革新（暂缓实现，记录于下方）**
   - 暂缓原因：改动范围广、涉及播放器控制器重构与大屏全局看板生命周期管理，后续建议作为单独的大特性分批立项推进。
 
