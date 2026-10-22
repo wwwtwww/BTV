@@ -31,18 +31,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Decode signing config (Optional)
+      - name: Validate and decode release signing secrets
         env:
           SIGNING_PROPERTIES: ${{ secrets.SIGNING_PROPERTIES }}
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
-          if [ -n "$SIGNING_PROPERTIES" ] && [ -n "$SIGN_KEY" ]; then
-            echo "Applying custom release signing configuration..."
-            echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
-            echo "$SIGN_KEY" | base64 -d > key.jks
-          else
-            echo "No custom signing secrets found. Using repository default stable btv-release.jks..."
+          if [ -z "$SIGNING_PROPERTIES" ] || [ -z "$SIGN_KEY" ]; then
+            echo "::error::Release build requires SIGNING_PROPERTIES and SIGN_KEY secrets to be configured."
+            echo "Missing signing secrets will break OTA update certificate continuity."
+            exit 1
           fi
+          echo "Applying release signing configuration..."
+          echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
+          echo "$SIGN_KEY" | base64 -d > key.jks
 
       - name: Build release APK
         env:
@@ -60,8 +61,42 @@ jobs:
             exit 1
           fi
           echo "Found APK: $APK_PATH"
+          APK_NAME=$(basename "$APK_PATH")
+          VERSION_CODE=$(echo "$APK_NAME" | cut -d'_' -f2)
+          if [ "$VERSION_CODE" = "1" ]; then
+            echo "::error::Invalid versionCode=1 detected in release APK $APK_NAME. Check git history or specify BTV_VERSION_CODE."
+            exit 1
+          fi
+          # 拦截与上一已发布版本相比的 versionCode 回退，防止破坏 OTA 覆盖升级
+          LATEST_ASSET=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/releases/latest" | \
+            jq -r '.assets[]?.name | select(endswith(".apk"))' | head -n 1 || true)
+          if [ -n "$LATEST_ASSET" ] && [ "$LATEST_ASSET" != "null" ]; then
+            LATEST_CODE=$(echo "$LATEST_ASSET" | cut -d'_' -f2)
+            if [ -n "$LATEST_CODE" ] && [ "$LATEST_CODE" -eq "$LATEST_CODE" ] 2>/dev/null; then
+              echo "Published latest release versionCode: $LATEST_CODE"
+              if [ "$VERSION_CODE" -le "$LATEST_CODE" ]; then
+                echo "::error::Release versionCode ($VERSION_CODE) <= published versionCode ($LATEST_CODE). Upgrades would be rejected with INSTALL_FAILED_VERSION_DOWNGRADE."
+                exit 1
+              fi
+            fi
+          fi
+          echo "Validated release versionCode: $VERSION_CODE"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "apk_name=$(basename "$APK_PATH")" >> "$GITHUB_OUTPUT"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release APK signature
+        run: |
+          APK_PATH="${{ steps.apk_info.outputs.apk_path }}"
+          echo "Verifying signing certificate for $APK_PATH..."
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner tool not found in $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose "$APK_PATH"
+          echo "Release certificate fingerprints:"
+          "$APKSIGNER" verify --print-certs "$APK_PATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

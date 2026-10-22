@@ -751,4 +751,35 @@ class HomeViewModelTest {
             assertThat(viewModel.uiState.value.popularError).isFalse()
             assertThat(viewModel.uiState.value.popularItems).isNotEmpty()
         }
+
+    @Test
+    fun `loadRecommend updates recommendHasMore from data hasMore`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+                RecommendData(
+                    items = listOf(fakeUgcItem(1)),
+                    nextPage = RecommendPage(),
+                    hasMore = false,
+                )
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.recommendHasMore).isFalse()
+            assertThat(viewModel.uiState.value.recommendItems).hasSize(1)
+        }
+
+    @Test
+    fun `loadRecommend with empty items and hasMore false sets recommendHasMore to false`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } returns
+                RecommendData(
+                    items = emptyList(),
+                    nextPage = RecommendPage(),
+                    hasMore = false,
+                )
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.recommendHasMore).isFalse()
+        }
 }

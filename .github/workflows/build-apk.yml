@@ -43,17 +43,22 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Setup signing config (Optional)
+      - name: Run unit tests and verify androidTest compilation
+        run: |
+          ./gradlew test compileDebugAndroidTestKotlin --stacktrace
+
+      - name: Setup signing config
         env:
           SIGNING_PROPERTIES: ${{ secrets.SIGNING_PROPERTIES }}
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
+          BUILD_TYPE: ${{ inputs.build_type || 'release' }}
         run: |
           if [ -n "$SIGNING_PROPERTIES" ] && [ -n "$SIGN_KEY" ]; then
-            echo "Applying custom release signing configuration..."
+            echo "Applying release signing configuration..."
             echo "$SIGNING_PROPERTIES" | base64 -d > signing.properties
             echo "$SIGN_KEY" | base64 -d > key.jks
-          else
-            echo "No signing secrets found. Falling back to default signing (installs seamlessly on TV devices)."
+          elif [ "$BUILD_TYPE" = "release" ]; then
+            echo "::warning::No release signing secrets found. Release builds will be unsigned."
           fi
 
       - name: Build APK

@@ -124,15 +124,16 @@ fun compareSemanticVersions(
     remote: String,
     local: String,
 ): Int? {
-    val cleanRemote = remote.trim().removePrefix("v").substringBefore("-")
-    val cleanLocal = local.trim().removePrefix("v").substringBefore("-")
-
-    val remoteParts = cleanRemote.split(".").map { it.toIntOrNull() }
-    val localParts = cleanLocal.split(".").map { it.toIntOrNull() }
-
-    if (remoteParts.any { it == null } || localParts.any { it == null }) {
-        return null
+    fun cleanVersion(v: String): List<Int>? {
+        val s = v.trim().removePrefix("v").substringBefore("-")
+        val segments = s.split(".")
+            .takeWhile { part -> part.isNotEmpty() && part.all { it.isDigit() } }
+        val numericParts = segments.map { it.toIntOrNull() ?: return null }
+        return if (numericParts.isEmpty()) null else numericParts
     }
+
+    val remoteParts = cleanVersion(remote) ?: return null
+    val localParts = cleanVersion(local) ?: return null
 
     val maxLen = maxOf(remoteParts.size, localParts.size)
     for (i in 0 until maxLen) {

@@ -23,7 +23,30 @@ val signingProperties = Properties()
 if (signingPropertiesFile.exists()) {
     signingPropertiesFile.inputStream().use { signingProperties.load(it) }
 }
-val defaultReleaseKeyFile = rootProject.file("btv-release.jks")
+fun findSigningProperty(key: String): String? {
+    return signingProperties.getProperty(key)
+        ?: (project.findProperty(key) as? String)
+        ?: System.getenv(key)
+        ?: System.getenv(key.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase())
+}
+
+val releaseStoreFileProp = findSigningProperty("releaseStoreFile")
+val releaseStorePasswordProp = findSigningProperty("releaseStorePassword")
+val releaseKeyAliasProp = findSigningProperty("releaseKeyAlias")
+val releaseKeyPasswordProp = findSigningProperty("releaseKeyPassword")
+
+val releaseStoreFile = releaseStoreFileProp?.let { rootProject.file(it) }
+val hasReleaseSigning = releaseStoreFile?.exists() == true &&
+    !releaseStorePasswordProp.isNullOrBlank() &&
+    !releaseKeyAliasProp.isNullOrBlank() &&
+    !releaseKeyPasswordProp.isNullOrBlank()
+
+if (!hasReleaseSigning) {
+    logger.warn(
+        "release 构建未配置有效签名私钥，产出 APK 将不可直接安装（报 INSTALL_PARSE_FAILED_NO_CERTIFICATES）。" +
+            "本地如需签署 release 包，请参考 signing.properties.template 配置 signing.properties 或注入环境变量。"
+    )
+}
 
 android {
     namespace = AppConfiguration.appId
@@ -34,20 +57,15 @@ android {
             enableV1Signing = true
             enableV2Signing = true
         }
-        create("release") {
-            if (signingPropertiesFile.exists()) {
-                storeFile = rootProject.file(signingProperties.getProperty("releaseStoreFile"))
-                storePassword = signingProperties.getProperty("releaseStorePassword")
-                keyAlias = signingProperties.getProperty("releaseKeyAlias")
-                keyPassword = signingProperties.getProperty("releaseKeyPassword")
-            } else if (defaultReleaseKeyFile.exists()) {
-                storeFile = defaultReleaseKeyFile
-                storePassword = "btv_release_key"
-                keyAlias = "btv"
-                keyPassword = "btv_release_key"
+        if (hasReleaseSigning && releaseStoreFile != null) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePasswordProp
+                keyAlias = releaseKeyAliasProp
+                keyPassword = releaseKeyPasswordProp
+                enableV1Signing = true
+                enableV2Signing = true
             }
-            enableV1Signing = true
-            enableV2Signing = true
         }
     }
 
@@ -78,7 +96,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.let { releaseSigning ->
+                signingConfig = releaseSigning
+            }
         }
         debug {
             isMinifyEnabled = false
@@ -213,6 +233,10 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+
+
+
+
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.compiler)
 
@@ -231,4 +255,7 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    maxHeapSize = "2048m"
+    forkEvery = 50L
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }

@@ -105,26 +105,32 @@ open class RecommendVideoRepositoryImpl(
         // App 接口的下一页游标必须基于原始列表（含被过滤掉的卡片）推进，
         // 否则整页卡片被过滤时会返回与上次相同的游标，导致重复请求同一页
         var appNextIdx: Int? = null
+        var hasMore = true
         val items =
             when (preferApiType) {
-                ApiType.Web ->
-                    BiliHttpApi
-                        .getFeedRcmd(
-                            idx = page.nextWebIdx,
-                        ).getResponseData()
-                        .item
-                        .map { UgcItem.fromRcmdItem(it) }
+                ApiType.Web -> {
+                    val response =
+                        BiliHttpApi
+                            .getFeedRcmd(
+                                idx = page.nextWebIdx,
+                            ).getResponseData()
+                    // Web 推荐接口无 has_more 字段，以列表是否非空推导；若服务端后续显式返回则优先使用
+                    hasMore = response.hasMore ?: response.item.isNotEmpty()
+                    response.item.map { UgcItem.fromRcmdItem(it) }
+                }
 
                 // 推荐流没有对应 RPC，与原版一致走 App HTTP feed/index；
                 // 不能复用 Popular.Index，否则推荐和热门内容相同
                 ApiType.App -> {
-                    val rawItems =
+                    val response =
                         BiliHttpApi
                             .getFeedIndex(
                                 idx = page.nextAppIdx,
                                 accessKey = authRepository.accessToken,
                             ).getResponseData()
-                            .items
+                    // App 接口支持 has_more (0/1 或 boolean)，同时结合列表非空兜底
+                    hasMore = response.hasMore && response.items.isNotEmpty()
+                    val rawItems = response.items
                     appNextIdx = rawItems.lastOrNull()?.idx?.plus(1)
                     rawItems
                         .filter { it.cardGoto == "av" }
@@ -146,6 +152,7 @@ open class RecommendVideoRepositoryImpl(
         return RecommendData(
             items = items,
             nextPage = nextPage,
+            hasMore = hasMore,
         )
     }
 }

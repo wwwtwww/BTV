@@ -187,10 +187,10 @@ class PrefDelegateTest {
     @Test
     fun `launchPersist executes block`() =
         runBlocking {
-            var executed = false
-            Prefs.launchPersist { executed = true }
-            delay(200)
-            assertThat(executed).isTrue()
+            val latch = java.util.concurrent.CountDownLatch(1)
+            Prefs.launchPersist { latch.countDown() }
+            val ok = latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            assertThat(ok).isTrue()
         }
 
     // ===== 覆盖全部 Prefs setter =====

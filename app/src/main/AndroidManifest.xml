@@ -16,6 +16,18 @@
         android:name="android.software.leanback"
         android:required="false" />
 
+    <!-- Android 11+ 包可见性：允许系统预检未知来源安装设置与 APK 安装器 Activity -->
+    <queries>
+        <intent>
+            <action android:name="android.settings.MANAGE_UNKNOWN_APP_SOURCES" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
+    </queries>
+
     <application
         android:name=".app.BVApplication"
         android:allowBackup="true"

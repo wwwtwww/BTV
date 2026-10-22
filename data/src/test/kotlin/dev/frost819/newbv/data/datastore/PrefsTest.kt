@@ -479,6 +479,7 @@ class PrefsTest {
      * 需要短暂等待确保 DataStore 持久化完成。
      */
     private suspend fun awaitAsyncWrite() {
-        delay(200)
+        Prefs.awaitPersistForTesting()
+        delay(50)
     }
 }

@@ -520,4 +520,12 @@ object Prefs {
         dataStoreRef = null
         delegateMap.forEach { (_, delegate) -> delegate.resetToDefault() }
     }
+
+    /**
+     * 等待当前排队的持久化操作全部完成（仅测试用）。
+     */
+    @androidx.annotation.VisibleForTesting
+    suspend fun awaitPersistForTesting() {
+        persistMutex.withLock { }
+    }
 }

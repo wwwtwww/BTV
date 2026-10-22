@@ -16,6 +16,8 @@ import io.ktor.client.request.url
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLProtocol
+import io.ktor.http.isSuccess
+import java.io.IOException
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.serialization.json.Json
@@ -111,6 +113,10 @@ object GithubApi {
                     onProgress(downloaded, total ?: 0)
                 }
             }.execute { response ->
+                if (!response.status.isSuccess()) {
+                    if (file.exists()) file.delete()
+                    throw IOException("下载更新失败: HTTP ${response.status.value} ${response.status.description}")
+                }
                 response.bodyAsChannel().copyTo(file.outputStream())
             }
     }

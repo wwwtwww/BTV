@@ -1,11 +1,19 @@
 package dev.frost819.newbv.biliapi.http.entity.home
 
+import dev.frost819.newbv.biliapi.http.util.BooleanAsIntSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class RcmdIndexData(
+    /**
+     * App 端推荐接口是否还有更多数据。
+     * 支持服务端返回整型 (0/1) 或布尔型 (false/true)，缺失时默认 true。
+     */
+    @Serializable(with = BooleanAsIntSerializer::class)
+    @SerialName("has_more")
+    val hasMore: Boolean = true,
     val config: Config,
     @SerialName("interest_choose")
     val interestChoose: JsonElement? = null,

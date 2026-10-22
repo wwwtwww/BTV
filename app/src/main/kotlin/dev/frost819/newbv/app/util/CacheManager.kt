@@ -7,7 +7,7 @@ import java.io.File
 /**
  * 缓存管理器（缓存满阈值自动清理）。
  *
- * 统一管理应用缓存（图片缓存 + 更新包下载等目录，不区分类型）：
+ * 统一管理应用图片等通用缓存（更新安装包已迁移至独立的 ota_packages 目录专属管理）：
  * - 大小统计：递归计算全部缓存目录的总字节数。
  * - 阈值检查：App 启动 + 缓存写入后调用 [checkCache]。
  * - LRU 清理：总大小超过阈值时，按文件最后修改时间从旧到新删除（近似 LRU），
@@ -37,8 +37,6 @@ class CacheManager(
         cacheDirs =
             listOfNotNull(
                 File(context.cacheDir, IMAGE_CACHE_DIR),
-                File(context.cacheDir, OTHER_CACHE_DIR),
-                context.externalCacheDir?.let { File(it, OTHER_CACHE_DIR) },
             ),
     )
 
@@ -110,9 +108,6 @@ class CacheManager(
     companion object {
         /** 图片缓存目录名（与 Coil 磁盘缓存目录一致）。 */
         const val IMAGE_CACHE_DIR = "image_cache"
-
-        /** 其他缓存目录名（更新包下载等）。 */
-        const val OTHER_CACHE_DIR = "update_downloader"
 
         /** 字节/MB 换算基数。 */
         const val BYTES_PER_MB: Long = 1024L * 1024L

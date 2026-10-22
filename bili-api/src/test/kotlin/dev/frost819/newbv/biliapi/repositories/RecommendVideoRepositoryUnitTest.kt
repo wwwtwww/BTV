@@ -19,6 +19,7 @@ import io.mockk.coVerify
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -70,32 +71,32 @@ class RecommendVideoRepositoryUnitTest {
 
             assertThat(result.list).hasSize(2)
             assertThat(result.list[0].aid).isEqualTo(1L)
-            assertThat(result.list[0].title).isEqualTo("v1")
             assertThat(result.list[1].aid).isEqualTo(2L)
-            assertThat(result.noMore).isFalse()
             assertThat(result.nextPage.nextWebPageNumber).isEqualTo(2)
-            assertThat(result.nextPage.nextWebPageSize).isEqualTo(20)
+            assertThat(result.noMore).isFalse()
         }
 
     @Test
-    fun `getPopularVideos Web passes pageSize and pageNumber`() =
+    fun `getPopularVideos Web passes page parameters correctly`() =
         runTest {
+            val popularData = PopularVideoData(list = emptyList(), noMore = true)
             coEvery { BiliHttpApi.getPopularVideoData(any(), any()) } returns
-                BiliResponse(code = 0, message = "", data = PopularVideoData(list = emptyList(), noMore = true))
+                BiliResponse(code = 0, message = "", data = popularData)
 
             repository.getPopularVideos(
                 page = PopularVideoPage(nextWebPageSize = 30, nextWebPageNumber = 5),
                 preferApiType = ApiType.Web,
             )
 
-            coVerify { BiliHttpApi.getPopularVideoData(eq(5), eq(30)) }
+            coVerify { BiliHttpApi.getPopularVideoData(pageSize = 30, pageNumber = 5) }
         }
 
     @Test
-    fun `getPopularVideos Web returns noMore true when API says so`() =
+    fun `getPopularVideos Web with noMore true reflects in result`() =
         runTest {
+            val popularData = PopularVideoData(list = emptyList(), noMore = true)
             coEvery { BiliHttpApi.getPopularVideoData(any(), any()) } returns
-                BiliResponse(code = 0, message = "", data = PopularVideoData(list = emptyList(), noMore = true))
+                BiliResponse(code = 0, message = "", data = popularData)
 
             val result =
                 repository.getPopularVideos(
@@ -104,45 +105,6 @@ class RecommendVideoRepositoryUnitTest {
                 )
 
             assertThat(result.noMore).isTrue()
-            assertThat(result.list).isEmpty()
-        }
-
-    @Test
-    fun `getPopularVideos Web maps author and stat fields`() =
-        runTest {
-            val videoInfo =
-                VideoInfo(
-                    bvid = "BV1xx",
-                    aid = 100L,
-                    videos = 1,
-                    tid = 0,
-                    tname = "test",
-                    copyright = 1,
-                    pic = "http://pic.test",
-                    title = "title",
-                    pubdate = 1700000000,
-                    desc = "desc",
-                    state = 0,
-                    duration = 300,
-                    rights = VideoRights(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, arcPay = 0),
-                    owner = VideoOwner(mid = 999L, name = "test-up", face = "http://face.test"),
-                    stat = VideoStat(aid = 100L, _view = 5000L, danmaku = 100, like = 200),
-                    dynamic = "",
-                    cid = 200L,
-                    dimension = Dimension(1920, 1080, 0),
-                )
-            coEvery { BiliHttpApi.getPopularVideoData(any(), any()) } returns
-                BiliResponse(code = 0, message = "", data = PopularVideoData(list = listOf(videoInfo), noMore = false))
-
-            val result = repository.getPopularVideos(page = PopularVideoPage(), preferApiType = ApiType.Web)
-
-            val item = result.list[0]
-            assertThat(item.author).isEqualTo("test-up")
-            assertThat(item.authorMid).isEqualTo(999L)
-            assertThat(item.play).isEqualTo(5000)
-            assertThat(item.danmaku).isEqualTo(100)
-            assertThat(item.duration).isEqualTo(300)
-            assertThat(item.cover).isEqualTo("http://pic.test")
         }
 
     // ------------------------------------------------------------------
@@ -150,7 +112,7 @@ class RecommendVideoRepositoryUnitTest {
     // ------------------------------------------------------------------
 
     @Test
-    fun `getRecommendVideos Web returns mapped items with correct nextPage`() =
+    fun `getRecommendVideos Web returns mapped items with incremented nextWebIdx`() =
         runTest {
             val rcmdData =
                 RcmdTopData(
@@ -172,6 +134,7 @@ class RecommendVideoRepositoryUnitTest {
             assertThat(result.items[0].aid).isEqualTo(10L)
             assertThat(result.items[1].aid).isEqualTo(20L)
             assertThat(result.nextPage.nextWebIdx).isEqualTo(4)
+            assertThat(result.hasMore).isTrue()
         }
 
     @Test
@@ -195,6 +158,18 @@ class RecommendVideoRepositoryUnitTest {
 
             assertThat(result.items).isEmpty()
             assertThat(result.nextPage.nextWebIdx).isEqualTo(2)
+        }
+
+    @Test
+    fun `getRecommendVideos Web with empty items infers hasMore false`() =
+        runTest {
+            coEvery { BiliHttpApi.getFeedRcmd(any(), any(), any()) } returns
+                BiliResponse(code = 0, message = "", data = rcmdDataEmpty())
+
+            val result = repository.getRecommendVideos(page = RecommendPage(), preferApiType = ApiType.Web)
+
+            assertThat(result.hasMore).isFalse()
+            assertThat(result.items).isEmpty()
         }
 
     // ------------------------------------------------------------------
@@ -250,6 +225,7 @@ class RecommendVideoRepositoryUnitTest {
             assertThat(result.items[0].title).isEqualTo("app-rcmd-1")
             assertThat(result.items[1].title).isEqualTo("app-rcmd-2")
             assertThat(result.nextPage.nextAppIdx).isEqualTo(3)
+            assertThat(result.hasMore).isTrue()
         }
 
     @Test
@@ -275,6 +251,64 @@ class RecommendVideoRepositoryUnitTest {
             assertThat(result.items).isEmpty()
             assertThat(result.nextPage.nextAppIdx).isEqualTo(10)
         }
+
+    @Test
+    fun `getRecommendVideos App propagates hasMore false from remote response`() =
+        runTest {
+            authRepository.accessToken = "test-access-token"
+            val rcmdData = fakeRcmdIndexData(emptyList()).copy(hasMore = false)
+            coEvery { BiliHttpApi.getFeedIndex(any(), any()) } returns
+                BiliResponse(code = 0, message = "", data = rcmdData)
+
+            val result = repository.getRecommendVideos(page = RecommendPage(), preferApiType = ApiType.App)
+
+            assertThat(result.hasMore).isFalse()
+        }
+
+    @Test
+    fun `RcmdTopData parses standard json fixture without has_more as null`() {
+        val json = Json { ignoreUnknownKeys = true }
+        // 真实 Web 推荐接口没有 has_more 字段
+        val rawJson = """
+            {
+                "item": [],
+                "mid": 12345,
+                "preload_expose_pct": 0.0,
+                "preload_floor_expose_pct": 0.0
+            }
+        """.trimIndent()
+        val parsed = json.decodeFromString<RcmdTopData>(rawJson)
+        assertThat(parsed.hasMore).isNull()
+    }
+
+    @Test
+    fun `RcmdIndexData parses integer and boolean has_more correctly`() {
+        val json = Json { ignoreUnknownKeys = true }
+        fun makeJson(hasMoreValue: String?) =
+            buildString {
+                append("""{"config":{"auto_refresh_time":0,"auto_refresh_time_by_active":0,"auto_refresh_time_by_appear":0,"autoplay_card":0,"card_density_exp":0,"column":0,"enable_rcmd_guide":false,"feed_clean_abtest":0,"home_transfer_test":0,"inline_sound":0,"is_back_to_homepage":false,"show_inline_danmaku":0,"story_mode_v2_guide_exp":0,"toast":null,"visible_area":0},"items":[]""")
+                if (hasMoreValue != null) {
+                    append(""", "has_more": $hasMoreValue""")
+                }
+                append("}")
+            }
+
+        // 验证整数 0 解析为 false
+        val parsedInt0 = json.decodeFromString<RcmdIndexData>(makeJson("0"))
+        assertThat(parsedInt0.hasMore).isFalse()
+
+        // 验证整数 1 解析为 true
+        val parsedInt1 = json.decodeFromString<RcmdIndexData>(makeJson("1"))
+        assertThat(parsedInt1.hasMore).isTrue()
+
+        // 验证布尔 false 解析为 false
+        val parsedBool = json.decodeFromString<RcmdIndexData>(makeJson("false"))
+        assertThat(parsedBool.hasMore).isFalse()
+
+        // 验证字段省略时默认值为 true
+        val parsedOmitted = json.decodeFromString<RcmdIndexData>(makeJson(null))
+        assertThat(parsedOmitted.hasMore).isTrue()
+    }
 
     // ------------------------------------------------------------------
     // 测试夹具

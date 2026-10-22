@@ -166,6 +166,9 @@ class HomeViewModel
                                 logger.debug {
                                     "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
                                 }
+                                if (!data.hasMore) {
+                                    _uiState.update { it.copy(recommendHasMore = false) }
+                                }
                                 // 遇到偶发空页时不推进游标，保持游标以便下次重试同一页（避免永久跳页丢失数据）
                                 break
                             }
@@ -175,10 +178,11 @@ class HomeViewModel
                             _uiState.update {
                                 it.copy(
                                     recommendItems = it.recommendItems + data.items,
+                                    recommendHasMore = data.hasMore,
                                 )
                             }
                             loadCount++
-                            if (!isFirstLoad || _uiState.value.recommendItems.size >= 24) break
+                            if (!data.hasMore || !isFirstLoad || _uiState.value.recommendItems.size >= 24) break
                         }
 
                         // 首屏补齐失败时，只要已拿到部分数据就静默停止（避免"部分列表 + 报错"）；

@@ -6,6 +6,11 @@ import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class RcmdTopData(
+    /**
+     * Web 推荐接口是否还有更多数据。服务端响应通常未包含显式 has_more 字段，默认 null 由上层通过列表判空兜底。
+     */
+    @SerialName("has_more")
+    val hasMore: Boolean? = null,
     @SerialName("business_card")
     val businessCard: JsonElement? = null,
     @SerialName("floor_info")

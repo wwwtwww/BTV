@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <cache-path name="update_downloader" path="update_downloader/" />
-    <external-cache-path name="external_update_downloader" path="update_downloader/" />
-    <external-files-path name="external_files_update_downloader" path="Download/update_downloader/" />
+    <cache-path name="ota_packages" path="ota_packages/" />
+    <external-cache-path name="external_ota_packages" path="ota_packages/" />
+    <external-files-path name="external_files_ota_packages" path="Download/ota_packages/" />
 </paths>

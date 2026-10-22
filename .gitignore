@@ -45,8 +45,6 @@ local.properties
 signing.properties
 *.keystore
 *.jks
-# 公共发布默认签名密钥（保证 GitHub Actions Release 始终拥有统一且固定的签名证书，支持应用内无缝自更新）
-!btv-release.jks
 # 崩溃上报端点配置
 crash-report.properties
 

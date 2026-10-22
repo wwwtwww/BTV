@@ -128,6 +128,26 @@ class GithubReleaseExtTest {
     }
 
     @Test
+    fun `parseVersionCode extracts 3-digit code from realistic asset filename`() {
+        val release =
+            createRelease(
+                assetNames = listOf("BTV_183_v0.4.4.r183.061b890_release.apk"),
+            )
+        assertThat(release.parseVersionCode()).isEqualTo(183)
+    }
+
+    @Test
+    fun `findApkAsset matches modern release apk with commit count and commit hash`() {
+        val release =
+            createRelease(
+                assetNames = listOf("BTV_183_v0.4.4.r183.061b890_release.apk"),
+            )
+        val apk = release.findApkAsset()
+        assertThat(apk).isNotNull()
+        assertThat(apk?.name).isEqualTo("BTV_183_v0.4.4.r183.061b890_release.apk")
+    }
+
+    @Test
     fun `parseVersionCode falls back to tag_name`() {
         val release =
             createRelease(
@@ -155,6 +175,15 @@ class GithubReleaseExtTest {
     }
 
     @Test
+    fun `compareSemanticVersions handles realistic build suffix with commit hash`() {
+        // 验证生产环境常见的 .r221.061b890 后缀能够被正常比对
+        assertThat(compareSemanticVersions("v0.4.5", "0.4.4.r183.061b890")).isGreaterThan(0)
+        assertThat(compareSemanticVersions("v0.4.4", "0.4.4.r183.061b890")).isEqualTo(0)
+        assertThat(compareSemanticVersions("v0.4.3", "0.4.4.r183.061b890")).isLessThan(0)
+        assertThat(compareSemanticVersions("v0.4.4.r190.abcdef1", "0.4.4.r183.061b890")).isEqualTo(0)
+    }
+
+    @Test
     fun `compareSemanticVersions detects older or equal remote version`() {
         assertThat(compareSemanticVersions("v0.2.9", "v0.3.0")).isLessThan(0)
         assertThat(compareSemanticVersions("v0.3.0", "0.3.0")).isEqualTo(0)
@@ -164,5 +193,6 @@ class GithubReleaseExtTest {
     fun `compareSemanticVersions returns null for non-numeric versions`() {
         assertThat(compareSemanticVersions("v-unstable", "0.3.0")).isNull()
         assertThat(compareSemanticVersions("v0.3.0", "custom-build")).isNull()
+        assertThat(compareSemanticVersions("v0.4.999999999999999", "0.4.4")).isNull()
     }
 }

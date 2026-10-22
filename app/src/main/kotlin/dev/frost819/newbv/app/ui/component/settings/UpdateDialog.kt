@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,11 +37,11 @@ import dev.frost819.newbv.app.network.entity.GithubRelease
 import dev.frost819.newbv.app.network.entity.compareSemanticVersions
 import dev.frost819.newbv.app.network.entity.findApkAsset
 import dev.frost819.newbv.app.network.entity.parseVersionCode
-import dev.frost819.newbv.app.util.CacheManager
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.Loggers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -70,13 +71,25 @@ fun UpdateDialog(
     val progress by animateFloatAsState(targetValue = targetProgress, label = "update progress")
     var downloadJob by remember { mutableStateOf<Job?>(null) }
     var latestRelease by remember { mutableStateOf<GithubRelease?>(null) }
+    var activeInstallUri by remember { mutableStateOf<Uri?>(null) }
+    var downloadedApkFile by remember { mutableStateOf<File?>(null) }
 
     DisposableEffect(show) {
         if (!show) {
             downloadJob?.cancel()
+            activeInstallUri?.let { uri ->
+                runCatching {
+                    context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            }
         }
         onDispose {
             downloadJob?.cancel()
+            activeInstallUri?.let { uri ->
+                runCatching {
+                    context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            }
         }
     }
 
@@ -103,8 +116,9 @@ fun UpdateDialog(
                     return@launch
                 }
                 updateStatus = UpdateStatus.Ready
-            }.onFailure {
-                logger.error(it) { "Failed to get latest version" }
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                logger.error(error) { "Failed to get latest version" }
                 updateStatus = UpdateStatus.CheckError
             }.onSuccess {
                 logger.info { "Find latest version ${latestRelease?.name}" }
@@ -112,22 +126,42 @@ fun UpdateDialog(
         }
     }
 
-    val installUpdate: (File) -> Unit = { file ->
+    fun installUpdate(file: File, forceLaunchInstaller: Boolean = false) {
+        downloadedApkFile = file
         updateStatus = UpdateStatus.Installing
         runCatching {
-            // Android 8.0+ 检查并引导未知来源应用安装权限
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            // Android 8.0+ 检查并引导未知来源应用安装权限（若用户确认继续，则强制跳过预检调起安装器由系统接管）
+            if (!forceLaunchInstaller &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                 !context.packageManager.canRequestPackageInstalls()
             ) {
                 val manageIntent =
                     Intent(
                         Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:${BuildConfig.APPLICATION_ID}"),
+                        Uri.parse("package:${context.packageName}"),
                     ).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
-                context.startActivity(manageIntent)
-                updateStatus = UpdateStatus.Ready
+                val launched =
+                    runCatching {
+                        context.startActivity(manageIntent)
+                        true
+                    }.recoverCatching {
+                        val settingsIntent =
+                            Intent(Settings.ACTION_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                        context.startActivity(settingsIntent)
+                        true
+                    }.getOrDefault(false)
+
+                if (!launched) {
+                    logger.warn { "No settings activity available on this TV ROM for managing unknown sources" }
+                    runCatching {
+                        Toast.makeText(context, "请在系统设置中允许安装未知来源应用后继续", Toast.LENGTH_LONG).show()
+                    }
+                }
+                updateStatus = UpdateStatus.RequireUnknownSourcesPermission
                 return@runCatching
             }
 
@@ -139,6 +173,14 @@ fun UpdateDialog(
                     "${BuildConfig.APPLICATION_ID}.provider",
                     file,
                 )
+            activeInstallUri = uri
+
+            // 撤销旧版可能遗留的未撤销持久化授权，杜绝权限永久残留泄漏
+            runCatching {
+                context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            // 使用 Intent 级别临时授权：生命周期严格绑定至安装器 Activity，由系统自动安全回收
             val intent =
                 Intent(Intent.ACTION_VIEW).apply {
                     addCategory(Intent.CATEGORY_DEFAULT)
@@ -146,19 +188,6 @@ fun UpdateDialog(
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-            val resolveInfos =
-                context.packageManager.queryIntentActivities(
-                    intent,
-                    android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
-                )
-            for (resolveInfo in resolveInfos) {
-                context.grantUriPermission(
-                    resolveInfo.activityInfo.packageName,
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-
             context.startActivity(intent)
         }.onFailure {
             logger.error(it) { "Failed to launch package installer" }
@@ -175,15 +204,24 @@ fun UpdateDialog(
                     val apkAsset = release.findApkAsset() ?: error("未找到可用的安装包资产 (APK)")
                     val tempFilename = apkAsset.name
                     val tempDir =
-                        context.externalCacheDir?.let { File(it, "update_downloader") }
-                            ?: context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "update_downloader") }
-                            ?: File(context.cacheDir, "update_downloader")
+                        context.externalCacheDir?.let { File(it, "ota_packages") }
+                            ?: context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "ota_packages") }
+                            ?: File(context.cacheDir, "ota_packages")
                     if (!tempDir.exists()) tempDir.mkdirs()
+
+                    // 清理旧版本遗留包，避免残留磁盘空间，同时保留当前最新包
+                    tempDir.listFiles()?.forEach { oldFile ->
+                        if (oldFile.name != tempFilename && oldFile.name.endsWith(".apk")) {
+                            oldFile.delete()
+                        }
+                    }
+
                     val tempFile = File(tempDir, tempFilename)
 
                     // 若本地已有完整下载且大小一致的安装包，直接调起安装避免重复拉取
                     if (tempFile.exists() && tempFile.length() > 0 && tempFile.length() == apkAsset.size.toLong()) {
                         tempFile.setReadable(true, false)
+                        downloadedApkFile = tempFile
                         if (show) installUpdate(tempFile)
                         return@launch
                     }
@@ -191,6 +229,7 @@ fun UpdateDialog(
                     if (tempFile.exists()) tempFile.delete()
                     tempFile.createNewFile()
                     tempFile.setReadable(true, false)
+                    downloadedApkFile = tempFile
 
                     GithubApi.downloadUpdate(apkAsset.browserDownloadUrl, tempFile) { downloaded: Long, total: Long ->
                         bytesSentTotal = downloaded
@@ -202,11 +241,10 @@ fun UpdateDialog(
                                 0f
                             }
                     }
-                    // 缓存写入后检查阈值，保留刚下载的 APK 待安装
-                    CacheManager(context).checkCache(preserve = tempFile)
                     if (show) installUpdate(tempFile)
-                }.onFailure {
-                    logger.error(it) { "Failed to download update" }
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    logger.error(error) { "Failed to download update" }
                     updateStatus = UpdateStatus.DownloadError
                 }
             }
@@ -236,6 +274,7 @@ fun UpdateDialog(
                             UpdateStatus.CheckError -> "检查更新失败"
                             UpdateStatus.DownloadError -> "下载失败"
                             UpdateStatus.InstallError -> "安装失败"
+                            UpdateStatus.RequireUnknownSourcesPermission -> "需要开启未知来源安装权限"
                         },
                 )
             },
@@ -285,6 +324,10 @@ fun UpdateDialog(
                     UpdateStatus.NoAvailableUpdate -> {
                         Text(text = "真没更新，骗你是小狗！")
                     }
+
+                    UpdateStatus.RequireUnknownSourcesPermission -> {
+                        Text(text = "系统限制禁止安装第三方应用。请在电视【系统设置】->【安全与限制/应用权限】中允许安装未知来源应用后重试。")
+                    }
                 }
             },
             confirmButton = {
@@ -299,6 +342,29 @@ fun UpdateDialog(
                             modifier = Modifier.touchClickable(onClick = startUpdate),
                         ) {
                             Text(text = "立即更新")
+                        }
+                    }
+
+                    UpdateStatus.RequireUnknownSourcesPermission -> {
+                        Button(
+                            onClick = {
+                                val apk = downloadedApkFile
+                                if (apk != null && apk.exists()) {
+                                    installUpdate(apk, forceLaunchInstaller = true)
+                                } else {
+                                    updateStatus = UpdateStatus.Ready
+                                }
+                            },
+                            modifier = Modifier.touchClickable(onClick = {
+                                val apk = downloadedApkFile
+                                if (apk != null && apk.exists()) {
+                                    installUpdate(apk, forceLaunchInstaller = true)
+                                } else {
+                                    updateStatus = UpdateStatus.Ready
+                                }
+                            }),
+                        ) {
+                            Text(text = "我已授权，继续安装")
                         }
                     }
 
@@ -340,7 +406,7 @@ fun UpdateDialog(
                                 UpdateStatus.Ready -> "打死不更"
                                 UpdateStatus.NoAvailableUpdate -> "走了走了"
                                 UpdateStatus.CheckError, UpdateStatus.DownloadError,
-                                UpdateStatus.InstallError,
+                                UpdateStatus.InstallError, UpdateStatus.RequireUnknownSourcesPermission,
                                 -> "算了算了"
                                 UpdateStatus.Downloading, UpdateStatus.Installing -> "你已经无路可逃！"
                             },
@@ -362,6 +428,7 @@ enum class UpdateStatus {
     CheckError,
     DownloadError,
     InstallError,
+    RequireUnknownSourcesPermission,
 }
 
 private fun Long.toMBString(): String =

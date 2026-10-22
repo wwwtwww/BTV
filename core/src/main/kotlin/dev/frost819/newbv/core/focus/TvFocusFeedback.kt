@@ -154,6 +154,20 @@ object TvFocusSemantics {
  * @param glowRadius 极光发光扩散范围（默认 [TvFocusDefaults.glowRadius]）
  * @param borderWidth 边框宽度（默认 2.5dp）
  */
+/**
+ * 电视端实验性焦点反馈 API 注解。
+ *
+ * 标注尚处于底层能力储备阶段的焦点引擎（如发光与阴影修饰符 [Modifier.tvFocusFeedback]）。
+ */
+@RequiresOptIn(
+    message = "tvFocusFeedback 属于实验性大屏焦点反馈引擎，尚未在生产级组件中全量接入，API 可能会发生变动。",
+    level = RequiresOptIn.Level.WARNING,
+)
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
+annotation class ExperimentalTvFocusApi
+
+@ExperimentalTvFocusApi
 fun Modifier.tvFocusFeedback(
     shape: Shape = BVShape.large,
     focusedScale: Float = TvFocusDefaults.FOCUSED_SCALE,

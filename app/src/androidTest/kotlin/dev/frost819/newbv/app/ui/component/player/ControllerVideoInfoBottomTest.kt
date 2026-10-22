@@ -16,7 +16,8 @@ import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 /**
  * [ControllerVideoInfoBottom] 的插桩测试。
  *
- * 重点验证 PGC 播放时隐藏“视频信息 / up主页 / 相关视频”三个按钮，
+ * 重点验证 PGC 播放时隐藏“视频详情 / UP 主空间”按钮，
+ * 相关推荐受 [relatedAvailable] 参数控制，
  * 以及非 PGC 时正常显示。
  */
 @RunWith(AndroidJUnit4::class)
@@ -24,7 +25,10 @@ class ControllerVideoInfoBottomTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private fun setContent(isPgc: Boolean) {
+    private fun setContent(
+        isPgc: Boolean,
+        relatedAvailable: Boolean = true,
+    ) {
         composeRule.setContent {
             TvMaterialTheme {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -35,6 +39,7 @@ class ControllerVideoInfoBottomTest {
                         videoShot = null,
                         videoShotCache = VideoShotImageCache(),
                         isPgc = isPgc,
+                        relatedAvailable = relatedAvailable,
                         danmakuEnabled = true,
                         isLooping = false,
                         onDirectionLeft = {},
@@ -58,29 +63,28 @@ class ControllerVideoInfoBottomTest {
     }
 
     @Test
-    fun pgc_hides_video_info_up_and_related_buttons() {
-        setContent(isPgc = true)
+    fun pgc_hides_video_info_and_up_buttons() {
+        setContent(isPgc = true, relatedAvailable = false)
 
-        composeRule.onNodeWithContentDescription("视频信息").assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("up主页").assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("相关视频").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("视频详情").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("UP 主空间").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("相关推荐与选集").assertDoesNotExist()
     }
 
     @Test
     fun non_pgc_shows_video_info_up_and_related_buttons() {
-        setContent(isPgc = false)
+        setContent(isPgc = false, relatedAvailable = true)
 
-        composeRule.onNodeWithContentDescription("视频信息").assertExists()
-        composeRule.onNodeWithContentDescription("up主页").assertExists()
-        composeRule.onNodeWithContentDescription("相关视频").assertExists()
+        composeRule.onNodeWithContentDescription("视频详情").assertExists()
+        composeRule.onNodeWithContentDescription("UP 主空间").assertExists()
+        composeRule.onNodeWithContentDescription("相关推荐与选集").assertExists()
     }
 
     @Test
     fun pgc_still_shows_play_danmaku_and_settings_buttons() {
         setContent(isPgc = true)
 
-        composeRule.onNodeWithContentDescription("播放/暂停").assertExists()
-        composeRule.onNodeWithContentDescription("弹幕开关").assertExists()
-        composeRule.onNodeWithContentDescription("打开设置").assertExists()
+        composeRule.onNodeWithContentDescription("播放 / 暂停").assertExists()
+        composeRule.onNodeWithContentDescription("清晰度与设置").assertExists()
     }
 }
