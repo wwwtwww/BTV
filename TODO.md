@@ -31,10 +31,14 @@
   - 完善 `file_paths.xml` 声明 `<external-cache-path>` 与 `<external-files-path>`。
 - [x] **v0.4.4：OTA 在线更新验证版（v0.4.4 已发布）**
   - 纯版本号递增至 0.4.4，用于端到端验证在电视端通过 v0.4.3 执行 OTA 应用内无缝更新覆盖。
-- [x] **v0.4.5：对齐免授权无感 OTA 升级与安装器兼容性重构（v0.4.5 已发布）**
-  - 移除 Manifest 中的 `REQUEST_INSTALL_PACKAGES` 权限声明，彻底解决国产电视系统安装器因缺少按应用授权而触发的安全拦截（报“安装失败/应用未安装”）；
-  - 简化 `UpdateDialog` 安装调用，将安装包切回内部私有缓存目录（`cacheDir`），避免外部沙盒跨应用访问拦截；
-  - 修复 `TopNavTest` 分区顺序断言，增强单元测试堆内存配置（2048M）。
+- [x] **v0.4.5：发布签名安全加固与密钥轮换门禁（v0.4.5 已发布）**
+  - 从仓库移出硬编码 release 签名密钥至 GitHub Secrets，引入 apksigner 与 versionCode 门禁；
+  - 完善 docs/SECURITY_SIGNING_ROTATION.md 规范。
+- [x] **v0.4.6：全面对齐原版 newBV 纯粹 OTA 机制（v0.4.6 待发布）**
+  - 彻底移除 `revokeUriPermission`，修复调起安装器后权限被提前撤销导致系统读取失败的致命 Bug；
+  - 彻底移除 `AndroidManifest.xml` 中的 `REQUEST_INSTALL_PACKAGES`，避免国产 TV 系统因缺失 AppOps 授权界面触发安全拦截；
+  - 彻底收敛更新包至内部私有目录 `cacheDir/ota_packages`，彻底规避 Android 10/11+ 外部存储沙盒限制；
+  - 恢复纯粹的隐式系统安装器调用机制。
 - [ ] **P2：大屏高级布局革新（暂缓实现，记录于下方）**
   - 暂缓原因：改动范围广、涉及播放器控制器重构与大屏全局看板生命周期管理，后续建议作为单独的大特性分批立项推进。
 
