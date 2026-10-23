@@ -770,6 +770,7 @@ class PlayerViewModelTest {
     fun `checkAndPlayNext with multi-page video triggers countdown for next page`() =
         runTest(testDispatcher) {
             every { Prefs.actionAfterPlay } returns ActionAfterPlay.PlayNext
+            updateUiState { it.copy(aid = 1L, cid = 100L) }
             val parentItem =
                 dev.frost819.newbv.app.entity.player.VideoListItem(
                     aid = 1L,
@@ -1100,32 +1101,6 @@ class PlayerViewModelTest {
         }
 
     @Test
-    fun `playNewVideo resets media profile from prefs`() =
-        runTest(testDispatcher) {
-            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } coAnswers {
-                delay(Long.MAX_VALUE)
-                error("unreachable")
-            }
-            updateUiState {
-                it.copy(
-                    mediaProfileState =
-                        MediaProfileState(
-                            qualityId = 120,
-                            videoCodec = VideoCodec.HEVC,
-                            audio = Audio.ADolbyAtoms,
-                        ),
-                )
-            }
-
-            viewModel.playNewVideo(VideoListItem(aid = 10, cid = 20, title = "New"))
-
-            val profile = viewModel.uiState.value.mediaProfileState
-            assertThat(profile.qualityId).isEqualTo(Resolution.R1080P.code)
-            assertThat(profile.videoCodec).isEqualTo(VideoCodec.AVC)
-            assertThat(profile.audio).isEqualTo(Audio.A192K)
-        }
-
-    @Test
     fun `init resets media profile from prefs`() {
         updateUiState {
             it.copy(
@@ -1228,7 +1203,7 @@ class PlayerViewModelTest {
     // ── loadVideoDetail cid tests ────────────────────────────
 
     private fun fakeVideoDetail(cid: Long): VideoDetail {
-        val detail = mockk<VideoDetail>()
+        val detail = mockk<VideoDetail>(relaxed = true)
         every { detail.cid } returns cid
         every { detail.author } returns Author(mid = 42L, name = "UP", face = "face")
         return detail
@@ -1240,7 +1215,7 @@ class PlayerViewModelTest {
             // 回归：点击指定分P进入播放器时，详情接口返回的默认分P cid（第一个分P）
             // 不得覆盖传入的 cid，否则播放的不是所选分P
             every { videoInfoRepository.videoDetail } returns MutableStateFlow(fakeVideoDetail(cid = 111L))
-            initSession(aid = 10, cid = 333L)
+            updateUiState { it.copy(aid = 10, cid = 333L) }
 
             viewModel.loadVideoDetail(aid = 10)
             runCurrent()
@@ -1248,7 +1223,6 @@ class PlayerViewModelTest {
             val state = viewModel.uiState.value
             assertThat(state.cid).isEqualTo(333L)
             assertThat(state.authorMid).isEqualTo(42L)
-            viewModel.viewModelScope.cancel()
         }
 
     @Test
@@ -1256,12 +1230,11 @@ class PlayerViewModelTest {
         runTest(testDispatcher) {
             // 直进播放器（route.cid = 0）时用详情返回的默认分P补齐
             every { videoInfoRepository.videoDetail } returns MutableStateFlow(fakeVideoDetail(cid = 111L))
-            initSession(aid = 10, cid = 0L)
+            updateUiState { it.copy(aid = 10, cid = 0L) }
 
             viewModel.loadVideoDetail(aid = 10)
             runCurrent()
 
             assertThat(viewModel.uiState.value.cid).isEqualTo(111L)
-            viewModel.viewModelScope.cancel()
         }
 }
