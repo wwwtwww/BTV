@@ -115,6 +115,7 @@ fun UpdateDialog(
 
     val installUpdate: (File) -> Unit = { file ->
         updateStatus = UpdateStatus.Installing
+        logger.info { "Installing APK: ${file.absolutePath}, size=${file.length()}" }
         runCatching {
             val uri =
                 FileProvider.getUriForFile(
@@ -122,6 +123,7 @@ fun UpdateDialog(
                     "${BuildConfig.APPLICATION_ID}.provider",
                     file,
                 )
+            logger.info { "APK URI: $uri" }
             val intent =
                 Intent(Intent.ACTION_VIEW).apply {
                     addCategory(Intent.CATEGORY_DEFAULT)
@@ -131,6 +133,7 @@ fun UpdateDialog(
                 }
             context.startActivity(intent)
         }.onFailure { error ->
+            if (error is CancellationException) throw error
             logger.error(error) { "Failed to launch package installer" }
             updateStatus = UpdateStatus.InstallError
         }

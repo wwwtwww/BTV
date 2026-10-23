@@ -117,7 +117,9 @@ object GithubApi {
                     if (file.exists()) file.delete()
                     throw IOException("下载更新失败: HTTP ${response.status.value} ${response.status.description}")
                 }
-                response.bodyAsChannel().copyTo(file.outputStream())
+                file.outputStream().use { outputStream ->
+                    response.bodyAsChannel().copyTo(outputStream)
+                }
             }
     }
 
