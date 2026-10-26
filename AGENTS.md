@@ -1,7 +1,7 @@
 # AGENTS.md — BTV 开发指南
 
 > 本文档是 BTV 项目的 AI 协作开发规范，所有贡献者（含 AI Agent）必须遵守。
-> 配套文档：[PRD](docs/PRD.md) | [开发计划](docs/开发计划.md) | [UI 优化建议](docs/UI优化设计建议.md)
+> 配套文档：[PRD](docs/PRD.md) | [开发计划](docs/开发计划.md) | [UI 优化建议](docs/UI优化设计建议.md) | [真机测试指南](docs/真机测试与验收指南.md)
 
 ---
 
@@ -23,6 +23,7 @@ BTV 是基于 [BV](https://github.com/aaa1115910/bv)（源码在 `bv/` 目录）
 | B 站 API 文档 | `docs/bilibili-API-collect-master/docs/` | 接口字段定义与参数说明 |
 | 本文件 | `AGENTS.md` | 开发规范、测试策略、代码风格 |
 | UI 优化建议 | `docs/UI优化设计建议.md` | 大屏 UI 布局、字体排版、色板与焦点规范 |
+| 真机测试指南 | `docs/真机测试与验收指南.md` | 大屏端到端体验、OTA升级、多分P与调试规范 |
 
 ### 1.3 关键架构决策（不可违背）
 
