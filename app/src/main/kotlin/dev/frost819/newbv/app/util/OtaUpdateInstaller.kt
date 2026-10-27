@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.util
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
@@ -19,6 +20,17 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.io.File
+
+/**
+ * OTA 安装执行通道。
+ */
+enum class OtaInstallMode {
+    /** 使用 [PackageInstaller] Session 流式安装（适合已授予未知来源权限的标准环境）。 */
+    PackageInstallerSession,
+
+    /** 使用传统 `Intent.ACTION_VIEW` + [FileProvider] 跨进程授权调起系统安装器（兼容定制 TV ROM）。 */
+    LegacyActionView,
+}
 
 /**
  * OTA 安装回调事件。
@@ -62,7 +74,9 @@ class OtaInstallResultReceiver : BroadcastReceiver() {
         intent: Intent,
     ) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
-        val statusMessage = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "未知安装错误 (status=$status)"
+        val statusMessage =
+            intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                ?: "未知安装错误 (status=$status)"
         OtaUpdateInstaller.onInstallCallback(context, status, statusMessage, intent)
     }
 }
@@ -71,16 +85,25 @@ class OtaInstallResultReceiver : BroadcastReceiver() {
  * 应用内 OTA 升级安装与导出管理器。
  *
  * 提供三大核心能力：
- * 1. **双轨安装引擎**：优先支持 [PackageInstaller] Session 流式安装（主动捕获系统拦截状态与用户确认 Intent），
- *    并提供传统 [FileProvider] + [Intent.ACTION_VIEW] 跨进程显式 URI 授权兜底；
+ * 1. **自适应双轨安装引擎**：已获未知来源授权时优先走 [PackageInstaller] Session 流式安装；
+ *    未获授权时直接通过已验证兼容定制 TV ROM 的 [FileProvider] + [Intent.ACTION_VIEW] 调起系统安装器，不再前置阻断；
  * 2. **公共 Download 目录自动同步导出**：通过 [MediaStore.Downloads]（Android 10+）或公共下载目录同步保存一份 APK 副本，
  *    当电视 ROM 锁死应用内自升级时，用户可直接打开电视自带「文件管理器 -> 下载」免 U 盘一键安装；
- * 3. **未知来源权限检测与安全跳转**：检测 [PackageManager.canRequestPackageInstalls]，并安全引导跳转系统授权页。
+ * 3. **未知来源设置空壳秒退检测与多级降级**：针对国产 TV ROM 将 `ACTION_MANAGE_UNKNOWN_APP_SOURCES` 实现为空壳秒退 Activity 的情况，
+ *    支持跳过空壳动作并降级打开「应用详情页 / 安全设置 / 系统主设置」。
  */
 object OtaUpdateInstaller {
     private val logger = Loggers.get("OtaUpdateInstaller")
     private const val INSTALL_REQUEST_CODE = 10480
     private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+
+    /**
+     * 定制 TV ROM 空壳设置页秒退判定阈值（毫秒）。
+     *
+     * 部分电视固件（如雷鸟/TCL 等）注册了 `MANAGE_UNKNOWN_APP_SOURCES` 空壳 Activity，
+     * `startActivity` 不抛异常但在 `onCreate` 中立即 `finish()`（通常 < 300ms 返回前台）。
+     */
+    const val SETTINGS_STUB_BOUNCE_THRESHOLD_MS = 800L
 
     // 使用 replay = 1 防止系统广播早于 UI 订阅到达时丢失事件。
     // 【调用顺序约束】：UI 订阅者必须在每次开启新安装会话或进入监听作用域前（即 collect 之前）
@@ -102,6 +125,41 @@ object OtaUpdateInstaller {
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
         _installEvents.resetReplayCache()
     }
+
+    /**
+     * 根据当前系统未知来源授权状态与调用方诉求，决定首选安装通道。
+     *
+     * 在定制 Android TV 固件上，当 `canRequestPackageInstalls == false` 时，`PackageInstaller` Session
+     * 会直接返回 `STATUS_FAILURE_BLOCKED`；而显式声明了 `REQUEST_INSTALL_PACKAGES` 的 `ACTION_VIEW`
+     * 能直接唤醒电视系统自带安装器完成覆盖更新，因此未授权时直接走 [OtaInstallMode.LegacyActionView]。
+     *
+     * @param canRequestInstalls 当前是否已拥有未知来源安装权限。
+     * @param forceLegacy 是否强制指定传统 `ACTION_VIEW` 兼容模式。
+     * @return 首选的 [OtaInstallMode]。
+     */
+    fun selectPreferredInstallMode(
+        canRequestInstalls: Boolean,
+        forceLegacy: Boolean = false,
+    ): OtaInstallMode =
+        if (!forceLegacy && canRequestInstalls) {
+            OtaInstallMode.PackageInstallerSession
+        } else {
+            OtaInstallMode.LegacyActionView
+        }
+
+    /**
+     * 判断调起系统未知来源设置页后是否遭遇了定制 TV ROM 的「空壳 Activity 秒退 / 静默吞掉」。
+     *
+     * @param elapsedMs 从发起跳转至恢复前台（或巡检点）经过的毫秒数。
+     * @param hasInstallPermission 当前是否已获得安装权限。
+     * @param alreadyUsedFallback 本次点击是否已经触发过降级跳转（防止无限循环）。
+     * @return 若判定为空壳秒退且需要触发降级跳转则返回 `true`。
+     */
+    fun shouldFallbackFromSettingsStub(
+        elapsedMs: Long,
+        hasInstallPermission: Boolean,
+        alreadyUsedFallback: Boolean,
+    ): Boolean = !alreadyUsedFallback && !hasInstallPermission && elapsedMs < SETTINGS_STUB_BOUNCE_THRESHOLD_MS
 
     /**
      * 处理来自 [OtaInstallResultReceiver] 的系统安装器广播回调。
@@ -165,6 +223,7 @@ object OtaUpdateInstaller {
      * 检查当前应用是否已被授予「安装未知应用」权限。
      *
      * @param context 上下文。
+     * @param sdkInt Android SDK 版本号（默认取运行环境 [Build.VERSION.SDK_INT]）。
      * @return Android 8.0+ 返回 [PackageManager.canRequestPackageInstalls]，低版本默认返回 `true`。
      */
     fun canRequestPackageInstalls(
@@ -178,32 +237,43 @@ object OtaUpdateInstaller {
         }
 
     /**
-     * 生成跳转未知来源权限或安全设置页的候选动作列表（按优先级从高到低）。
+     * 生成跳转未知来源权限、应用详情或安全设置页的候选动作列表（按优先级从高到低）。
+     *
+     * @param packageName 当前应用包名。
+     * @param sdkInt Android SDK 版本。
+     * @param skipUnknownSourcesAction 是否跳过 `ACTION_MANAGE_UNKNOWN_APP_SOURCES`（用于检测到空壳秒退后的二次降级）。
      */
     internal fun buildSettingsIntentActions(
         packageName: String,
         sdkInt: Int = Build.VERSION.SDK_INT,
+        skipUnknownSourcesAction: Boolean = false,
     ): List<Pair<String, String?>> =
         buildList {
-            if (sdkInt >= Build.VERSION_CODES.O) {
+            if (!skipUnknownSourcesAction && sdkInt >= Build.VERSION_CODES.O) {
                 add(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES to "package:$packageName")
                 add(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES to null)
             }
+            add(Settings.ACTION_APPLICATION_DETAILS_SETTINGS to "package:$packageName")
             add(Settings.ACTION_SECURITY_SETTINGS to null)
             add(Settings.ACTION_SETTINGS to null)
         }
 
     /**
-     * 尝试打开系统「允许安装未知应用」设置页面。
+     * 尝试打开系统「允许安装未知应用」或降级的应用详情/系统设置页面。
      *
-     * 针对部分裁剪了指定包名跳转页的国产 TV ROM，会自动降级到通用安全设置或主设置页。
+     * 针对部分裁剪或空壳化了指定包名未知来源页的国产 TV ROM，支持通过 [skipUnknownSourcesAction]
+     * 直接降级打开应用详情页、安全设置或系统主设置。
      *
      * @param context 上下文。
-     * @return 是否成功调起设置页面。
+     * @param sdkInt Android SDK 版本。
+     * @param skipUnknownSourcesAction 为 `true` 时直接跳过未知来源专属 Action，进入应用详情/系统设置降级链。
+     * @param intentLauncher 实际执行 Intent 启动的委托（便于单元测试注入验证）。
+     * @return 是否成功调起任一候选设置页面。
      */
     fun openUnknownSourceSettings(
         context: Context,
         sdkInt: Int = Build.VERSION.SDK_INT,
+        skipUnknownSourcesAction: Boolean = false,
         intentLauncher: (String, String?) -> Unit = { action, dataUri ->
             val intent =
                 Intent(action).apply {
@@ -212,15 +282,24 @@ object OtaUpdateInstaller {
                     }
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+            if (intent.resolveActivity(context.packageManager) == null) {
+                throw ActivityNotFoundException("No Activity found to handle $action ($dataUri)")
+            }
             context.startActivity(intent)
         },
     ): Boolean {
-        val candidates = buildSettingsIntentActions(context.packageName, sdkInt)
+        val candidates = buildSettingsIntentActions(context.packageName, sdkInt, skipUnknownSourcesAction)
         for ((action, dataUri) in candidates) {
-            if (runCatching { intentLauncher(action, dataUri) }.isSuccess) {
+            if (
+                runCatching {
+                    logger.info { "Trying settings intent: action=$action, data=$dataUri" }
+                    intentLauncher(action, dataUri)
+                }.isSuccess
+            ) {
                 return true
             }
         }
+        logger.warn { "All settings intent candidates failed (skipUnknownSources=$skipUnknownSourcesAction)" }
         return false
     }
 
@@ -232,7 +311,7 @@ object OtaUpdateInstaller {
      *
      * @param context 上下文。
      * @param sourceApk 内部缓存中的完整 APK 文件。
-     * @return 成功导出后的可读路径描述（如 `/sdcard/Download/xxx.apk`），失败返回 `null`。
+     * @return 成功导出后的可读路径描述（如 `Download/xxx.apk`），失败返回 `null`。
      */
     fun exportApkToPublicDownloads(
         context: Context,
@@ -371,13 +450,14 @@ object OtaUpdateInstaller {
         }
 
     /**
-     * 使用传统 `Intent.ACTION_VIEW` + [FileProvider] 调起系统安装器（兼容模式兜底）。
+     * 使用传统 `Intent.ACTION_VIEW` + [FileProvider] 调起系统安装器（兼容模式）。
      *
      * 会显式遍历所有匹配的安装器 Activity 并逐一授予 `FLAG_GRANT_READ_URI_PERMISSION`，
      * 防止定制 TV ROM 因未传递 ClipData 权限而静默退出。
      *
      * @param context 上下文。
      * @param apkFile 待安装的 APK 文件。
+     * @return 启动安装器 Activity 的执行结果。
      */
     fun installViaLegacyViewIntent(
         context: Context,

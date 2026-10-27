@@ -128,7 +128,10 @@ object GithubApi {
         if (responseElement !is JsonObject) return
         val responseObject = responseElement.jsonObject
         if (responseObject["message"] != null) {
-            error(responseObject["message"]!!.jsonPrimitive.content)
+        val message = responseObject["message"]?.jsonPrimitive?.content
+        if (!message.isNullOrBlank()) {
+            error(message)
+        }
         }
     }
 

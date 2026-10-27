@@ -4,26 +4,37 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * [UpdateStatus] 枚举的单元测试。
+ * [UpdateStatus] 与 [UpdateDialogMode] 枚举的单元测试。
  */
 class UpdateStatusTest {
     @Test
-    fun enum_hasNineEntries() {
-        assertThat(UpdateStatus.entries).hasSize(9)
-    }
+    fun `UpdateStatus has eight active entries without pre-install blocking state`() {
+        // Given & When
+        val entries = UpdateStatus.entries
 
-    @Test
-    fun enum_containsExpectedStates() {
-        assertThat(UpdateStatus.entries).containsAtLeast(
+        // Then
+        assertThat(entries).hasSize(8)
+        assertThat(entries).containsExactly(
             UpdateStatus.UpdatingInfo,
             UpdateStatus.Ready,
             UpdateStatus.Downloading,
             UpdateStatus.Installing,
-            UpdateStatus.RequireUnknownSourcesPermission,
             UpdateStatus.NoAvailableUpdate,
             UpdateStatus.CheckError,
             UpdateStatus.DownloadError,
             UpdateStatus.InstallError,
+        )
+    }
+
+    @Test
+    fun `UpdateDialogMode contains CheckUpdate and ViewChangelog`() {
+        // Given & When
+        val modes = UpdateDialogMode.entries
+
+        // Then
+        assertThat(modes).containsExactly(
+            UpdateDialogMode.CheckUpdate,
+            UpdateDialogMode.ViewChangelog,
         )
     }
 }

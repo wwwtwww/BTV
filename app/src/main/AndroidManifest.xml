@@ -20,11 +20,21 @@
         android:name="android.software.leanback"
         android:required="false" />
 
-    <!-- Android 11+ 包可见性：允许系统预检未知来源安装设置与 APK 安装器 Activity -->
+    <!-- Android 11+ 包可见性：允许系统预检未知来源安装设置、应用详情页与 APK 安装器 Activity -->
     <queries>
         <intent>
             <action android:name="android.settings.MANAGE_UNKNOWN_APP_SOURCES" />
             <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.SECURITY_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />

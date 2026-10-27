@@ -165,3 +165,24 @@ adb install -r BTV_xxx_release.apk
    - BTV 恢复前台后自动无缝触发系统安装器；
 4. **完成安装**：在系统安装器弹窗中点击「安装」或「更新」，覆盖安装完成！
 *(注：若电视固件极端拦截安装器弹窗，APK 也会同步备份在电视自带「Download/」目录中，可直接在电视自带文件管理器中一键点击安装)*
+
+
+---
+
+## 📦 七、v0.4.11 真机验证结论与下一代体验升级
+
+### 1. v0.4.11 真机验证核心发现
+在电视真机从 `v0.4.10` 在线升级至 `v0.4.11` 的过程中，验证得出两项关键结论：
+1. **传统 `ACTION_VIEW` 直装链路在电视上完全打通**：当 `AndroidManifest.xml` 声明了 `REQUEST_INSTALL_PACKAGES` 且通过 `FileProvider` + 显式 `grantUriPermission` 传递安装包时，即便 `canRequestPackageInstalls()` 返回 `false`，点击「直接尝试安装」依然能直接唤起电视系统安装器完成覆盖升级；
+2. **定制 TV ROM 未知来源专属设置页存在空壳秒退**：部分电视系统将 `ACTION_MANAGE_UNKNOWN_APP_SOURCES` 注册为空壳 Activity（`startActivity` 不抛异常，但启动后立即 `finish()`），导致前置拦截页点击「去开启安装权限」表现为无响应。
+
+### 2. 针对性架构优化
+1. **移除前置权限拦截，下载完成直达安装**：
+   - 未获未知来源授权时不再弹出前置阻断页，而是直接通过已真机验证可用的 `ACTION_VIEW` 调起电视系统安装器，实现「点击立即更新 → 下载完成 → 直接弹出系统安装框」的一步到位体验；
+   - 仅当系统安装器在 8 秒内未接管前台时，才进入兜底指引页。
+2. **「去开启安装权限」800ms 空壳秒退检测与多级降级**：
+   - 在兜底指引页点击「去开启安装权限」时，自动监测是否发生 800ms 内空壳秒退或 `Theme.NoDisplay` 静默忽略；
+   - 一旦命中空壳行为，自动跳过未知来源专属 Action，降级打开「应用详情页 (`ACTION_APPLICATION_DETAILS_SETTINGS`) / 系统设置页」并在弹窗内展示明确手动路径说明。
+3. **升级前完整展示中文更新说明**：
+   - 引入根目录 [`CHANGELOG.md`](../CHANGELOG.md) 单一事实源并自动同步打包至 APK 内置资产，配合升级后的 GitHub Actions 发布流水线（优先读取 `CHANGELOG.md`，缺失时自动聚合 Git 提交记录）；
+   - 将 [`UpdateDialog.kt`](../app/src/main/kotlin/dev/frost819/newbv/app/ui/component/settings/UpdateDialog.kt) 升级为 620dp 大屏宽版卡片，升级前清晰呈现「当前版本 → 新版本、包大小、发布日期」、跨多版本变更自动合并以及遥控器上下方向键长文本滚动，同时支持在「设置 → 关于」随时离线查阅版本更新说明。

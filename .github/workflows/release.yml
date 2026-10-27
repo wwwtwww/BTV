@@ -105,6 +105,77 @@ jobs:
           path: ${{ steps.apk_info.outputs.apk_path }}
           retention-days: 30
 
+      - name: Generate release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          REPO_SLUG: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+
+          tag = os.environ["TAG_NAME"]
+          repo = os.environ["REPO_SLUG"]
+          clean_ver = tag.lstrip("v")
+          notes = ""
+
+          changelog = pathlib.Path("CHANGELOG.md")
+          if changelog.exists():
+              text = changelog.read_text(encoding="utf-8")
+              pattern = re.compile(
+                  rf"^##\s+\[?v?{re.escape(clean_ver)}\]?(?:\s*-\s*\S+)?\s*$",
+                  re.MULTILINE,
+              )
+              match = pattern.search(text)
+              if match:
+                  rest = text[match.end():]
+                  next_sec = re.search(r"^##\s+", rest, re.MULTILINE)
+                  section = rest[:next_sec.start()] if next_sec else rest
+                  notes = section.strip()
+
+          all_tags = subprocess.check_output(
+              ["git", "tag", "--list", "v*", "--sort=-creatordate"],
+              text=True,
+          ).splitlines()
+          prev_tag = next((t for t in all_tags if t != tag), "")
+
+          if not notes:
+              log_range = f"{prev_tag}..HEAD" if prev_tag else "HEAD"
+              commits = subprocess.check_output(
+                  ["git", "log", log_range, "--no-merges", "--pretty=format:%s"],
+                  text=True,
+              ).splitlines()
+              feats, fixes, others = [], [], []
+              for msg in commits:
+                  msg = msg.strip()
+                  if not msg or msg.startswith("chore(release):"):
+                      continue
+                  if re.match(r"^feat(\(.+\))?!?:\s*", msg):
+                      feats.append(re.sub(r"^feat(\(.+\))?!?:\s*", "", msg))
+                  elif re.match(r"^fix(\(.+\))?!?:\s*", msg):
+                      fixes.append(re.sub(r"^fix(\(.+\))?!?:\s*", "", msg))
+                  elif not re.match(r"^(test|ci|docs)(\(.+\))?:\s*", msg):
+                      cleaned = re.sub(r"^[a-z]+(\(.+\))?!?:\s*", "", msg)
+                      others.append(cleaned)
+
+              parts = []
+              if feats:
+                  parts.append("### ✨ 新增功能\n" + "\n".join(f"- {item}" for item in feats))
+              if fixes:
+                  parts.append("### 🐛 问题修复\n" + "\n".join(f"- {item}" for item in fixes))
+              if others:
+                  parts.append("### 🔧 优化与调整\n" + "\n".join(f"- {item}" for item in others))
+              if not parts:
+                  parts.append("- 常规稳定性优化与体验改进")
+              notes = "\n\n".join(parts)
+
+          if prev_tag and "Full Changelog" not in notes:
+              notes += f"\n\n**Full Changelog**: https://github.com/{repo}/compare/{prev_tag}...{tag}"
+
+          pathlib.Path("release_notes.md").write_text(notes + "\n", encoding="utf-8")
+          print("Generated release_notes.md:\n" + notes)
+          PY
+
       - name: Publish Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -112,6 +183,7 @@ jobs:
           files: ${{ steps.apk_info.outputs.apk_path }}
           tag_name: ${{ github.ref_name }}
           name: BTV ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release_notes.md
+          generate_release_notes: false
           draft: false
           prerelease: false
