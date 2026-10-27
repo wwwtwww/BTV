@@ -43,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** 安装器响应超时阈值（毫秒）：超过此时间系统仍未弹出安装确认框，自动解除「安装中」等待并提供兜底指引。 */
@@ -121,25 +122,33 @@ fun UpdateDialog(
             updateStatus = UpdateStatus.Installing
             startInstallWatchdog()
             scope.launch(Dispatchers.IO) {
+                logger.info {
+                    "Triggering install: ${file.absolutePath}, size=${file.length()}, legacy=$useLegacyIntent"
+                }
                 val result =
                     if (useLegacyIntent) {
                         OtaUpdateInstaller.installViaLegacyViewIntent(context, file)
                     } else {
-                        OtaUpdateInstaller
-                            .installViaPackageInstallerSession(context, file)
-                            .recoverCatching { sessionErr ->
+                        val sessionResult = OtaUpdateInstaller.installViaPackageInstallerSession(context, file)
+                        sessionResult.fold(
+                            onSuccess = { Result.success(Unit) },
+                            onFailure = { sessionErr ->
+                                if (sessionErr is CancellationException) throw sessionErr
                                 logger.warn(sessionErr) {
                                     "PackageInstaller session failed, falling back to ACTION_VIEW"
                                 }
-                                OtaUpdateInstaller.installViaLegacyViewIntent(context, file).getOrThrow()
-                            }
+                                OtaUpdateInstaller.installViaLegacyViewIntent(context, file)
+                            },
+                        )
                     }
                 result.onFailure { error ->
                     if (error is CancellationException) throw error
                     logger.error(error) { "Failed to launch installer (useLegacyIntent=$useLegacyIntent)" }
-                    installWatchdogJob?.cancel()
-                    installErrorDetail = error.message
-                    updateStatus = UpdateStatus.InstallError
+                    withContext(Dispatchers.Main) {
+                        installWatchdogJob?.cancel()
+                        installErrorDetail = error.message
+                        updateStatus = UpdateStatus.InstallError
+                    }
                 }
             }
         }
@@ -148,6 +157,7 @@ fun UpdateDialog(
     // 监听 PackageInstaller 异步广播回调
     LaunchedEffect(show) {
         if (!show) return@LaunchedEffect
+        // 【调用顺序约束】：必须在 collect 之前调用 clearInstallEvents()，避免 replay=1 重放上次遗留的陈旧事件
         OtaUpdateInstaller.clearInstallEvents()
         OtaUpdateInstaller.installEvents.collect { event ->
             when (event) {
@@ -163,16 +173,29 @@ fun UpdateDialog(
 
                 is OtaInstallCallbackEvent.Failure -> {
                     installWatchdogJob?.cancel()
-                    logger.warn { "PackageInstaller reported failure: status=${event.status}, msg=${event.message}" }
-                    // PackageInstaller 被系统拦截时，自动尝试一次传统 ACTION_VIEW 兜底
+                    logger.warn {
+                        "PackageInstaller reported failure: status=${event.status}, msg=${event.message}"
+                    }
+                    // PackageInstaller 被系统拦截时，切到 IO 调度器尝试一次传统 ACTION_VIEW 兜底，
+                    // 避免主线程执行同步文件检查、FileProvider 解析与 Binder IPC 引发低配 TV 设备 ANR
                     val apk = downloadedApkFile
-                    if (apk != null && apk.exists()) {
-                        val legacyResult = OtaUpdateInstaller.installViaLegacyViewIntent(context, apk)
-                        if (legacyResult.isFailure) {
-                            installErrorDetail = event.message
-                            updateStatus = UpdateStatus.InstallError
-                        } else {
-                            startInstallWatchdog()
+                    if (apk != null) {
+                        scope.launch(Dispatchers.IO) {
+                            val exists = apk.exists()
+                            val legacyResult =
+                                if (exists) {
+                                    OtaUpdateInstaller.installViaLegacyViewIntent(context, apk)
+                                } else {
+                                    null
+                                }
+                            withContext(Dispatchers.Main) {
+                                if (legacyResult == null || legacyResult.isFailure) {
+                                    installErrorDetail = event.message
+                                    updateStatus = UpdateStatus.InstallError
+                                } else {
+                                    startInstallWatchdog()
+                                }
+                            }
                         }
                     } else {
                         installErrorDetail = event.message
@@ -523,7 +546,7 @@ fun UpdateDialog(
                                 UpdateStatus.Ready -> "打死不更"
                                 UpdateStatus.NoAvailableUpdate -> "走了走了"
                                 UpdateStatus.Downloading -> "取消下载"
-                                UpdateStatus.Installing -> "关闭窗口"
+                                UpdateStatus.Installing -> "关闭（安装将继续）"
                                 UpdateStatus.RequireUnknownSourcesPermission,
                                 UpdateStatus.CheckError,
                                 UpdateStatus.DownloadError,

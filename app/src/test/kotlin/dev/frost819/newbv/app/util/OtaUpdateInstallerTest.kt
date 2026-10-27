@@ -132,6 +132,27 @@ class OtaUpdateInstallerTest {
     }
 
     @Test
+    fun `clearInstallEvents prevents replay of stale callback event`() =
+        runTest {
+            val context = mockk<Context>(relaxed = true)
+            val intent = mockk<Intent>(relaxed = true)
+
+            OtaUpdateInstaller.onInstallCallback(
+                context = context,
+                status = PackageInstaller.STATUS_FAILURE_BLOCKED,
+                statusMessage = "Stale failure",
+                rawIntent = intent,
+            )
+
+            OtaUpdateInstaller.clearInstallEvents()
+
+            OtaUpdateInstaller.installEvents.test {
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
     fun `exportApkToPublicDownloads returns null when source file is empty`() {
         val context = mockk<Context>(relaxed = true)
         val emptyFile = File(tempDir, "empty.apk").apply { createNewFile() }

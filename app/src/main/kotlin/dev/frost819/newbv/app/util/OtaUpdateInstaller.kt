@@ -82,10 +82,16 @@ object OtaUpdateInstaller {
     private const val INSTALL_REQUEST_CODE = 10480
     private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 
+    // 使用 replay = 1 防止系统广播早于 UI 订阅到达时丢失事件。
+    // 【调用顺序约束】：UI 订阅者必须在每次开启新安装会话或进入监听作用域前（即 collect 之前）
+    // 显式调用 clearInstallEvents() 清空 replay 缓存，否则会立即重放上一次遗留的陈旧安装结果事件。
     private val _installEvents = MutableSharedFlow<OtaInstallCallbackEvent>(replay = 1, extraBufferCapacity = 8)
 
     /**
      * 暴露给 UI 层的安装状态回调事件流。
+     *
+     * **注意调用顺序约束**：由于底层配置了 `replay = 1` 以避免极端竞态下丢失广播回调，
+     * 订阅方在开始 `collect` 之前**必须**先调用 [clearInstallEvents]，防止收到上一次会话遗留的陈旧事件。
      */
     val installEvents: SharedFlow<OtaInstallCallbackEvent> = _installEvents.asSharedFlow()
 
