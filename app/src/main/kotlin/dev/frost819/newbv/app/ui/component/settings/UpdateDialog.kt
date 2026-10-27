@@ -1,6 +1,5 @@
 package dev.frost819.newbv.app.ui.component.settings
 
-import android.content.Intent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.tv.material3.Button
 import androidx.tv.material3.OutlinedButton
 import androidx.tv.material3.Text
@@ -33,22 +34,29 @@ import dev.frost819.newbv.app.network.entity.GithubRelease
 import dev.frost819.newbv.app.network.entity.compareSemanticVersions
 import dev.frost819.newbv.app.network.entity.findApkAsset
 import dev.frost819.newbv.app.network.entity.parseVersionCode
+import dev.frost819.newbv.app.util.OtaInstallCallbackEvent
+import dev.frost819.newbv.app.util.OtaUpdateInstaller
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.Loggers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
+/** 安装器响应超时阈值（毫秒）：超过此时间系统仍未弹出安装确认框，自动解除「安装中」等待并提供兜底指引。 */
+private const val INSTALLER_LAUNCH_TIMEOUT_MS = 8_000L
+
 /**
- * 更新检查弹窗。
+ * 更新检查与 OTA 升级弹窗。
  *
- * 打开后自动检查最新版本，支持下载 APK 并调起系统安装器。
- * 遵循 10-foot 大屏与 Android TV 原版规范：
- * 1. 采用内部私有存储（[context.cacheDir]），避免外部沙盒跨进程读取限制；
- * 2. 避免在生命周期中过早 revoke URI 权限，确保系统后台安装服务能够持续读取 APK 流；
- * 3. 避免过度声明未知的权限管理 Activity，确保在各品牌 TV ROM 上即点即装。
+ * 针对 Android TV（尤其是雷鸟 FFALCON / TCL 等 Android 11+ 定制固件）深度加固：
+ * 1. **双轨安装引擎**：优先通过 [OtaUpdateInstaller.installViaPackageInstallerSession] 流式安装并监听
+ *    [OtaUpdateInstaller.installEvents] 广播回调，同时支持一键切换 [OtaUpdateInstaller.installViaLegacyViewIntent] 兼容安装；
+ * 2. **公共 Download 目录同步导出**：下载完成后自动将 APK 备份至电视公共 `Download` 目录，
+ *    即便电视 ROM 彻底禁用了应用内自我覆盖安装，用户也能直接在电视自带「文件管理器 -> 下载」中免 U 盘一键升级；
+ * 3. **告别「无路可逃」假死**：任何阶段均允许按返回键或点击底部按钮关闭弹窗，并在 8 秒未检测到系统安装界面时自动切换为可操作的兜底引导页。
  *
  * @param show 是否显示弹窗。
  * @param onHideDialog 关闭弹窗回调。
@@ -60,6 +68,7 @@ fun UpdateDialog(
     onHideDialog: () -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val logger = Loggers.get("UpdateDialog")
 
@@ -69,19 +78,132 @@ fun UpdateDialog(
     var targetProgress by remember { mutableFloatStateOf(0f) }
     val progress by animateFloatAsState(targetValue = targetProgress, label = "update progress")
     var downloadJob by remember { mutableStateOf<Job?>(null) }
+    var installWatchdogJob by remember { mutableStateOf<Job?>(null) }
     var latestRelease by remember { mutableStateOf<GithubRelease?>(null) }
+    var downloadedApkFile by remember { mutableStateOf<File?>(null) }
+    var exportedDownloadPath by remember { mutableStateOf<String?>(null) }
+    var installErrorDetail by remember { mutableStateOf<String?>(null) }
+    var waitingForPermissionReturn by remember { mutableStateOf(false) }
 
     DisposableEffect(show) {
         if (!show) {
             downloadJob?.cancel()
+            installWatchdogJob?.cancel()
         }
         onDispose {
             downloadJob?.cancel()
+            installWatchdogJob?.cancel()
+        }
+    }
+
+    val startInstallWatchdog: () -> Unit = {
+        installWatchdogJob?.cancel()
+        installWatchdogJob =
+            scope.launch {
+                delay(INSTALLER_LAUNCH_TIMEOUT_MS)
+                if (updateStatus == UpdateStatus.Installing) {
+                    logger.warn { "System package installer did not respond within ${INSTALLER_LAUNCH_TIMEOUT_MS}ms" }
+                    installErrorDetail =
+                        "未检测到系统安装界面弹出（部分电视系统会静默拦截应用内升级）。"
+                    updateStatus = UpdateStatus.InstallError
+                }
+            }
+    }
+
+    val triggerApkInstall: (File, Boolean) -> Unit = { file, useLegacyIntent ->
+        downloadedApkFile = file
+        installErrorDetail = null
+
+        if (!useLegacyIntent && !OtaUpdateInstaller.canRequestPackageInstalls(context)) {
+            logger.info { "Missing REQUEST_INSTALL_PACKAGES permission, prompting user to grant" }
+            updateStatus = UpdateStatus.RequireUnknownSourcesPermission
+        } else {
+            updateStatus = UpdateStatus.Installing
+            startInstallWatchdog()
+            scope.launch(Dispatchers.IO) {
+                val result =
+                    if (useLegacyIntent) {
+                        OtaUpdateInstaller.installViaLegacyViewIntent(context, file)
+                    } else {
+                        OtaUpdateInstaller
+                            .installViaPackageInstallerSession(context, file)
+                            .recoverCatching { sessionErr ->
+                                logger.warn(sessionErr) {
+                                    "PackageInstaller session failed, falling back to ACTION_VIEW"
+                                }
+                                OtaUpdateInstaller.installViaLegacyViewIntent(context, file).getOrThrow()
+                            }
+                    }
+                result.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    logger.error(error) { "Failed to launch installer (useLegacyIntent=$useLegacyIntent)" }
+                    installWatchdogJob?.cancel()
+                    installErrorDetail = error.message
+                    updateStatus = UpdateStatus.InstallError
+                }
+            }
+        }
+    }
+
+    // 监听 PackageInstaller 异步广播回调
+    LaunchedEffect(show) {
+        if (!show) return@LaunchedEffect
+        OtaUpdateInstaller.clearInstallEvents()
+        OtaUpdateInstaller.installEvents.collect { event ->
+            when (event) {
+                is OtaInstallCallbackEvent.PendingUserAction -> {
+                    // 系统已尝试拉起确认 Activity，继续保持超时守卫：若系统静默吞掉该 Activity，8 秒后自动转入兜底提示
+                    startInstallWatchdog()
+                }
+
+                is OtaInstallCallbackEvent.Success -> {
+                    installWatchdogJob?.cancel()
+                    onHideDialog()
+                }
+
+                is OtaInstallCallbackEvent.Failure -> {
+                    installWatchdogJob?.cancel()
+                    logger.warn { "PackageInstaller reported failure: status=${event.status}, msg=${event.message}" }
+                    // PackageInstaller 被系统拦截时，自动尝试一次传统 ACTION_VIEW 兜底
+                    val apk = downloadedApkFile
+                    if (apk != null && apk.exists()) {
+                        val legacyResult = OtaUpdateInstaller.installViaLegacyViewIntent(context, apk)
+                        if (legacyResult.isFailure) {
+                            installErrorDetail = event.message
+                            updateStatus = UpdateStatus.InstallError
+                        } else {
+                            startInstallWatchdog()
+                        }
+                    } else {
+                        installErrorDetail = event.message
+                        updateStatus = UpdateStatus.InstallError
+                    }
+                }
+            }
+        }
+    }
+
+    // 从系统「未知来源安装权限」设置页返回时，若已获得授权则自动继续安装
+    DisposableEffect(lifecycleOwner, show) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME && show && waitingForPermissionReturn) {
+                    waitingForPermissionReturn = false
+                    val apk = downloadedApkFile
+                    if (apk != null && apk.exists() && OtaUpdateInstaller.canRequestPackageInstalls(context)) {
+                        triggerApkInstall(apk, false)
+                    }
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
     val checkUpdate: () -> Unit = {
         updateStatus = UpdateStatus.UpdatingInfo
+        installErrorDetail = null
         scope.launch(Dispatchers.IO) {
             runCatching {
                 val release = GithubApi.getLatestBuild()
@@ -113,34 +235,9 @@ fun UpdateDialog(
         }
     }
 
-    val installUpdate: (File) -> Unit = { file ->
-        updateStatus = UpdateStatus.Installing
-        logger.info { "Installing APK: ${file.absolutePath}, size=${file.length()}" }
-        runCatching {
-            val uri =
-                FileProvider.getUriForFile(
-                    context,
-                    "${BuildConfig.APPLICATION_ID}.provider",
-                    file,
-                )
-            logger.info { "APK URI: $uri" }
-            val intent =
-                Intent(Intent.ACTION_VIEW).apply {
-                    addCategory(Intent.CATEGORY_DEFAULT)
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-            context.startActivity(intent)
-        }.onFailure { error ->
-            if (error is CancellationException) throw error
-            logger.error(error) { "Failed to launch package installer" }
-            updateStatus = UpdateStatus.InstallError
-        }
-    }
-
     val startUpdate: () -> Unit = {
         updateStatus = UpdateStatus.Downloading
+        installErrorDetail = null
         downloadJob =
             scope.launch(Dispatchers.IO) {
                 runCatching {
@@ -148,7 +245,7 @@ fun UpdateDialog(
                     val apkAsset = release.findApkAsset() ?: error("未找到可用的安装包资产 (APK)")
                     val tempFilename = apkAsset.name
 
-                    // 纯内部私有缓存目录，彻底规避 Android 10/11+ 外部 Scoped Storage 沙盒限制
+                    // 内部缓存目录存放主安装包
                     val tempDir = File(context.cacheDir, "ota_packages")
                     if (!tempDir.exists()) tempDir.mkdirs()
 
@@ -161,29 +258,38 @@ fun UpdateDialog(
 
                     val tempFile = File(tempDir, tempFilename)
 
-                    // 若本地已有完整下载且大小一致的安装包，直接调起安装避免重复拉取
-                    if (tempFile.exists() && tempFile.length() > 0 && tempFile.length() == apkAsset.size.toLong()) {
-                        if (show) installUpdate(tempFile)
-                        return@launch
+                    // 若本地已有完整下载且大小一致的安装包，直接导出并调起安装避免重复拉取
+                    if (!tempFile.exists() || tempFile.length() <= 0L || tempFile.length() != apkAsset.size.toLong()) {
+                        if (tempFile.exists()) tempFile.delete()
+                        tempFile.createNewFile()
+
+                        GithubApi.downloadUpdate(
+                            downloadUrl = apkAsset.browserDownloadUrl,
+                            file = tempFile,
+                        ) { downloaded: Long, total: Long ->
+                            bytesSentTotal = downloaded
+                            contentLength = total
+                            targetProgress =
+                                if (total > 0) {
+                                    downloaded.toFloat() / total
+                                } else {
+                                    0f
+                                }
+                        }
                     }
 
-                    if (tempFile.exists()) tempFile.delete()
-                    tempFile.createNewFile()
+                    tempFile.setReadable(true, false)
+                    downloadedApkFile = tempFile
+                    // 同步导出一份至公共 Download 目录，方便在锁死应用内安装的电视上直接通过「文件管理器 -> 下载」安装
+                    exportedDownloadPath = OtaUpdateInstaller.exportApkToPublicDownloads(context, tempFile)
 
-                    GithubApi.downloadUpdate(apkAsset.browserDownloadUrl, tempFile) { downloaded: Long, total: Long ->
-                        bytesSentTotal = downloaded
-                        contentLength = total
-                        targetProgress =
-                            if (total > 0) {
-                                downloaded.toFloat() / total
-                            } else {
-                                0f
-                            }
+                    if (show) {
+                        triggerApkInstall(tempFile, false)
                     }
-                    if (show) installUpdate(tempFile)
                 }.onFailure { error ->
                     if (error is CancellationException) throw error
                     logger.error(error) { "Failed to download update" }
+                    installErrorDetail = error.message
                     updateStatus = UpdateStatus.DownloadError
                 }
             }
@@ -199,20 +305,25 @@ fun UpdateDialog(
 
     if (show) {
         AlertDialog(
-            modifier = modifier.width(400.dp),
-            onDismissRequest = onHideDialog,
+            modifier = modifier.width(440.dp),
+            onDismissRequest = {
+                downloadJob?.cancel()
+                installWatchdogJob?.cancel()
+                onHideDialog()
+            },
             title = {
                 Text(
                     text =
                         when (updateStatus) {
                             UpdateStatus.UpdatingInfo -> "获取更新信息中"
-                            UpdateStatus.Ready -> latestRelease?.name ?: "Loading..."
+                            UpdateStatus.Ready -> latestRelease?.name ?: "发现新版本"
                             UpdateStatus.Downloading -> "下载中"
-                            UpdateStatus.Installing -> "安装中"
+                            UpdateStatus.Installing -> "正在调起系统安装器"
+                            UpdateStatus.RequireUnknownSourcesPermission -> "需要开启未知来源安装权限"
                             UpdateStatus.NoAvailableUpdate -> "无可用更新"
                             UpdateStatus.CheckError -> "检查更新失败"
                             UpdateStatus.DownloadError -> "下载失败"
-                            UpdateStatus.InstallError -> "安装失败"
+                            UpdateStatus.InstallError -> "未能自动弹出安装界面"
                         },
                 )
             },
@@ -244,15 +355,46 @@ fun UpdateDialog(
                     }
 
                     UpdateStatus.Installing -> {
-                        Text(text = "请坐和放宽")
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(text = "正在请求系统安装新版本，请稍候...")
+                            exportedDownloadPath?.let { path ->
+                                Text(
+                                    text = "安装包已同步保存至电视「$path」，若电视未弹出安装框，可稍后打开电视自带【文件管理器 -> 下载】直接点击安装。",
+                                )
+                            }
+                        }
+                    }
+
+                    UpdateStatus.RequireUnknownSourcesPermission -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "当前电视系统默认阻止应用内直接升级。请点击【去开启安装权限】并在列表中允许本应用安装未知应用。",
+                            )
+                            exportedDownloadPath?.let { path ->
+                                Text(
+                                    text = "💡 免 U 盘直装提示：安装包已自动保存至电视存储「$path」，您也可以直接打开电视自带的【文件管理器 / 应用助手 -> 下载】点击安装！",
+                                )
+                            }
+                        }
                     }
 
                     UpdateStatus.DownloadError -> {
-                        Text(text = "下载失败")
+                        Text(text = "下载失败${installErrorDetail?.let { "：$it" } ?: ""}")
                     }
 
                     UpdateStatus.InstallError -> {
-                        Text(text = "安装失败")
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val errorMsg =
+                                installErrorDetail
+                                    ?: "电视系统拦截了应用内安装弹窗（常见于雷鸟/TCL 等电视系统限制）。"
+                            Text(text = errorMsg)
+                            exportedDownloadPath?.let { path ->
+                                val manualHint =
+                                    "✅ 免 U 盘解决办法：新版本安装包已为您导出至电视本地存储「$path」。" +
+                                        "请直接打开电视自带的【文件管理器 / 电视卫士 -> 下载（Download）】即可一键点击完成升级！"
+                                Text(text = manualHint)
+                            }
+                        }
                     }
 
                     UpdateStatus.CheckError -> {
@@ -267,7 +409,7 @@ fun UpdateDialog(
             confirmButton = {
                 when (updateStatus) {
                     UpdateStatus.UpdatingInfo, UpdateStatus.NoAvailableUpdate,
-                    UpdateStatus.Downloading, UpdateStatus.Installing,
+                    UpdateStatus.Downloading,
                     -> {}
 
                     UpdateStatus.Ready -> {
@@ -279,7 +421,82 @@ fun UpdateDialog(
                         }
                     }
 
-                    UpdateStatus.InstallError, UpdateStatus.DownloadError, UpdateStatus.CheckError -> {
+                    UpdateStatus.Installing -> {
+                        val retryLegacyAction = {
+                            val apk = downloadedApkFile
+                            if (apk != null && apk.exists()) {
+                                triggerApkInstall(apk, true)
+                            }
+                        }
+                        Button(
+                            onClick = retryLegacyAction,
+                            modifier = Modifier.touchClickable(onClick = retryLegacyAction),
+                        ) {
+                            Text(text = "换用兼容模式重试")
+                        }
+                    }
+
+                    UpdateStatus.RequireUnknownSourcesPermission -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val openSettingsAction = {
+                                waitingForPermissionReturn = true
+                                OtaUpdateInstaller.openUnknownSourceSettings(context)
+                                Unit
+                            }
+                            Button(
+                                onClick = openSettingsAction,
+                                modifier = Modifier.touchClickable(onClick = openSettingsAction),
+                            ) {
+                                Text(text = "去开启安装权限")
+                            }
+
+                            val forceTryAction = {
+                                val apk = downloadedApkFile
+                                if (apk != null && apk.exists()) {
+                                    triggerApkInstall(apk, true)
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = forceTryAction,
+                                modifier = Modifier.touchClickable(onClick = forceTryAction),
+                            ) {
+                                Text(text = "直接尝试安装")
+                            }
+                        }
+                    }
+
+                    UpdateStatus.InstallError -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val retryLegacyAction = {
+                                val apk = downloadedApkFile
+                                if (apk != null && apk.exists()) {
+                                    triggerApkInstall(apk, true)
+                                } else {
+                                    checkUpdate()
+                                }
+                            }
+                            Button(
+                                onClick = retryLegacyAction,
+                                modifier = Modifier.touchClickable(onClick = retryLegacyAction),
+                            ) {
+                                Text(text = "兼容模式重试")
+                            }
+
+                            val openSettingsAction = {
+                                waitingForPermissionReturn = true
+                                OtaUpdateInstaller.openUnknownSourceSettings(context)
+                                Unit
+                            }
+                            OutlinedButton(
+                                onClick = openSettingsAction,
+                                modifier = Modifier.touchClickable(onClick = openSettingsAction),
+                            ) {
+                                Text(text = "去开启安装权限")
+                            }
+                        }
+                    }
+
+                    UpdateStatus.DownloadError, UpdateStatus.CheckError -> {
                         Button(
                             onClick = checkUpdate,
                             modifier = Modifier.touchClickable(onClick = checkUpdate),
@@ -290,25 +507,14 @@ fun UpdateDialog(
                 }
             },
             dismissButton = {
+                val closeAction = {
+                    downloadJob?.cancel()
+                    installWatchdogJob?.cancel()
+                    onHideDialog()
+                }
                 OutlinedButton(
-                    enabled =
-                        updateStatus !in
-                            setOf(
-                                UpdateStatus.Downloading,
-                                UpdateStatus.Installing,
-                            ),
-                    onClick = onHideDialog,
-                    modifier =
-                        Modifier.touchClickable(onClick = {
-                            if (updateStatus !in
-                                setOf(
-                                    UpdateStatus.Downloading,
-                                    UpdateStatus.Installing,
-                                )
-                            ) {
-                                onHideDialog()
-                            }
-                        }),
+                    onClick = closeAction,
+                    modifier = Modifier.touchClickable(onClick = closeAction),
                 ) {
                     Text(
                         text =
@@ -316,10 +522,13 @@ fun UpdateDialog(
                                 UpdateStatus.UpdatingInfo -> "我点错了"
                                 UpdateStatus.Ready -> "打死不更"
                                 UpdateStatus.NoAvailableUpdate -> "走了走了"
-                                UpdateStatus.CheckError, UpdateStatus.DownloadError,
+                                UpdateStatus.Downloading -> "取消下载"
+                                UpdateStatus.Installing -> "关闭窗口"
+                                UpdateStatus.RequireUnknownSourcesPermission,
+                                UpdateStatus.CheckError,
+                                UpdateStatus.DownloadError,
                                 UpdateStatus.InstallError,
-                                -> "算了算了"
-                                UpdateStatus.Downloading, UpdateStatus.Installing -> "你已经无路可逃！"
+                                -> "关闭"
                             },
                     )
                 }
@@ -335,6 +544,7 @@ enum class UpdateStatus {
     Ready,
     Downloading,
     Installing,
+    RequireUnknownSourcesPermission,
     NoAvailableUpdate,
     CheckError,
     DownloadError,

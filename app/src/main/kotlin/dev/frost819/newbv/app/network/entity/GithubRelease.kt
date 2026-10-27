@@ -126,8 +126,10 @@ fun compareSemanticVersions(
 ): Int? {
     fun cleanVersion(v: String): List<Int>? {
         val s = v.trim().removePrefix("v").substringBefore("-")
-        val segments = s.split(".")
-            .takeWhile { part -> part.isNotEmpty() && part.all { it.isDigit() } }
+        val segments =
+            s
+                .split(".")
+                .takeWhile { part -> part.isNotEmpty() && part.all { it.isDigit() } }
         val numericParts = segments.map { it.toIntOrNull() ?: return null }
         return if (numericParts.isEmpty()) null else numericParts
     }

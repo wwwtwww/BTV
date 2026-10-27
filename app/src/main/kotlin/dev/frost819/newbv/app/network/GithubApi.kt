@@ -17,7 +17,6 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLProtocol
 import io.ktor.http.isSuccess
-import java.io.IOException
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.serialization.json.Json
@@ -25,6 +24,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
+import java.io.IOException
 
 /**
  * GitHub Releases API 封装。
