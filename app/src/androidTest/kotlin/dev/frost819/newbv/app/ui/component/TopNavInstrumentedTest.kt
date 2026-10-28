@@ -1,11 +1,11 @@
 package dev.frost819.newbv.app.ui.component
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.click
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.app.ui.screen.home.HomeFilterTab
@@ -28,12 +28,13 @@ class TopNavInstrumentedTest {
 
     @Test
     fun displays_all_tabs_correctly() {
-        val tabs = listOf(
-            HomeFilterTab.Featured,
-            HomeFilterTab.Recommend,
-            HomeFilterTab.Popular,
-            HomeFilterTab.Dynamics,
-        )
+        val tabs =
+            listOf(
+                HomeFilterTab.Featured,
+                HomeFilterTab.Recommend,
+                HomeFilterTab.Popular,
+                HomeFilterTab.Dynamics,
+            )
 
         composeRule.setContent {
             BVTheme {
@@ -52,12 +53,13 @@ class TopNavInstrumentedTest {
 
     @Test
     fun clicking_tab_triggers_onClick_callback() {
-        val tabs = listOf(
-            HomeFilterTab.Featured,
-            HomeFilterTab.Recommend,
-            HomeFilterTab.Popular,
-            HomeFilterTab.Dynamics,
-        )
+        val tabs =
+            listOf(
+                HomeFilterTab.Featured,
+                HomeFilterTab.Recommend,
+                HomeFilterTab.Popular,
+                HomeFilterTab.Dynamics,
+            )
         var clickedItem: TopNavItem? = null
 
         composeRule.setContent {
@@ -80,12 +82,13 @@ class TopNavInstrumentedTest {
 
     @Test
     fun touch_interaction_transfers_focus_and_triggers_onSelectedChanged() {
-        val tabs = listOf(
-            HomeFilterTab.Featured,
-            HomeFilterTab.Recommend,
-            HomeFilterTab.Popular,
-            HomeFilterTab.Dynamics,
-        )
+        val tabs =
+            listOf(
+                HomeFilterTab.Featured,
+                HomeFilterTab.Recommend,
+                HomeFilterTab.Popular,
+                HomeFilterTab.Dynamics,
+            )
         var selectedItem: TopNavItem? = null
 
         composeRule.setContent {

@@ -9,11 +9,27 @@ import dev.frost819.newbv.biliapi.repositories.SearchTypeResult
 import dev.frost819.newbv.data.db.entity.SearchHistoryEntity
 
 /**
+ * 搜索页左右双区接力协同阶段。
+ */
+enum class SearchPaneStage {
+    /** 初始/清空态：左栏下部展示流式搜索历史，右栏大画布展示双列完整热搜榜单。 */
+    Discovery,
+
+    /** 输入未提交态：左栏下部保留流式搜索历史，右栏大画布展示双列宽幅搜索建议。 */
+    Suggests,
+
+    /** 结果浏览态：左栏下部接力驻留关联搜索建议，右栏大画布展示 TopNav 与多分类结果网格。 */
+    Results,
+}
+
+/**
  * 搜索输入页 UI 状态。
  *
  * @param keyword 当前输入的关键词
+ * @param stage 当前左右双区协同阶段
  * @param hotwords 热搜词列表
- * @param suggests 搜索建议列表（keyword 非空时显示）
+ * @param suggests 搜索建议列表（输入未提交态右栏双列宽幅面板使用）
+ * @param relaySuggests 结果浏览态左栏下部接力驻留的关联建议列表
  * @param histories 搜索历史列表
  * @param isLoadingHotwords 是否正在加载热搜
  * @param isLoadingSuggests 是否正在加载建议
@@ -21,8 +37,10 @@ import dev.frost819.newbv.data.db.entity.SearchHistoryEntity
  */
 data class SearchInputUiState(
     val keyword: String = "",
+    val stage: SearchPaneStage = SearchPaneStage.Discovery,
     val hotwords: List<Hotword> = emptyList(),
     val suggests: List<String> = emptyList(),
+    val relaySuggests: List<String> = emptyList(),
     val histories: List<SearchHistoryEntity> = emptyList(),
     val isLoadingHotwords: Boolean = false,
     val isLoadingSuggests: Boolean = false,
@@ -30,21 +48,25 @@ data class SearchInputUiState(
 )
 
 /**
- * 搜索结果页单项数据（4 种类型统一封装）。
+ * 搜索结果页单项数据（4 种卡片载体封装）。
  */
 sealed class SearchResultItem {
+    /** 视频卡片结果项。 */
     data class VideoItem(
         val video: SearchTypeResult.Video,
     ) : SearchResultItem()
 
+    /** 番剧/影视卡片结果项。 */
     data class PgcItem(
         val pgc: SearchTypeResult.Pgc,
     ) : SearchResultItem()
 
+    /** 用户卡片结果项。 */
     data class UserItem(
         val user: SearchTypeResult.User,
     ) : SearchResultItem()
 
+    /** 直播间卡片结果项。 */
     data class LiveRoomItem(
         val room: SearchTypeResult.LiveRoom,
     ) : SearchResultItem()
@@ -68,6 +90,7 @@ data class TypedSearchResult(
     val hasMore: Boolean = true,
     val error: Boolean = false,
 ) {
+    /** 当前已加载条目总数。 */
     val count: Int get() = items.size
 }
 
@@ -76,7 +99,7 @@ data class TypedSearchResult(
  *
  * @param keyword 搜索关键词
  * @param activeType 当前选中的搜索类型 Tab
- * @param results 4 种类型的搜索结果
+ * @param results 5 种类型的搜索结果缓存与状态
  * @param selectedOrder 排序方式
  * @param selectedDuration 时长筛选
  * @param showFilter 是否显示筛选弹窗

@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -292,29 +293,34 @@ fun UpdateDialog(
         settingsFallbackHint = null
         settingsLaunchElapsedMs = SystemClock.elapsedRealtime()
 
-        val launched =
-            OtaUpdateInstaller.openUnknownSourceSettings(
-                context = context,
-                skipUnknownSourcesAction = false,
-            )
-        if (!launched) {
-            waitingForPermissionReturn = false
-            settingsFallbackHint =
-                "当前电视系统禁用了设置跳转，请使用遥控器打开电视【系统设置 → 应用 → 安全与限制】开启允许安装，" +
-                    "或前往电视【文件管理器 → 下载】直接安装。"
-        } else {
-            // 守护检测：针对 Theme.NoDisplay 空壳 Activity 不触发 ON_PAUSE 静默忽略的情况，800ms 后自动降级跳转
-            settingsStubCheckJob =
-                scope.launch {
+        settingsStubCheckJob =
+            scope.launch {
+                val launched =
+                    withContext(Dispatchers.IO) {
+                        OtaUpdateInstaller.openUnknownSourceSettings(
+                            context = context,
+                            skipUnknownSourcesAction = false,
+                        )
+                    }
+                if (!launched) {
+                    waitingForPermissionReturn = false
+                    settingsFallbackHint =
+                        "当前电视系统禁用了设置跳转，请使用遥控器打开电视【系统设置 → 应用 → 安全与限制】开启允许安装，" +
+                        "或前往电视【文件管理器 → 下载】直接安装。"
+                } else {
+                    settingsLaunchElapsedMs = SystemClock.elapsedRealtime()
+                    // 守护检测：针对 Theme.NoDisplay 空壳 Activity 不触发 ON_PAUSE 静默忽略的情况，800ms 后自动降级跳转
                     delay(OtaUpdateInstaller.SETTINGS_STUB_BOUNCE_THRESHOLD_MS)
                     if (waitingForPermissionReturn && !settingsDidPause && !settingsUsedFallback) {
                         settingsUsedFallback = true
                         settingsLaunchElapsedMs = SystemClock.elapsedRealtime()
                         val fallbackLaunched =
-                            OtaUpdateInstaller.openUnknownSourceSettings(
-                                context = context,
-                                skipUnknownSourcesAction = true,
-                            )
+                            withContext(Dispatchers.IO) {
+                                OtaUpdateInstaller.openUnknownSourceSettings(
+                                    context = context,
+                                    skipUnknownSourcesAction = true,
+                                )
+                            }
                         settingsFallbackHint =
                             if (fallbackLaunched) {
                                 "电视未知来源专属页无响应，已自动为您打开应用详情/系统设置页；请在【应用权限 / 安全与限制】中开启安装权限。"
@@ -326,7 +332,7 @@ fun UpdateDialog(
                         }
                     }
                 }
-        }
+            }
     }
 
     // 监听设置页返回：支持授权后自动续装 + 800ms 空壳 Activity 秒退自动降级
@@ -361,19 +367,23 @@ fun UpdateDialog(
                             settingsUsedFallback = true
                             settingsStubCheckJob?.cancel()
                             settingsLaunchElapsedMs = SystemClock.elapsedRealtime()
-                            val fallbackLaunched =
-                                OtaUpdateInstaller.openUnknownSourceSettings(
-                                    context = context,
-                                    skipUnknownSourcesAction = true,
-                                )
-                            settingsFallbackHint =
-                                if (fallbackLaunched) {
-                                    "检测到电视未知来源页被系统空壳秒退，已自动为您切换打开应用详情/系统设置页。"
-                                } else {
-                                    "当前电视系统不支持直达权限页，请手动前往电视【系统设置 → 应用 → 安全与限制】开启，或前往【文件管理器 → 下载】安装。"
+                            scope.launch {
+                                val fallbackLaunched =
+                                    withContext(Dispatchers.IO) {
+                                        OtaUpdateInstaller.openUnknownSourceSettings(
+                                            context = context,
+                                            skipUnknownSourcesAction = true,
+                                        )
+                                    }
+                                settingsFallbackHint =
+                                    if (fallbackLaunched) {
+                                        "检测到电视未知来源页被系统空壳秒退，已自动为您切换打开应用详情/系统设置页。"
+                                    } else {
+                                        "当前电视系统不支持直达权限页，请手动前往电视【系统设置 → 应用 → 安全与限制】开启，或前往【文件管理器 → 下载】安装。"
+                                    }
+                                if (!fallbackLaunched) {
+                                    waitingForPermissionReturn = false
                                 }
-                            if (!fallbackLaunched) {
-                                waitingForPermissionReturn = false
                             }
                         } else {
                             waitingForPermissionReturn = false
@@ -910,6 +920,8 @@ private fun ReleaseNotesScrollSection(
     val density = LocalDensity.current
     val stepPx = with(density) { 110.dp.roundToPx() }
     var isFocused by remember { mutableStateOf(false) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+    var targetScrollY by remember { mutableIntStateOf(0) }
 
     val borderStroke =
         if (isFocused) {
@@ -933,9 +945,21 @@ private fun ReleaseNotesScrollSection(
                         if (!keyEvent.isKeyDown()) return@onPreviewKeyEvent false
                         when {
                             keyEvent.isDpadDown() -> {
-                                if (scrollState.value < scrollState.maxValue) {
-                                    val target = (scrollState.value + stepPx).coerceAtMost(scrollState.maxValue)
-                                    scope.launch { scrollState.animateScrollTo(target) }
+                                val currentBase =
+                                    if (scrollJob?.isActive == true) targetScrollY else scrollState.value
+                                if (currentBase < scrollState.maxValue) {
+                                    val target = (currentBase + stepPx).coerceAtMost(scrollState.maxValue)
+                                    targetScrollY = target
+                                    scrollJob?.cancel()
+                                    val isRepeat = keyEvent.nativeKeyEvent.repeatCount > 0
+                                    scrollJob =
+                                        scope.launch {
+                                            if (isRepeat) {
+                                                scrollState.scrollTo(target)
+                                            } else {
+                                                scrollState.animateScrollTo(target)
+                                            }
+                                        }
                                 } else {
                                     runCatching { primaryButtonFocusRequester.requestFocus() }
                                 }
@@ -943,17 +967,28 @@ private fun ReleaseNotesScrollSection(
                             }
 
                             keyEvent.isDpadUp() -> {
-                                if (scrollState.value > 0) {
-                                    val target = (scrollState.value - stepPx).coerceAtLeast(0)
-                                    scope.launch { scrollState.animateScrollTo(target) }
+                                val currentBase =
+                                    if (scrollJob?.isActive == true) targetScrollY else scrollState.value
+                                if (currentBase > 0) {
+                                    val target = (currentBase - stepPx).coerceAtLeast(0)
+                                    targetScrollY = target
+                                    scrollJob?.cancel()
+                                    val isRepeat = keyEvent.nativeKeyEvent.repeatCount > 0
+                                    scrollJob =
+                                        scope.launch {
+                                            if (isRepeat) {
+                                                scrollState.scrollTo(target)
+                                            } else {
+                                                scrollState.animateScrollTo(target)
+                                            }
+                                        }
                                 }
                                 true
                             }
 
                             else -> false
                         }
-                    }
-                    .focusable()
+                    }.focusable()
                     .verticalScroll(scrollState)
                     .padding(horizontal = 18.dp, vertical = 14.dp),
         ) {

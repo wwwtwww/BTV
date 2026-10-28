@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
+import dev.frost819.newbv.app.ui.state.search.SearchPaneStage
 import dev.frost819.newbv.biliapi.entity.search.Hotword
 import dev.frost819.newbv.biliapi.repositories.SearchRepository
 import dev.frost819.newbv.data.datastore.Prefs
@@ -15,6 +16,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -34,9 +36,10 @@ import java.util.Date
 /**
  * [SearchInputViewModel] 的单元测试。
  *
- * 验证热搜词加载、搜索建议、搜索历史增删逻辑。
- * 使用 MockK mock [SearchRepository] 和 [SearchHistoryRepository]。
+ * 验证三阶段双区接力状态流转（[SearchPaneStage]）、热搜词加载、
+ * 宽幅搜索建议与结果态接力建议合并、搜索历史增删逻辑。
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SearchInputViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -110,18 +113,19 @@ class SearchInputViewModelTest {
     }
 
     @Test
-    fun `init loads hotwords and histories`() =
+    fun `init starts in Discovery stage and loads hotwords and histories`() =
         runTest(testDispatcher) {
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Discovery)
             assertThat(state.hotwords).hasSize(2)
             assertThat(state.hotwords[0].keyword).isEqualTo("热词1")
             assertThat(state.histories).isEmpty()
         }
 
     @Test
-    fun `updateKeyword with non-empty keyword loads suggests`() =
+    fun `updateKeyword with non-empty keyword switches stage to Suggests and loads suggests`() =
         runTest(testDispatcher) {
             advanceUntilIdle()
 
@@ -130,23 +134,102 @@ class SearchInputViewModelTest {
 
             val state = viewModel.uiState.value
             assertThat(state.keyword).isEqualTo("测试")
-            assertThat(state.suggests).hasSize(2)
-            assertThat(state.suggests[0]).isEqualTo("建议1")
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Suggests)
+            assertThat(state.suggests).containsExactly("建议1", "建议2").inOrder()
         }
 
     @Test
-    fun `updateKeyword with empty keyword clears suggests`() =
+    fun `updateKeyword with empty keyword returns to Discovery stage and clears suggests`() =
         runTest(testDispatcher) {
             advanceUntilIdle()
 
             viewModel.updateKeyword("测试")
             advanceUntilIdle()
+            assertThat(viewModel.uiState.value.stage).isEqualTo(SearchPaneStage.Suggests)
             assertThat(viewModel.uiState.value.suggests).isNotEmpty()
 
             viewModel.updateKeyword("")
             advanceUntilIdle()
 
-            assertThat(viewModel.uiState.value.suggests).isEmpty()
+            val state = viewModel.uiState.value
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Discovery)
+            assertThat(state.suggests).isEmpty()
+            assertThat(state.relaySuggests).isEmpty()
+        }
+
+    @Test
+    fun `commitSearch switches stage to Results and populates relaySuggests`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            coEvery { searchRepo.getSearchSuggest("原神", any()) } returns
+                listOf("原神前瞻", "原神攻略")
+
+            viewModel.commitSearch("原神")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.keyword).isEqualTo("原神")
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Results)
+            assertThat(state.relaySuggests).containsExactly("原神前瞻", "原神攻略").inOrder()
+        }
+
+    @Test
+    fun `commitSearch merges fresh suggests with fallback sibling suggests`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            // Given: user typed prefix "YS" and got 3 sibling suggestions
+            coEvery { searchRepo.getSearchSuggest("YS", any()) } returns
+                listOf("原神4.8前瞻", "原神深渊攻略", "影视飓风")
+            viewModel.updateKeyword("YS")
+            advanceUntilIdle()
+
+            // When: user clicks long-tail suggestion "原神4.8前瞻" which only returns 1 self-suggestion
+            coEvery { searchRepo.getSearchSuggest("原神4.8前瞻", any()) } returns
+                listOf("原神4.8前瞻兑换码")
+            viewModel.commitSearch("原神4.8前瞻")
+            advanceUntilIdle()
+
+            // Then: relaySuggests keeps fresh + prior sibling suggestions without duplicates
+            val state = viewModel.uiState.value
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Results)
+            assertThat(state.relaySuggests)
+                .containsExactly("原神4.8前瞻兑换码", "原神4.8前瞻", "原神深渊攻略", "影视飓风")
+                .inOrder()
+        }
+
+    @Test
+    fun `commitSearch preserves fallback relaySuggests when relay suggest call fails`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            coEvery { searchRepo.getSearchSuggest("BV", any()) } returns
+                listOf("BTV教程", "B站电视版")
+            viewModel.updateKeyword("BV")
+            advanceUntilIdle()
+
+            coEvery { searchRepo.getSearchSuggest("BTV教程", any()) } throws RuntimeException("network error")
+            viewModel.commitSearch("BTV教程")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.stage).isEqualTo(SearchPaneStage.Results)
+            assertThat(state.relaySuggests).containsExactly("BTV教程", "B站电视版").inOrder()
+        }
+
+    @Test
+    fun `editing keyword after commitSearch switches stage from Results back to Suggests`() =
+        runTest(testDispatcher) {
+            advanceUntilIdle()
+
+            viewModel.commitSearch("测试")
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.stage).isEqualTo(SearchPaneStage.Results)
+
+            viewModel.updateKeyword("测试A")
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.stage).isEqualTo(SearchPaneStage.Suggests)
         }
 
     @Test
@@ -182,6 +265,7 @@ class SearchInputViewModelTest {
             viewModel.commitSearch("")
             advanceUntilIdle()
 
+            assertThat(viewModel.uiState.value.stage).isEqualTo(SearchPaneStage.Discovery)
             coVerify(exactly = 0) { historyRepo.addHistory(any()) }
         }
 
@@ -231,13 +315,11 @@ class SearchInputViewModelTest {
     @Test
     fun `refreshHotwords clears error and retries`() =
         runTest(testDispatcher) {
-            // First: fail
             coEvery { searchRepo.getSearchHotwords(any(), any()) } throws RuntimeException("error")
             viewModel.refreshHotwords()
             advanceUntilIdle()
             assertThat(viewModel.uiState.value.hotwordsError).isTrue()
 
-            // Then: recover
             coEvery { searchRepo.getSearchHotwords(any(), any()) } returns listOf(fakeHotword("恢复"))
             viewModel.refreshHotwords()
             advanceUntilIdle()

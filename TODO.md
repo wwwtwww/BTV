@@ -7,6 +7,13 @@
 
 ## 📌 当前进行与完成状态概览
 
+- [x] **v0.4.13：搜索页 3 列宽幅网格重构 (P2-1) 与 OTA 体验加固（v0.4.13 已发布）**
+  - 搜索结果分类顶栏（视频 / 番剧 / 影视 / 用户 / 直播）全面接入全站统一的极简 `TopNav`，并在顶栏右侧槽位提供轻量筛选胶囊，解决卡片 `Menu` 键冲突；
+  - 重构左右分栏比例（228dp 紧凑窄左栏 + 约 620dp 宽幅右栏）与扁平化 6×6 `SoftKeyboard`，彻底清除硬编码白色，完整适配深浅双主题；
+  - 落地三阶段「双区接力协同」架构（`Discovery` 双列全站热搜榜 / `Suggests` 双列宽敞建议面板 / `Results` 宽幅网格 + 左栏下部关联建议接力列表）；
+  - 升级视频、用户、直播为 3 列宽幅瀑布流网格（番剧/影视 4 列海报网格），单激活分类按需加载 + 150ms 防抖秒切；
+  - 将未知来源设置跳转全链路移入 `Dispatchers.IO`、优化更新说明长文本遥控器连按目标累加与长按即时滚动、增加资产强校验与代码规范清理。
+
 - [x] **v0.4.12：OTA 更新前展示详细更新说明与安装权限引导重塑（v0.4.12 已发布）**
   - 重构更新弹窗为 620dp 大屏宽卡片，清晰呈现版本对比、体积与日期，支持遥控器方向键上下平滑滚动阅读；
   - 移除下载完成后的前置权限拦截弹窗，未授权时直接调用已验证可用的 `ACTION_VIEW` 调起系统安装器，修复「点去开启权限无反应、点直接尝试能安装」的问题；
@@ -70,8 +77,8 @@
   - 修复 `PlayerViewModelTest` 分 P 详情逻辑中的死循环问题：彻底移除在 `runTest` 虚拟时间调度下会无休止推进的后台无限轮询协程（`initSession`），改为确定性的无副作用状态注入（`updateUiState`），彻底消除 CI 卡死超时问题；
   - 修复连续播放单测状态机前置分 P 上下文，同步清理与多集画质继承机制相冲突的过时测试；
   - CI `Build BTV APK` 与全量测试套件（250+ Tasks）实现 3 分钟内 100% 稳定绿标通过。
-- [ ] **P2：大屏高级布局革新（暂缓实现，记录于下方）**
-  - 暂缓原因：改动范围广、涉及播放器控制器重构与大屏全局看板生命周期管理，后续建议作为单独的大特性分批立项推进。
+- [ ] **P2：大屏高级布局革新（分阶段推进中：P2-1 已完成，P2-2 / P2-3 待推进）**
+  - 按子特性分批立项推进。
 
 ---
 
@@ -82,28 +89,18 @@
 
 ---
 
-### 1. 搜索页紧凑键盘与宽网格（3 列卡片）
+### 1. [已完成] 搜索页紧凑键盘与宽网格（3 列卡片）+ TopNav 分类栏统一
 
-- **优先级**：P2-1
-- **预估工期**：1.5 ~ 2 人天
+- **优先级**：P2-1（已完成）
 - **涉及文件**：
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/TopNav.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/search/SoftKeyboard.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/search/SearchKeyword.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/search/UpCard.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/search/SearchResultFilter.kt`
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/search/SearchInputContent.kt`
-  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/search/SearchScreen.kt`
-
-#### 现状分析与痛点
-- 当前左侧全拼/首字母九宫格与全键盘占据屏幕宽度的近 40%，空间冗余度高；
-- 右侧搜索结果仅为 2 列卡片，每行横向拉得过宽，信息密度偏低，纵向浏览翻页负担大。
-
-#### 重构设计方案
-1. **分栏比例优化**：
-   - 键盘宽度由原先的 40% 压缩至 **28% ~ 30%**；
-   - 键盘按键适当紧凑化，保持舒适的 10-foot 大屏遥控器命中率。
-2. **结果网格升级**：
-   - 右侧视频卡片网格由 2 列扩展为 **3 列宽幅瀑布流网格**；
-   - 卡片宽高比保持 16:9 黄金封面，文字标题与 UP 主角标采用紧凑排版。
-3. **遥控器寻焦协同（Focus Navigation）**：
-   - 从键盘向右按下 `DPAD_RIGHT` 时，自然寻焦至右侧视口内第一行最近的卡片；
-   - 从右侧网格最左列按下 `DPAD_LEFT` 时，平滑返回键盘当前激活的按键或功能区。
+  - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/search/SearchInputViewModel.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/search/SearchResultViewModel.kt`
 
 ---
 

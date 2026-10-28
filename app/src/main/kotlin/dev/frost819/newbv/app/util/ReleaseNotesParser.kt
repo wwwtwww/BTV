@@ -4,6 +4,7 @@ import android.content.Context
 import dev.frost819.newbv.app.network.entity.GithubRelease
 import dev.frost819.newbv.app.network.entity.compareSemanticVersions
 import dev.frost819.newbv.app.network.entity.parseVersionCode
+import dev.frost819.newbv.core.log.Loggers
 
 /**
  * 结构化更新说明文本块。
@@ -74,6 +75,7 @@ data class UpgradeCheckResult(
  * 3. 当用户跨多个版本升级（例如 `v0.4.8 -> v0.4.12`）时，自动按新到旧合并中间所有正式版的变更内容。
  */
 object ReleaseNotesParser {
+    private val logger = Loggers.get("ReleaseNotesParser")
     private val fullChangelogRegex =
         Regex("""^\s*\*{0,2}Full Changelog\*{0,2}\s*:\s*\S+.*$""", RegexOption.IGNORE_CASE)
     private val horizontalRuleRegex = Regex("""^\s*([-*_])\1{2,}\s*$""")
@@ -374,7 +376,10 @@ object ReleaseNotesParser {
                 }
             }
 
-        return bundledEntries.take(1)
+        logger.warn {
+            "No release notes found matching current version: $currentVersionName (tag: $currentTag)"
+        }
+        return emptyList()
     }
 
     /**

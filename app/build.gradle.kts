@@ -26,9 +26,11 @@ abstract class SyncChangelogAssetTask : DefaultTask() {
         val targetDir = outputDir.get().asFile
         targetDir.mkdirs()
         val source = changelogFile.get().asFile
-        if (source.exists()) {
-            source.copyTo(File(targetDir, "CHANGELOG.md"), overwrite = true)
+        check(source.exists()) {
+            "CHANGELOG.md not found at ${source.absolutePath}. " +
+                "This file is required for in-app release notes display."
         }
+        source.copyTo(File(targetDir, "CHANGELOG.md"), overwrite = true)
     }
 }
 
@@ -53,12 +55,12 @@ val signingProperties = Properties()
 if (signingPropertiesFile.exists()) {
     signingPropertiesFile.inputStream().use { signingProperties.load(it) }
 }
-fun findSigningProperty(key: String): String? {
-    return signingProperties.getProperty(key)
+
+fun findSigningProperty(key: String): String? =
+    signingProperties.getProperty(key)
         ?: (project.findProperty(key) as? String)
         ?: System.getenv(key)
         ?: System.getenv(key.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase())
-}
 
 val releaseStoreFileProp = findSigningProperty("releaseStoreFile")
 val releaseStorePasswordProp = findSigningProperty("releaseStorePassword")
@@ -66,15 +68,16 @@ val releaseKeyAliasProp = findSigningProperty("releaseKeyAlias")
 val releaseKeyPasswordProp = findSigningProperty("releaseKeyPassword")
 
 val releaseStoreFile = releaseStoreFileProp?.let { rootProject.file(it) }
-val hasReleaseSigning = releaseStoreFile?.exists() == true &&
-    !releaseStorePasswordProp.isNullOrBlank() &&
-    !releaseKeyAliasProp.isNullOrBlank() &&
-    !releaseKeyPasswordProp.isNullOrBlank()
+val hasReleaseSigning =
+    releaseStoreFile?.exists() == true &&
+        !releaseStorePasswordProp.isNullOrBlank() &&
+        !releaseKeyAliasProp.isNullOrBlank() &&
+        !releaseKeyPasswordProp.isNullOrBlank()
 
 if (!hasReleaseSigning) {
     logger.warn(
         "release 构建未配置有效签名私钥，产出 APK 将不可直接安装（报 INSTALL_PARSE_FAILED_NO_CERTIFICATES）。" +
-            "本地如需签署 release 包，请参考 signing.properties.template 配置 signing.properties 或注入环境变量。"
+            "本地如需签署 release 包，请参考 signing.properties.template 配置 signing.properties 或注入环境变量。",
     )
 }
 
@@ -272,9 +275,6 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
-
-
-
 
     testImplementation(libs.hilt.android.testing)
     kspTest(libs.hilt.compiler)

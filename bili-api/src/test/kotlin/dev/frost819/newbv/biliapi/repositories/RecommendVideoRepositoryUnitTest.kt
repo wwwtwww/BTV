@@ -269,14 +269,15 @@ class RecommendVideoRepositoryUnitTest {
     fun `RcmdTopData parses standard json fixture without has_more as null`() {
         val json = Json { ignoreUnknownKeys = true }
         // 真实 Web 推荐接口没有 has_more 字段
-        val rawJson = """
+        val rawJson =
+            """
             {
                 "item": [],
                 "mid": 12345,
                 "preload_expose_pct": 0.0,
                 "preload_floor_expose_pct": 0.0
             }
-        """.trimIndent()
+            """.trimIndent()
         val parsed = json.decodeFromString<RcmdTopData>(rawJson)
         assertThat(parsed.hasMore).isNull()
     }
@@ -284,9 +285,12 @@ class RecommendVideoRepositoryUnitTest {
     @Test
     fun `RcmdIndexData parses integer and boolean has_more correctly`() {
         val json = Json { ignoreUnknownKeys = true }
+
         fun makeJson(hasMoreValue: String?) =
             buildString {
-                append("""{"config":{"auto_refresh_time":0,"auto_refresh_time_by_active":0,"auto_refresh_time_by_appear":0,"autoplay_card":0,"card_density_exp":0,"column":0,"enable_rcmd_guide":false,"feed_clean_abtest":0,"home_transfer_test":0,"inline_sound":0,"is_back_to_homepage":false,"show_inline_danmaku":0,"story_mode_v2_guide_exp":0,"toast":null,"visible_area":0},"items":[]""")
+                append(
+                    """{"config":{"auto_refresh_time":0,"auto_refresh_time_by_active":0,"auto_refresh_time_by_appear":0,"autoplay_card":0,"card_density_exp":0,"column":0,"enable_rcmd_guide":false,"feed_clean_abtest":0,"home_transfer_test":0,"inline_sound":0,"is_back_to_homepage":false,"show_inline_danmaku":0,"story_mode_v2_guide_exp":0,"toast":null,"visible_area":0},"items":[]""",
+                )
                 if (hasMoreValue != null) {
                     append(""", "has_more": $hasMoreValue""")
                 }

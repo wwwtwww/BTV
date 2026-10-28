@@ -63,7 +63,7 @@ class TvFocusFeedbackTest {
     }
 
     @Test
-    fun `surfaceBorder resolves non-null distinct border configurations across dark and light themes with same shape`() {
+    fun `surfaceBorder resolves distinct configurations across dark and light themes with same shape`() {
         var darkBorder: ClickableSurfaceBorder? = null
         var lightBorder: ClickableSurfaceBorder? = null
 

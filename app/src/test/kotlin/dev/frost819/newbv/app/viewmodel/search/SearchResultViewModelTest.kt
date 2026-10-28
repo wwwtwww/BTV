@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
+import dev.frost819.newbv.app.ui.state.search.SearchResultItem
 import dev.frost819.newbv.biliapi.repositories.SearchFilterDuration
 import dev.frost819.newbv.biliapi.repositories.SearchFilterOrderType
 import dev.frost819.newbv.biliapi.repositories.SearchRepository
@@ -16,9 +17,11 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -34,9 +37,9 @@ import java.io.File
 /**
  * [SearchResultViewModel] 的单元测试。
  *
- * 验证搜索结果加载、分页、筛选、Tab 切换逻辑。
- * 使用 MockK mock [SearchRepository]。
+ * 验证按需单分类加载、TopNav 切换防抖懒加载与缓存命中、单分类强制刷新、分页去重及筛选逻辑。
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SearchResultViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -227,7 +230,7 @@ class SearchResultViewModelTest {
     }
 
     @Test
-    fun `search loads all 5 types in parallel`() =
+    fun `search loads only activeType immediately to avoid 5 parallel WBI requests`() =
         runTest(testDispatcher) {
             viewModel.search("测试")
             advanceUntilIdle()
@@ -235,57 +238,160 @@ class SearchResultViewModelTest {
             val state = viewModel.uiState.value
             assertThat(state.keyword).isEqualTo("测试")
 
-            val videoResult = state.results[SearchType.Video]!!
+            val videoResult = requireNotNull(state.results[SearchType.Video])
             assertThat(videoResult.items).hasSize(20)
             assertThat(videoResult.isLoading).isFalse()
             assertThat(videoResult.error).isFalse()
 
-            val bangumiResult = state.results[SearchType.MediaBangumi]!!
-            assertThat(bangumiResult.items).hasSize(1)
+            // Inactive tabs stay unloaded until focused/selected
+            assertThat(requireNotNull(state.results[SearchType.MediaBangumi]).items).isEmpty()
+            assertThat(requireNotNull(state.results[SearchType.MediaFt]).items).isEmpty()
+            assertThat(requireNotNull(state.results[SearchType.BiliUser]).items).isEmpty()
+            assertThat(requireNotNull(state.results[SearchType.LiveRoom]).items).isEmpty()
 
-            val ftResult = state.results[SearchType.MediaFt]!!
-            assertThat(ftResult.items).hasSize(1)
-
-            val userResult = state.results[SearchType.BiliUser]!!
-            assertThat(userResult.items).hasSize(1)
-
-            val liveResult = state.results[SearchType.LiveRoom]!!
-            assertThat(liveResult.items).hasSize(1)
-            assertThat(liveResult.items.single()).isInstanceOf(
-                dev.frost819.newbv.app.ui.state.search.SearchResultItem.LiveRoomItem::class.java,
-            )
+            coVerify(exactly = 1) {
+                searchRepo.searchType(any(), any(), any(), any(), any(), any(), any())
+            }
         }
 
     @Test
-    fun `search resets all previous results`() =
-        runTest(testDispatcher) {
-            viewModel.search("第一次")
-            advanceUntilIdle()
-            assertThat(
-                viewModel.uiState.value.results[SearchType.Video]!!
-                    .items,
-            ).hasSize(20)
-
-            viewModel.search("第二次")
-            advanceUntilIdle()
-
-            val state = viewModel.uiState.value
-            assertThat(state.keyword).isEqualTo("第二次")
-            // Results should have been reset then reloaded
-            val videoResult = state.results[SearchType.Video]!!
-            assertThat(videoResult.items).hasSize(20)
-            val first = videoResult.items[0] as dev.frost819.newbv.app.ui.state.search.SearchResultItem.VideoItem
-            assertThat(first.video.aid).isEqualTo(1)
-        }
-
-    @Test
-    fun `switchType changes active type`() =
+    fun `switchType lazy-loads uncached category after debounce`() =
         runTest(testDispatcher) {
             viewModel.search("测试")
             advanceUntilIdle()
 
             viewModel.switchType(SearchType.BiliUser)
             assertThat(viewModel.uiState.value.activeType).isEqualTo(SearchType.BiliUser)
+
+            // Before 150ms debounce elapses, no request is sent yet
+            advanceTimeBy(100)
+            coVerify(exactly = 0) {
+                searchRepo.searchType(any(), SearchType.BiliUser, any(), any(), any(), any(), any())
+            }
+
+            // After debounce elapses, BiliUser loads automatically
+            advanceTimeBy(60)
+            advanceUntilIdle()
+
+            val userItems = requireNotNull(viewModel.uiState.value.results[SearchType.BiliUser]).items
+            assertThat(userItems).hasSize(1)
+            val first = userItems[0] as SearchResultItem.UserItem
+            assertThat(first.user.mid).isEqualTo(301L)
+        }
+
+    @Test
+    fun `switchType serves cached category immediately without redundant network request`() =
+        runTest(testDispatcher) {
+            viewModel.search("测试")
+            advanceUntilIdle()
+
+            viewModel.switchType(SearchType.BiliUser)
+            advanceUntilIdle()
+            assertThat(requireNotNull(viewModel.uiState.value.results[SearchType.BiliUser]).items).hasSize(1)
+
+            // Switch back to already-cached Video tab
+            viewModel.switchType(SearchType.Video)
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.activeType).isEqualTo(SearchType.Video)
+            assertThat(requireNotNull(viewModel.uiState.value.results[SearchType.Video]).items).hasSize(20)
+            coVerify(exactly = 1) {
+                searchRepo.searchType(any(), SearchType.Video, any(), any(), any(), any(), any())
+            }
+        }
+
+    @Test
+    fun `rapid switchType sweep cancels intermediate uncached tab requests`() =
+        runTest(testDispatcher) {
+            viewModel.search("测试")
+            advanceUntilIdle()
+
+            // Simulate user rapidly sweeping D-Pad Right across TopNav tabs
+            viewModel.switchType(SearchType.MediaBangumi)
+            advanceTimeBy(50)
+            viewModel.switchType(SearchType.MediaFt)
+            advanceTimeBy(50)
+            viewModel.switchType(SearchType.BiliUser)
+            advanceTimeBy(50)
+            viewModel.switchType(SearchType.LiveRoom)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) {
+                searchRepo.searchType(any(), SearchType.MediaBangumi, any(), any(), any(), any(), any())
+            }
+            coVerify(exactly = 0) {
+                searchRepo.searchType(any(), SearchType.MediaFt, any(), any(), any(), any(), any())
+            }
+            coVerify(exactly = 0) {
+                searchRepo.searchType(any(), SearchType.BiliUser, any(), any(), any(), any(), any())
+            }
+            coVerify(exactly = 1) {
+                searchRepo.searchType(any(), SearchType.LiveRoom, any(), any(), any(), any(), any())
+            }
+
+            val liveItems = requireNotNull(viewModel.uiState.value.results[SearchType.LiveRoom]).items
+            assertThat(liveItems).hasSize(1)
+            assertThat(liveItems.single()).isInstanceOf(SearchResultItem.LiveRoomItem::class.java)
+        }
+
+    @Test
+    fun `refreshType reloads target category and preserves other cached categories`() =
+        runTest(testDispatcher) {
+            viewModel.search("测试")
+            advanceUntilIdle()
+            viewModel.switchType(SearchType.MediaBangumi)
+            advanceUntilIdle()
+
+            coEvery {
+                searchRepo.searchType(
+                    keyword = "测试",
+                    type = SearchType.MediaBangumi,
+                    tid = any(),
+                    order = any(),
+                    duration = any(),
+                    page = any(),
+                    preferApiType = any(),
+                )
+            } returns fakePgcSearchResult(listOf(fakePgcResult(888)))
+
+            viewModel.refreshType(SearchType.MediaBangumi)
+            advanceUntilIdle()
+
+            val bangumiItems = requireNotNull(viewModel.uiState.value.results[SearchType.MediaBangumi]).items
+            assertThat(bangumiItems).hasSize(1)
+            assertThat((bangumiItems[0] as SearchResultItem.PgcItem).pgc.seasonId).isEqualTo(888)
+            // Cached Video tab remains intact
+            assertThat(requireNotNull(viewModel.uiState.value.results[SearchType.Video]).items).hasSize(20)
+        }
+
+    @Test
+    fun `refreshType with blank keyword does nothing`() =
+        runTest(testDispatcher) {
+            viewModel.refreshType(SearchType.Video)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) {
+                searchRepo.searchType(any(), any(), any(), any(), any(), any(), any())
+            }
+        }
+
+    @Test
+    fun `search resets all previous cached results and reloads activeType`() =
+        runTest(testDispatcher) {
+            viewModel.search("第一次")
+            advanceUntilIdle()
+            viewModel.switchType(SearchType.BiliUser)
+            advanceUntilIdle()
+            assertThat(requireNotNull(viewModel.uiState.value.results[SearchType.Video]).items).hasSize(20)
+
+            // Now activeType is BiliUser; a new search resets Video cache and loads BiliUser
+            viewModel.search("第二次")
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.keyword).isEqualTo("第二次")
+            assertThat(requireNotNull(state.results[SearchType.Video]).items).isEmpty()
+            assertThat(requireNotNull(state.results[SearchType.BiliUser]).items).hasSize(1)
         }
 
     @Test
@@ -295,10 +401,8 @@ class SearchResultViewModelTest {
             advanceUntilIdle()
 
             val firstPageCount =
-                viewModel.uiState.value.results[SearchType.Video]!!
-                    .items.size
+                requireNotNull(viewModel.uiState.value.results[SearchType.Video]).items.size
 
-            // Return more items for second page (aid 21-40, no duplicates with page 1)
             coEvery {
                 searchRepo.searchType(
                     keyword = any(),
@@ -314,7 +418,7 @@ class SearchResultViewModelTest {
             viewModel.loadMore(SearchType.Video)
             advanceUntilIdle()
 
-            val result = viewModel.uiState.value.results[SearchType.Video]!!
+            val result = requireNotNull(viewModel.uiState.value.results[SearchType.Video])
             assertThat(result.items).hasSize(firstPageCount + 20)
         }
 
@@ -324,13 +428,10 @@ class SearchResultViewModelTest {
             viewModel.search("测试")
             advanceUntilIdle()
 
-            // Start loading
             viewModel.loadMore(SearchType.Video)
-            // Immediately try again without advancing
             viewModel.loadMore(SearchType.Video)
             advanceUntilIdle()
 
-            // Should only have called searchType twice (initial search + one loadMore)
             coVerify(exactly = 2) {
                 searchRepo.searchType(
                     keyword = any(),
@@ -347,7 +448,6 @@ class SearchResultViewModelTest {
     @Test
     fun `loadMore skips when no more data`() =
         runTest(testDispatcher) {
-            // Return empty result = no more
             coEvery {
                 searchRepo.searchType(
                     keyword = any(),
@@ -368,15 +468,13 @@ class SearchResultViewModelTest {
             viewModel.search("测试")
             advanceUntilIdle()
 
-            val result = viewModel.uiState.value.results[SearchType.Video]!!
+            val result = requireNotNull(viewModel.uiState.value.results[SearchType.Video])
             assertThat(result.hasMore).isFalse()
             assertThat(result.items).isEmpty()
 
-            // Try to load more
             viewModel.loadMore(SearchType.Video)
             advanceUntilIdle()
 
-            // Should not have made additional calls
             coVerify(exactly = 1) {
                 searchRepo.searchType(
                     keyword = any(),
@@ -408,7 +506,7 @@ class SearchResultViewModelTest {
             viewModel.search("测试")
             advanceUntilIdle()
 
-            val result = viewModel.uiState.value.results[SearchType.Video]!!
+            val result = requireNotNull(viewModel.uiState.value.results[SearchType.Video])
             assertThat(result.error).isTrue()
             assertThat(result.isLoading).isFalse()
         }
@@ -430,8 +528,7 @@ class SearchResultViewModelTest {
             assertThat(state.selectedDuration).isEqualTo(SearchFilterDuration.LessThan10Minutes)
             assertThat(state.showFilter).isFalse()
 
-            // Verify searchType was called with new filter
-            coVerify(atLeast = 1) {
+            coVerify(exactly = 1) {
                 searchRepo.searchType(
                     keyword = "测试",
                     type = SearchType.Video,
@@ -473,82 +570,26 @@ class SearchResultViewModelTest {
             viewModel.search("测试")
             advanceUntilIdle()
 
-            val items =
-                viewModel.uiState.value.results[SearchType.Video]!!
-                    .items
+            val items = requireNotNull(viewModel.uiState.value.results[SearchType.Video]).items
             assertThat(items).hasSize(20)
-            val first = items[0] as dev.frost819.newbv.app.ui.state.search.SearchResultItem.VideoItem
+            val first = items[0] as SearchResultItem.VideoItem
             assertThat(first.video.aid).isEqualTo(1)
             assertThat(first.video.title).isEqualTo("video 1")
         }
 
     @Test
-    fun `user items are correctly mapped to UserItem`() =
+    fun `pgc items are correctly mapped to PgcItem when switching to MediaFt`() =
         runTest(testDispatcher) {
             viewModel.search("测试")
             advanceUntilIdle()
 
-            val items =
-                viewModel.uiState.value.results[SearchType.BiliUser]!!
-                    .items
+            viewModel.switchType(SearchType.MediaFt)
+            advanceUntilIdle()
+
+            val items = requireNotNull(viewModel.uiState.value.results[SearchType.MediaFt]).items
             assertThat(items).hasSize(1)
-            val first = items[0] as dev.frost819.newbv.app.ui.state.search.SearchResultItem.UserItem
-            assertThat(first.user.mid).isEqualTo(301L)
-        }
-
-    @Test
-    fun `pgc items are correctly mapped to PgcItem`() =
-        runTest(testDispatcher) {
-            viewModel.search("测试")
-            advanceUntilIdle()
-
-            val items =
-                viewModel.uiState.value.results[SearchType.MediaBangumi]!!
-                    .items
-            assertThat(items).hasSize(1)
-            val first = items[0] as dev.frost819.newbv.app.ui.state.search.SearchResultItem.PgcItem
-            assertThat(first.pgc.seasonId).isEqualTo(101)
-        }
-
-    @Test
-    fun `switchType triggers loadMore when results empty and not loading`() =
-        runTest(testDispatcher) {
-            viewModel.search("测试")
-            advanceUntilIdle()
-
-            val beforeCount =
-                io.mockk.coVerify {
-                    searchRepo.searchType(
-                        keyword = any(),
-                        type = SearchType.MediaFt,
-                        tid = any(),
-                        order = any(),
-                        duration = any(),
-                        page = any(),
-                        preferApiType = any(),
-                    )
-                }
-
-            coEvery {
-                searchRepo.searchType(
-                    keyword = any(),
-                    type = SearchType.MediaFt,
-                    tid = any(),
-                    order = any(),
-                    duration = any(),
-                    page = any(),
-                    preferApiType = any(),
-                )
-            } returns
-                SearchTypeResult(
-                    pgcs = listOf(fakePgcResult(999)),
-                    page = SearchTypePage(nextPageForWeb = 3),
-                    hasMore = false,
-                )
-
-            viewModel.uiState.value.results[SearchType.MediaFt]!!.let { result ->
-                assertThat(result.items).isNotEmpty()
-            }
+            val first = items[0] as SearchResultItem.PgcItem
+            assertThat(first.pgc.seasonId).isEqualTo(201)
         }
 
     @Test
@@ -572,17 +613,8 @@ class SearchResultViewModelTest {
             viewModel.loadMore(SearchType.Video)
             advanceUntilIdle()
 
-            val result = viewModel.uiState.value.results[SearchType.Video]!!
+            val result = requireNotNull(viewModel.uiState.value.results[SearchType.Video])
             assertThat(result.items.size).isEqualTo(20)
-        }
-
-    @Test
-    fun `search with keyword updates keyword in state`() =
-        runTest(testDispatcher) {
-            viewModel.search("新搜索")
-            advanceUntilIdle()
-
-            assertThat(viewModel.uiState.value.keyword).isEqualTo("新搜索")
         }
 
     @Test
@@ -597,37 +629,9 @@ class SearchResultViewModelTest {
         }
 
     @Test
-    fun `loadMore skips when type not in results`() =
-        runTest(testDispatcher) {
-            viewModel.loadMore(SearchType.Video)
-            advanceUntilIdle()
-
-            coVerify(exactly = 0) {
-                searchRepo.searchType(any(), any(), any(), any(), any(), any(), any())
-            }
-        }
-
-    @Test
-    fun `updateFilter with same keyword re-searches`() =
-        runTest(testDispatcher) {
-            viewModel.search("测试")
-            advanceUntilIdle()
-
-            val initialCallCount = 4
-            viewModel.updateFilter(SearchFilterOrderType.MostClicks, SearchFilterDuration.All)
-            advanceUntilIdle()
-
-            assertThat(viewModel.uiState.value.selectedOrder).isEqualTo(SearchFilterOrderType.MostClicks)
-            coVerify(atLeast = initialCallCount) {
-                searchRepo.searchType(any(), any(), any(), any(), any(), any(), any())
-            }
-        }
-
-    @Test
     fun `new search cancels ongoing search jobs and updates to latest keyword`() =
         runTest(testDispatcher) {
             viewModel.search("first")
-            // Immediate re-entrant search before first finishes
             viewModel.search("second")
             advanceUntilIdle()
 

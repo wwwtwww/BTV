@@ -87,10 +87,11 @@ class ReleaseNotesParserTest {
         val blocks = ReleaseNotesParser.parseMarkdownBlocks(raw)
 
         // Then
-        assertThat(blocks).containsExactly(
-            ReleaseNoteBlock.SectionHeader("✨ 新增功能"),
-            ReleaseNoteBlock.BulletItem("更新说明：支持升级前查看 CHANGELOG 与 发布详情"),
-        ).inOrder()
+        assertThat(blocks)
+            .containsExactly(
+                ReleaseNoteBlock.SectionHeader("✨ 新增功能"),
+                ReleaseNoteBlock.BulletItem("更新说明：支持升级前查看 CHANGELOG 与 发布详情"),
+            ).inOrder()
     }
 
     @Test
@@ -268,7 +269,29 @@ class ReleaseNotesParserTest {
 
         // Then
         assertThat(entries).isNotEmpty()
-        assertThat(entries.first().versionTag).isEqualTo("v0.4.11")
+        assertThat(entries.first().versionTag).isEqualTo("v0.4.13")
         assertThat(entries.last().versionTag).isEqualTo("v0.1.0")
+    }
+
+    @Test
+    fun `resolveLocalVersionNotes returns emptyList when current version not found in changelog or remote`() {
+        // Given
+        val changelog =
+            """
+            ## [v0.4.11] - 2026-10-27
+            - 某些更新说明
+            """.trimIndent()
+
+        // When
+        val result =
+            ReleaseNotesParser.resolveLocalVersionNotes(
+                currentVersionName = "0.9.99-unknown",
+                bundledChangelog = changelog,
+                remoteReleases = emptyList(),
+                includeHistory = false,
+            )
+
+        // Then
+        assertThat(result).isEmpty()
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
@@ -54,6 +55,8 @@ interface TopNavItem {
  * @param items Tab 项列表。
  * @param selectedIndex 当前选中的 Tab 索引。
  * @param isLargePadding 内容区未获焦点时是否使用较大内边距。
+ * @param horizontalPadding 左右水平内边距，默认 24.dp。
+ * @param trailingContent 顶栏右侧可选扩展槽位（如搜索页的轻量筛选按钮）。
  * @param onSelectedChanged Tab 焦点切换回调。
  * @param onClick Tab 点击回调（常用于刷新）。
  */
@@ -64,6 +67,8 @@ fun TopNav(
     items: List<TopNavItem>,
     selectedIndex: Int = 0,
     isLargePadding: Boolean = false,
+    horizontalPadding: Dp = 24.dp,
+    trailingContent: (@Composable () -> Unit)? = null,
     onSelectedChanged: (TopNavItem) -> Unit = {},
     onClick: (TopNavItem) -> Unit = {},
 ) {
@@ -90,7 +95,12 @@ fun TopNav(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = verticalPadding, bottom = verticalPadding),
+                .padding(
+                    start = horizontalPadding,
+                    end = horizontalPadding,
+                    top = verticalPadding,
+                    bottom = verticalPadding,
+                ),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -124,6 +134,11 @@ fun TopNav(
                     onClick = { onClick(tab) },
                 )
             }
+        }
+
+        if (trailingContent != null) {
+            Spacer(modifier = Modifier.weight(1f))
+            trailingContent()
         }
     }
 }
