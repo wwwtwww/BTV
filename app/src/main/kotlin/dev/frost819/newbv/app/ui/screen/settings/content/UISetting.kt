@@ -31,7 +31,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -42,6 +41,7 @@ import dev.frost819.newbv.app.ui.component.settings.SettingSwitchListItem
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.screen.main.displayName
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
+import dev.frost819.newbv.data.datastore.HomeHeroMode
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.LeftNaviItem
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
@@ -52,16 +52,15 @@ import kotlin.math.roundToInt
 /**
  * 界面设置页。
  *
- * 启动页/首页 Tab/个人页 Tab/显示视频详情/常显进度条/Density/主题模式。
+ * 启动页/首页 Tab/首页沉浸看板/个人页 Tab/显示视频详情/常显进度条/Density/主题模式。
  */
 @Composable
 fun UISetting(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-
     var showDensityDialog by remember { mutableStateOf(false) }
     var dialogDensity by remember { mutableFloatStateOf(Prefs.density) }
     var showStartupPageDialog by remember { mutableStateOf(false) }
     var showHomepageDialog by remember { mutableStateOf(false) }
+    var showHomeHeroModeDialog by remember { mutableStateOf(false) }
     var showPersonalPageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -69,6 +68,7 @@ fun UISetting(modifier: Modifier = Modifier) {
     var showPersistentSeek by remember { mutableStateOf(Prefs.showPersistentSeek) }
     var selectedLeftNavItem by remember { mutableStateOf(Prefs.homeLeftNavItem) }
     var selectedFirstHomeTopNavItem by remember { mutableStateOf(Prefs.firstHomeTopNavItem) }
+    var selectedHomeHeroMode by remember { mutableStateOf(Prefs.homeHeroMode) }
     var selectedFirstPersonalTopNavItem by remember { mutableStateOf(Prefs.firstPersonalTopNavItem) }
     var selectedThemeMode by remember { mutableStateOf(Prefs.themeMode) }
     var density by remember { mutableFloatStateOf(Prefs.density) }
@@ -102,6 +102,13 @@ fun UISetting(modifier: Modifier = Modifier) {
                         title = "首页置顶 Tab",
                         supportText = "当前：${selectedFirstHomeTopNavItem.displayName}",
                         onClick = { showHomepageDialog = true },
+                    )
+                }
+                item {
+                    SettingListItem(
+                        title = "首页沉浸看板",
+                        supportText = "当前：${selectedHomeHeroMode.displayName}",
+                        onClick = { showHomeHeroModeDialog = true },
                     )
                 }
                 item {
@@ -188,6 +195,19 @@ fun UISetting(modifier: Modifier = Modifier) {
             onSelect = {
                 Prefs.firstHomeTopNavItem = it
                 selectedFirstHomeTopNavItem = it
+            },
+            getDisplayName = { it.displayName },
+        )
+    }
+
+    if (showHomeHeroModeDialog) {
+        OptionDialog(
+            options = HomeHeroMode.entries.toTypedArray(),
+            selectedOption = selectedHomeHeroMode,
+            onDismiss = { showHomeHeroModeDialog = false },
+            onSelect = {
+                Prefs.homeHeroMode = it
+                selectedHomeHeroMode = it
             },
             getDisplayName = { it.displayName },
         )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.frost819.newbv.app.ui.state.player.SeekerState
 import dev.frost819.newbv.app.util.VideoShotImageCache
@@ -16,9 +17,10 @@ import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 /**
  * [ControllerVideoInfoBottom] 的插桩测试。
  *
- * 重点验证 PGC 播放时隐藏“视频详情 / UP 主空间”按钮，
- * 相关推荐受 [relatedAvailable] 参数控制，
- * 以及非 PGC 时正常显示。
+ * 重点验证：
+ * 1. 「选集」与「相关推荐」入口彻底解耦；
+ * 2. PGC 多集番剧展示「选集」按钮，但隐藏「视频详情 / UP 主空间 / 相关推荐」；
+ * 3. 非 PGC 多 P / 合集同时展示「选集」与「相关推荐」，单集仅展示「相关推荐」。
  */
 @RunWith(AndroidJUnit4::class)
 class ControllerVideoInfoBottomTest {
@@ -27,6 +29,7 @@ class ControllerVideoInfoBottomTest {
 
     private fun setContent(
         isPgc: Boolean,
+        episodesAvailable: Boolean = false,
         relatedAvailable: Boolean = true,
     ) {
         composeRule.setContent {
@@ -39,6 +42,7 @@ class ControllerVideoInfoBottomTest {
                         videoShot = null,
                         videoShotCache = VideoShotImageCache(),
                         isPgc = isPgc,
+                        episodesAvailable = episodesAvailable,
                         relatedAvailable = relatedAvailable,
                         danmakuEnabled = true,
                         isLooping = false,
@@ -49,6 +53,7 @@ class ControllerVideoInfoBottomTest {
                         onPlayPause = {},
                         onDanmakuSwitchChange = {},
                         onShowSettings = {},
+                        onShowEpisodes = {},
                         onShowRelatedVideos = {},
                         onGoToVideoInfo = {},
                         onToggleLoop = {},
@@ -63,21 +68,43 @@ class ControllerVideoInfoBottomTest {
     }
 
     @Test
-    fun pgc_hides_video_info_and_up_buttons() {
-        setContent(isPgc = true, relatedAvailable = false)
+    fun pgc_multi_episode_shows_episodes_button_and_hides_ugc_only_buttons() {
+        setContent(isPgc = true, episodesAvailable = true, relatedAvailable = false)
 
+        composeRule.onNodeWithContentDescription("选集").assertExists()
+        composeRule.onNodeWithText("按遥控器「向下」展开底部选集").assertExists()
         composeRule.onNodeWithContentDescription("视频详情").assertDoesNotExist()
         composeRule.onNodeWithContentDescription("UP 主空间").assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("相关推荐与选集").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("相关推荐").assertDoesNotExist()
     }
 
     @Test
-    fun non_pgc_shows_video_info_up_and_related_buttons() {
-        setContent(isPgc = false, relatedAvailable = true)
+    fun pgc_single_movie_hides_both_episodes_and_related_buttons() {
+        setContent(isPgc = true, episodesAvailable = false, relatedAvailable = false)
 
+        composeRule.onNodeWithContentDescription("选集").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("相关推荐").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("视频详情").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("UP 主空间").assertDoesNotExist()
+    }
+
+    @Test
+    fun non_pgc_multi_episode_shows_both_episodes_and_related_buttons() {
+        setContent(isPgc = false, episodesAvailable = true, relatedAvailable = true)
+
+        composeRule.onNodeWithContentDescription("选集").assertExists()
+        composeRule.onNodeWithContentDescription("相关推荐").assertExists()
         composeRule.onNodeWithContentDescription("视频详情").assertExists()
         composeRule.onNodeWithContentDescription("UP 主空间").assertExists()
-        composeRule.onNodeWithContentDescription("相关推荐与选集").assertExists()
+    }
+
+    @Test
+    fun non_pgc_single_video_hides_episodes_and_shows_related_button() {
+        setContent(isPgc = false, episodesAvailable = false, relatedAvailable = true)
+
+        composeRule.onNodeWithContentDescription("选集").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("相关推荐").assertExists()
+        composeRule.onNodeWithText("按遥控器「向下」浏览相关推荐").assertExists()
     }
 
     @Test

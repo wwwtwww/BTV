@@ -17,13 +17,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.tv.material3.MaterialTheme
 import dev.frost819.newbv.app.ui.component.FocusSaver
 import dev.frost819.newbv.app.viewmodel.common.CollectWatchLaterEffects
 import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
@@ -36,7 +36,8 @@ import dev.frost819.newbv.data.datastore.Prefs
  * 主页内容。
  *
  * 采用全站统一的极简文字与黑白滑动指示条顶部导航栏 [HomeFilterChips]，
- * 内容区默认呈现多横向泳道视图 [HomeShelvesContent]，或无缝切换至单分类沉浸瀑布流。
+ * 内容区默认呈现顶部沉浸式 Hero Showcase 舞台与多横向泳道视图 [HomeShelvesContent]，
+ * 或无缝切换至单分类沉浸瀑布流。
  *
  * 支持通过遥控器「菜单键 (Menu)」（焦点位于顶部导航行时）或重复点击分类 Tab 刷新当前数据；
  * 焦点位于内容区卡片上时菜单键放行给卡片，用于唤起快捷操作弹窗。
@@ -83,7 +84,7 @@ fun HomeContent(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.background)
                 .onPreviewKeyEvent { event ->
                     if (event.isMenuKey() && event.type == KeyEventType.KeyUp && chipsHasFocus) {
                         refreshCurrentTab(selectedTab)

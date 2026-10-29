@@ -7,6 +7,12 @@
 
 ## 📌 当前进行与完成状态概览
 
+- [x] **v0.4.14：播放器底部横向胶囊选集轨 (P2-2) 与首页 Hero Showcase 沉浸看板 (P2-3)（v0.4.14 已发布）**
+  - **播放器底部悬浮横向选集微轨**：彻底废除左侧 300dp 垂直抽屉，重构为底部 20%~25% 悬浮微轨；统一 `BVShape.pill` 胶囊与 `focusInvertedColors` 高对比聚焦反色，支持当前集平滑横向居中对齐、50 集区间分组与嵌套 UGC 二级分 P 胶囊轨；
+  - **首页 Hero Showcase 沉浸大看板**：在「精选」综合视图顶部引入电影级背景舞台（展示 960×540 WebP 高清海报、大标题、UP 主、播放量与弹幕等宽统计、双行简介），零焦点劫持，卡片 400ms 获焦防抖 + 300ms 交叉淡入淡出，LRU 按需补全简介；
+  - **低配盒子降级保护与自由设置**：在设置中心提供「自动 / 始终开启 / 静态省流 / 关闭看板」4 种模式，低内存 TV 盒子自动降级保护，支持一键关闭恢复纯密集网格；
+  - **代码与交互严谨加固**：修复选集轨切集索引重置、清理不可达按键与守卫、收敛关闭契约必传、加固内存检测与主线程缓存写入。
+
 - [x] **v0.4.13：搜索页 3 列宽幅网格重构 (P2-1) 与 OTA 体验加固（v0.4.13 已发布）**
   - 搜索结果分类顶栏（视频 / 番剧 / 影视 / 用户 / 直播）全面接入全站统一的极简 `TopNav`，并在顶栏右侧槽位提供轻量筛选胶囊，解决卡片 `Menu` 键冲突；
   - 重构左右分栏比例（228dp 紧凑窄左栏 + 约 620dp 宽幅右栏）与扁平化 6×6 `SoftKeyboard`，彻底清除硬编码白色，完整适配深浅双主题；
@@ -77,8 +83,8 @@
   - 修复 `PlayerViewModelTest` 分 P 详情逻辑中的死循环问题：彻底移除在 `runTest` 虚拟时间调度下会无休止推进的后台无限轮询协程（`initSession`），改为确定性的无副作用状态注入（`updateUiState`），彻底消除 CI 卡死超时问题；
   - 修复连续播放单测状态机前置分 P 上下文，同步清理与多集画质继承机制相冲突的过时测试；
   - CI `Build BTV APK` 与全量测试套件（250+ Tasks）实现 3 分钟内 100% 稳定绿标通过。
-- [ ] **P2：大屏高级布局革新（分阶段推进中：P2-1 已完成，P2-2 / P2-3 待推进）**
-  - 按子特性分批立项推进。
+- [x] **P2：大屏高级布局革新（P2-1 搜索宽网格 / P2-2 底部胶囊选集轨 / P2-3 首页 Hero 沉浸看板已全部完成，待统一发版）**
+  - 三大核心大屏视觉与交互特性均已落地并通过验证。
 
 ---
 
@@ -104,55 +110,41 @@
 
 ---
 
-### 2. 播放器底部横向胶囊选集轨
+### 2. [已完成] 播放器底部横向胶囊选集轨
 
-- **优先级**：P2-2
-- **预估工期**：2 ~ 3 人天
+- **优先级**：P2-2（已完成）
 - **涉及文件**：
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/EpisodeTrackModel.kt`
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/VideoListController.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/ControllerVideoInfo.kt`
   - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/player/VideoPlayerController.kt`
-  - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/player/PlayerViewModel.kt`
+  - `app/src/main/res/drawable/playlist_play_24px.xml`
 
-#### 现状分析与痛点
-- 当前选集列表为左侧 300dp 的大竖向抽屉面板，呼出时严重遮挡视频画面超 1/3；
-- 与 YouTube TV 和主流大屏 App（如 Netflix、Apple TV）底推横向轨道体验不符。
-
-#### 重构设计方案
-1. **形态重构**：
-   - 废除左侧大遮挡抽屉，改建为**底部悬浮水平微轨（Horizontal Capsule Track）**；
-   - 高度控制在屏幕下方的 20%~25%，背景采用毛玻璃或黑色半透渐变遮罩，最大程度保留主画面播放。
-2. **胶囊选集项交互**：
-   - 采用标准 `BVShape.pill` 或 `BVShape.medium` 胶囊，高亮显示「当前播放中」集数；
-   - 遥控器呼出时，播放列表自动横向平滑居中滚动至当前播放集（`scrollToItem(currentIndex)`）。
-3. **控制器协同与按键映射**：
-   - 在主播放视图按下 `DPAD_DOWN` / 菜单键呼出选集微轨；
-   - 针对合集/多 P 超过 50 集的情况，设计分组分页胶囊（如 `1-50`、`51-100`），避免单行列表过长。
+#### 落地摘要
+1. **形态蜕变**：废除原左侧 300dp 全高竖向抽屉，重构为底部悬浮横向胶囊微轨（占屏高度约 20%~25%，半透明黑夜渐变遮罩），视频背景持续播放且不遮挡主体画面；
+2. **胶囊交互与居中滚动**：统一采用 `BVShape.pill` 胶囊，支持 `focusInvertedColors` 高对比聚焦反色与当前播放集徽标高亮；呼出时自动通过 `animateScrollToItem` 横向平滑居中对齐并落焦；
+3. **超长分组与合集子分 P 协同**：超过 50 集/分 P 自动生成 `1-50`、`51-100` 等横向区间分组胶囊；单视频多 P 直接展平至主轨，UGC 合集内含多 P 时按需在下方展开紧凑二级分 P 胶囊轨；
+4. **遥控器与 OSD 协同**：将 OSD 按钮拆分为独立的「选集」与「相关推荐」（补齐番剧 PGC 的 OSD 选集入口），支持主画面 `DPAD_UP` 呼出选集（单集轻提示）、OSD 操作栏 `DPAD_DOWN` 展开选集、顶行 `DPAD_UP` / `Back` 收起选集以及 `Menu` 键互斥切换设置面板。
 
 ---
 
-### 3. 首页 Hero Showcase 沉浸看板
+### 3. [已完成] 首页 Hero Showcase 沉浸看板
 
-- **优先级**：P2-3
-- **预估工期**：3 ~ 3.5 人天
+- **优先级**：P2-3（已完成）
 - **涉及文件**：
-  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeScreen.kt`
-  - 新建 `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/home/HomeHeroBanner.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/component/home/HomeHeroBanner.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeShelvesContent.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeShelfRow.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/home/HomeContent.kt`
   - `app/src/main/kotlin/dev/frost819/newbv/app/viewmodel/home/HomeViewModel.kt`
+  - `app/src/main/kotlin/dev/frost819/newbv/app/ui/screen/settings/content/UISetting.kt`
+  - `bili-api/src/main/kotlin/dev/frost819/newbv/biliapi/entity/home/VideoBriefMeta.kt`
+  - `data/src/main/kotlin/dev/frost819/newbv/data/datastore/PrefEnums.kt`
 
-#### 现状分析与痛点
-- 当前首页顶部仅有 Filter Chips，缺少顶级 TV 客户端的品牌感与沉浸式大视觉抓手；
-- 优质推荐视频的海报与背景氛围未能在大屏上充分施展。
-
-#### 重构设计方案
-1. **视觉看板结构**：
-   - 首页顶部呈现沉浸式全屏渐变 Hero 看板：左侧展示超大标题、UP 主、分区标签与简介，背景投射当前精选视频的高清横版海报；
-   - 底部与下方视频泳道之间采用丝滑的从黑到透渐变过渡。
-2. **防抖与联动机制（Debounce）**：
-   - 遥控器在下方泳道快速游走浏览时，**必须引入 400ms 获焦防抖**，避免背景频繁无意义切换造成闪烁与眩晕；
-   - 焦点停留超过 400ms 后，触发平滑交叉淡入淡出（Crossfade 300ms）更新背景看板。
-3. **低配大屏设备性能保护**：
-   - TV 盒子内存敏感，必须对海报 Bitmap 严格复用，离开首页或视频播放时及时释放纹理显存；
-   - 在低配电视模式（或检测到低内存设备时）提供静音/静态看板降级模式。
+#### 落地摘要
+1. **顶部常驻联动看板（零焦点劫持）**：在主页「精选」综合视图顶部引入沉浸式 `HomeHeroBanner`（展示高清横版海报、泳道/分区/推荐理由胶囊、大标题、UP 主与等宽统计、双行简介），焦点保持在下方横向泳道卡片与顶部导航之间一键直达，完美适配深浅双主题；
+2. **400ms 获焦防抖 + 300ms 丝滑过渡 + LRU 按需补全**：卡片获焦执行严格 400ms 防抖取消机制，停留满 400ms 后以 300ms 交叉淡入淡出切换海报与正文，并通过 48 条容量 LRU 缓存按需补全缺失的分区名与视频简介；
+3. **显存保护与低配设备自动降级**：海报统一裁剪为 `960x540` WebP 并启用 `RGB_565` 限流解码，进入播放器或退后台（`ON_STOP`）即时卸载纹理释放显存；支持低内存设备自动切换为无大图纹理/无双缓冲动画的静态省流看板，并在「设置 -> 界面设置 -> 首页沉浸看板」提供四档模式开关。
 
 ---
 

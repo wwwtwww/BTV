@@ -155,11 +155,11 @@ flowchart LR
 | **P0** | **✅ 已完成** | **2. 字体排版与等宽数字** | `core/theme/Typography.kt`<br>`ControllerVideoInfo.kt`<br>`SmallVideoCard.kt`<br>`LiveRoomCard.kt` | **低** | **0.5 ~ 1 人天** | 在 `BVTypography` 中补齐 Medium/SemiBold 字重与 `tabular()` 微调字距；为时间码等高频刷新文本注入 `FontFeatureSettings("tnum")`。低风险高收益。 |
 | **P0** | **✅ 已完成** | **3. 双主题色板升级与文字色阶** | `core/theme/Color.kt`<br>`core/theme/BVTheme.kt`<br>各 Screen 标题/副标题 | **中** | **1 ~ 1.5 人天** | 重点排查业务组件中是否存在写死 `Color.White` 或 `Color.Black` 的情况，确保切换浅色主题时自动变为高对比深靛灰。 |
 | **P1** | **⚠️ 部分落地** | **4. 双主题自适应获焦微动效** | `core/focus/TvFocusFeedback.kt`<br>`SmallVideoCard.kt` 等卡片 | **中** | **2 ~ 2.5 人天** | 1.06x 物理放大与深浅自适应边框已全仓接入生产组件；Glow 发光与 Elevation 投影已完成底层封装储备，因容器边界裁剪暂未接入组件链。 |
-| **P2** | **⏳ 待办 (TODO)** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（键盘宽度由 40% 缩减至 28~30%），右侧视频卡片网格从 2 列升为 3 列，需重点调试遥控器在键盘与网格之间的自然寻焦。 |
-| **P2** | **⏳ 待办 (TODO)** | **6. 播放器底部横向胶囊选集轨** | `ui/component/player/VideoListController.kt`<br>`VideoPlayerController.kt` | **高** | **2 ~ 3 人天** | 替代原本左侧 300dp 的大竖向抽屉，重构为底部水平微轨。需处理：当前播放集自动居中滚动、遥控器上/下键的呼出与隐藏、进度条协同。 |
-| **P2** | **⏳ 待办 (TODO)** | **7. 首页 Hero Showcase 沉浸看板** | `ui/screen/home/HomeScreen.kt`<br>新组件 `HomeHeroBanner.kt` | **高** | **3 ~ 3.5 人天** | 典型大屏体验组件：卡片获焦需 400ms 防抖避免频繁切换背景海报、大图渐变淡入淡出、低内存设备 Bitmap 释放与复用。 |
+| **P2** | **✅ 已完成** | **5. 搜索页紧凑键盘与宽网格** | `ui/screen/search/SearchInputContent.kt` | **中** | **1.5 ~ 2 人天** | 调整左右分栏权重（228dp 紧凑窄左栏 + 宽幅右栏），搜索分类接入统一 `TopNav`，右侧视频/用户/直播升级为 3 列宽幅网格。 |
+| **P2** | **✅ 已完成** | **6. 播放器底部横向胶囊选集轨** | `ui/component/player/VideoListController.kt`<br>`EpisodeTrackModel.kt`<br>`VideoPlayerController.kt` | **高** | **2 ~ 3 人天** | 替代原本左侧 300dp 竖向抽屉，重构为底部悬浮横向胶囊微轨，支持当前集平滑居中、50 集区间分组、合集二级分 P 轨与遥控器上下键协同。 |
+| **P2** | **✅ 已完成** | **7. 首页 Hero Showcase 沉浸看板** | `ui/component/home/HomeHeroBanner.kt`<br>`ui/screen/home/HomeShelvesContent.kt`<br>`viewmodel/home/HomeViewModel.kt` | **高** | **3 ~ 3.5 人天** | 综合页顶部常驻联动看板，支持 400ms 获焦防抖、300ms 交叉淡入淡出、LRU 按需简介补全、960x540 RGB_565 显存限流、`ON_STOP` 纹理释放与低配盒子自动静态降级。 |
 
 ### 总工期与推进建议
 * **P0 基石规范（Shape + 字体 + 双色板）**：约 **2 ~ 3 人天**（已完成并发布 v0.3.0）。
 * **P1 交互与质感（卡片缩放与自适应边框）**：约 **2 ~ 2.5 人天**（核心缩放与边框已全量落地，氛围发光/投影作为底层能力储备）。
-* **P2 高级大屏布局（搜索、选集轨、Hero 看板）**：约 **6.5 ~ 8.5 人天**（暂缓实现，已整理至 [TODO.md](../TODO.md) 待排期）。
+* **P2 高级大屏布局（搜索、选集轨、Hero 看板）**：约 **6.5 ~ 8.5 人天**（P2-1、P2-2、P2-3 已全量落地并通过验证）。

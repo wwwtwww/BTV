@@ -16,11 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,7 +41,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * YouTube TV 风格横向内容泳道（Horizontal Shelf）。
  *
  * 包含行标题栏与横向滚动的视频卡片行。
- * 支持右滑预加载、即点即播与上下文菜单。
+ * 支持右滑预加载、即点即播、上下文菜单以及获焦联动顶部 Hero Showcase。
  *
  * @param modifier 修饰符。
  * @param shelfKey 泳道唯一标识（用于焦点记忆与列表 key）。
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * @param onGoToDetailPage 详情页回调。
  * @param onGoToUpPage UP 主页回调。
  * @param onAddWatchLater 添加到稍后再看。
+ * @param onCardFocused 卡片获得焦点时的回调（用于驱动顶部 Hero 看板防抖切换）。
  * @param onSeeAllClick 查看全部回调（点击切换至对应单分类瀑布流）。
  * @param onLoadMore 滑动到末端时预加载回调。
  * @param hasMore 是否仍有更多数据可加载。
@@ -64,6 +67,7 @@ fun HomeShelfRow(
     onGoToDetailPage: (VideoCardData) -> Unit,
     onGoToUpPage: ((mid: Long, name: String) -> Unit)? = null,
     onAddWatchLater: (aid: Long) -> Unit,
+    onCardFocused: ((VideoCardData) -> Unit)? = null,
     onSeeAllClick: (() -> Unit)? = null,
     onLoadMore: (() -> Unit)? = null,
     hasMore: Boolean = true,
@@ -150,13 +154,22 @@ fun HomeShelfRow(
                 items = distinctItems,
                 key = { _, item -> "${shelfKey}_${item.avid}" },
             ) { _, item ->
-                val itemModifier =
+                var hasCardFocus by remember { mutableStateOf(false) }
+                val baseModifier =
                     if (focusSaver != null) {
                         Modifier
                             .width(260.dp)
                             .focusSaverItem(focusSaver, "${shelfKey}_${item.avid}")
                     } else {
                         Modifier.width(260.dp)
+                    }
+                val itemModifier =
+                    baseModifier.onFocusChanged { focusState ->
+                        val nowFocused = focusState.hasFocus
+                        if (nowFocused && !hasCardFocus) {
+                            onCardFocused?.invoke(item)
+                        }
+                        hasCardFocus = nowFocused
                     }
 
                 SmallVideoCard(

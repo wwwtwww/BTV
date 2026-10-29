@@ -310,3 +310,29 @@ enum class ThemeMode {
         fun fromOrdinal(ordinal: Int): ThemeMode = entries.getOrElse(ordinal) { FollowSystem }
     }
 }
+
+/**
+ * 首页沉浸式 Hero 看板展示模式。
+ *
+ * 通过 ordinal 持久化，反序列化时越界回退到 [Auto]。
+ */
+enum class HomeHeroMode {
+    /** 自动：标准设备启用高清动态海报与交叉淡入淡出，低内存设备自动切换为静态省流降级。 */
+    Auto,
+
+    /** 始终开启：强制启用高清横版海报与 300ms 交叉淡入淡出动画。 */
+    Full,
+
+    /** 静态省流：禁用大图纹理与过渡动画，仅展示精选标题/分区/简介信息。 */
+    StaticLowSpec,
+
+    /** 关闭看板：隐藏首页顶部 Hero 看板，恢复纯泳道视图。 */
+    Off,
+
+    ;
+
+    companion object {
+        /** 从序号安全解析，越界返回 [Auto]。 */
+        fun fromOrdinal(ordinal: Int): HomeHeroMode = entries.getOrElse(ordinal) { Auto }
+    }
+}

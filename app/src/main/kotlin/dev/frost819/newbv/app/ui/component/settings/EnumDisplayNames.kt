@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.ui.component.settings
 import dev.frost819.newbv.data.datastore.ActionAfterPlay
 import dev.frost819.newbv.data.datastore.ApiType
 import dev.frost819.newbv.data.datastore.Audio
+import dev.frost819.newbv.data.datastore.HomeHeroMode
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
 import dev.frost819.newbv.data.datastore.PlaySpeed
@@ -97,6 +98,16 @@ val ThemeMode.displayName: String
             ThemeMode.FollowSystem -> "跟随系统"
             ThemeMode.Dark -> "深色"
             ThemeMode.Light -> "浅色"
+        }
+
+/** 首页沉浸看板模式显示名称。 */
+val HomeHeroMode.displayName: String
+    get() =
+        when (this) {
+            HomeHeroMode.Auto -> "自动（低配设备静态降级）"
+            HomeHeroMode.Full -> "始终开启（高清动态海报）"
+            HomeHeroMode.StaticLowSpec -> "静态省流（无大图纹理与动画）"
+            HomeHeroMode.Off -> "关闭看板"
         }
 
 /** 首页 Tab 显示名称。 */

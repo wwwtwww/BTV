@@ -5,6 +5,7 @@ import bilibili.app.show.v1.popularResultReq
 import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.entity.home.RecommendData
 import dev.frost819.newbv.biliapi.entity.home.RecommendPage
+import dev.frost819.newbv.biliapi.entity.home.VideoBriefMeta
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoData
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
@@ -23,6 +24,20 @@ interface RecommendVideoRepository {
         page: RecommendPage = RecommendPage(),
         preferApiType: ApiType,
     ): RecommendData
+
+    /**
+     * 按需获取单个视频的轻量元信息（子分区标签 + 视频简介）。
+     *
+     * 供首页 Hero Showcase 在 400ms 获焦防抖停稳后补全缺失字段，默认返回 `null`。
+     *
+     * @param aid 视频 AV 号。
+     * @param bvid 视频 BV 号（可选）。
+     * @return 轻量元信息 [VideoBriefMeta]，失败或未实现时返回 `null`。
+     */
+    suspend fun getVideoBriefMeta(
+        aid: Long,
+        bvid: String = "",
+    ): VideoBriefMeta? = null
 }
 
 /**
@@ -155,4 +170,23 @@ open class RecommendVideoRepositoryImpl(
             hasMore = hasMore,
         )
     }
+
+    override suspend fun getVideoBriefMeta(
+        aid: Long,
+        bvid: String,
+    ): VideoBriefMeta? =
+        runCatching {
+            val info =
+                BiliHttpApi
+                    .getVideoInfo(
+                        av = aid.takeIf { it > 0L },
+                        bv = bvid.ifBlank { null },
+                    ).getResponseData()
+            VideoBriefMeta(
+                aid = info.aid,
+                tagName = info.tname.takeIf { it.isNotBlank() },
+                description = info.desc.takeIf { it.isNotBlank() && it != "-" },
+                rcmdReason = info.rcmdReason?.content?.takeIf { it.isNotBlank() },
+            )
+        }.getOrNull()
 }

@@ -6,6 +6,24 @@ import dev.frost819.newbv.biliapi.http.util.smartDate
 import dev.frost819.newbv.biliapi.http.util.toSmartDate
 import dev.frost819.newbv.biliapi.util.convertStringTimeToSeconds
 
+/**
+ * UGC 列表通用视频条目。
+ *
+ * @property aid 视频 AV 号。
+ * @property bvid 视频 BV 号。
+ * @property title 视频标题。
+ * @property cover 封面图 URL。
+ * @property author UP 主名称。
+ * @property authorMid UP 主 MID。
+ * @property play 播放量（未知时为 -1）。
+ * @property danmaku 弹幕数（未知时为 -1）。
+ * @property duration 时长（秒）。
+ * @property idx 游标索引。
+ * @property pubTime 格式化后的发布时间文本。
+ * @property tagName 子分区或分类标签（可选）。
+ * @property rcmdReason 推荐理由角标文案（可选）。
+ * @property description 视频简介正文（可选）。
+ */
 data class UgcItem(
     val aid: Long,
     val bvid: String = "",
@@ -18,22 +36,26 @@ data class UgcItem(
     val duration: Int,
     val idx: Int = -1,
     val pubTime: String? = null,
+    val tagName: String? = null,
+    val rcmdReason: String? = null,
+    val description: String? = null,
 ) {
     companion object {
         fun fromRcmdItem(rcmdItem: RcmdIndexData.RcmdItem) =
             UgcItem(
                 aid = rcmdItem.args.aid ?: 0,
-                title = rcmdItem.title!!,
-                cover = rcmdItem.cover!!,
+                title = rcmdItem.title.orEmpty(),
+                cover = rcmdItem.cover.orEmpty(),
                 author = rcmdItem.args.upName ?: "",
                 authorMid = rcmdItem.args.upId,
                 play =
                     with(rcmdItem.coverLeftText1) {
                         runCatching {
-                            if (this!!.endsWith("万")) {
-                                (this.substring(0, this.length - 1).toDouble() * 10000).toInt()
+                            val raw = this ?: return@with -1
+                            if (raw.endsWith("万")) {
+                                (raw.substring(0, raw.length - 1).toDouble() * 10000).toInt()
                             } else {
-                                this.toInt()
+                                raw.toInt()
                             }
                         }.getOrDefault(-1)
                     },
@@ -53,6 +75,13 @@ data class UgcItem(
                         ?: rcmdItem.coverRightText?.convertStringTimeToSeconds()
                         ?: 0,
                 idx = rcmdItem.idx,
+                tagName =
+                    rcmdItem.args.tname?.takeIf { it.isNotBlank() }
+                        ?: rcmdItem.args.rname?.takeIf { it.isNotBlank() },
+                rcmdReason =
+                    (rcmdItem.rcmdReason ?: rcmdItem.rcmdReasonStyle?.text)
+                        ?.takeIf { it.isNotBlank() },
+                description = rcmdItem.desc?.takeIf { it.isNotBlank() && it != "-" },
             )
 
         fun fromRcmdItem(rcmdItem: RcmdTopData.RcmdItem) =
@@ -67,11 +96,15 @@ data class UgcItem(
                 danmaku = rcmdItem.stat?.danmaku ?: -1,
                 duration = rcmdItem.duration,
                 pubTime = rcmdItem.pubdate.smartDate,
+                rcmdReason =
+                    rcmdItem.rcmdReason?.content?.takeIf { it.isNotBlank() }
+                        ?: if (rcmdItem.isFollowed == 1) "已关注" else null,
             )
 
         fun fromVideoInfo(videoInfo: dev.frost819.newbv.biliapi.http.entity.video.VideoInfo) =
             UgcItem(
                 aid = videoInfo.aid,
+                bvid = videoInfo.bvid,
                 title = videoInfo.title,
                 duration = videoInfo.duration,
                 author = videoInfo.owner.name,
@@ -80,6 +113,9 @@ data class UgcItem(
                 play = videoInfo.stat.view,
                 danmaku = videoInfo.stat.danmaku,
                 pubTime = videoInfo.pubdate.smartDate,
+                tagName = videoInfo.tname.takeIf { it.isNotBlank() },
+                rcmdReason = videoInfo.rcmdReason?.content?.takeIf { it.isNotBlank() },
+                description = videoInfo.desc.takeIf { it.isNotBlank() && it != "-" },
             )
 
         fun fromSmallCoverV5(card: bilibili.app.card.v1.SmallCoverV5): UgcItem {
@@ -87,6 +123,12 @@ data class UgcItem(
             val playAndPubTime = card.rightDesc2.split(" · ")
             val play = playAndPubTime.getOrNull(0)?.let { convertPlayStringToInt(it) } ?: -1
             val pubTime = playAndPubTime.getOrNull(1)
+            val reason =
+                if (card.hasRcmdReasonStyle()) {
+                    card.rcmdReasonStyle.text.takeIf { it.isNotBlank() }
+                } else {
+                    null
+                }
 
             return UgcItem(
                 aid = card.base.param.toLong(),
@@ -99,6 +141,7 @@ data class UgcItem(
                 pubTime = pubTime,
                 danmaku = -1,
                 idx = card.base.idx.toInt(),
+                rcmdReason = reason,
             )
         }
 

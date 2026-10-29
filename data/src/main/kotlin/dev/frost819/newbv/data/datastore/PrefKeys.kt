@@ -78,6 +78,7 @@ internal object PrefKeys {
     val firstPersonalTopNavItem = intPreferencesKey("first_personal_top_nav")
     val showHotword = booleanPreferencesKey("shw")
     val themeMode = intPreferencesKey("theme_mode")
+    val homeHeroMode = intPreferencesKey("home_hero_mode")
 
     // ===== 存储设置 =====
     val cacheThreshold = intPreferencesKey("cache_threshold")

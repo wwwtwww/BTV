@@ -411,6 +411,14 @@ object Prefs {
         restore = { ThemeMode.fromOrdinal(it) },
     )
 
+    /** 首页沉浸式 Hero 看板展示模式（默认自动：低内存设备静默降级）。 */
+    var homeHeroMode by pref(
+        PrefKeys.homeHeroMode,
+        HomeHeroMode.Auto,
+        save = { it.ordinal },
+        restore = { HomeHeroMode.fromOrdinal(it) },
+    )
+
     // --- 存储设置（PRD 7.6） ---
 
     /** 缓存阈值（MB，0 = 无限制，默认无限制）。 */
@@ -429,6 +437,15 @@ object Prefs {
                 ?.map { ThemeMode.fromOrdinal(it as? Int ?: 0) }
                 ?.stateIn(scope, SharingStarted.Eagerly, ThemeMode.Dark)
                 ?: MutableStateFlow(ThemeMode.Dark)
+
+    /** 首页沉浸式 Hero 看板模式 Flow（实时响应设置变更）。 */
+    val homeHeroModeFlow: StateFlow<HomeHeroMode>
+        get() =
+            (delegateMap[PrefKeys.homeHeroMode] as? PrefDelegate<HomeHeroMode, Int>)
+                ?.flow
+                ?.map { HomeHeroMode.fromOrdinal(it as? Int ?: 0) }
+                ?.stateIn(scope, SharingStarted.Eagerly, HomeHeroMode.Auto)
+                ?: MutableStateFlow(HomeHeroMode.Auto)
 
     /** Density Flow（实时响应设置变更）。 */
     val densityFlow: StateFlow<Float>

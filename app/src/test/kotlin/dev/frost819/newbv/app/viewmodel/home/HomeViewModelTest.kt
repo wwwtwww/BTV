@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.app.data.AccountRepositoryImpl
 import dev.frost819.newbv.app.data.AccountUiState
+import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.biliapi.entity.home.RecommendData
 import dev.frost819.newbv.biliapi.entity.home.RecommendPage
+import dev.frost819.newbv.biliapi.entity.home.VideoBriefMeta
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoData
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
@@ -24,12 +26,15 @@ import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterAll
@@ -44,10 +49,12 @@ import java.io.IOException
 /**
  * [HomeViewModel] 的单元测试。
  *
- * 验证推荐/热门/动态数据加载、分页、刷新逻辑。
+ * 验证推荐/热门/动态数据加载、分页、刷新逻辑，以及顶部 Hero Showcase
+ * 的首屏种子、400ms 获焦防抖、快速游走取消、LRU 缓存与低配静态模式跳过网络补全逻辑。
  * 使用 MockK mock [RecommendVideoRepository] 和 [UserRepository]。
  * Prefs 初始化一次，每个测试前 clear 重置。
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HomeViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -85,6 +92,7 @@ class HomeViewModelTest {
     private fun fakeUgcItem(aid: Long) =
         UgcItem(
             aid = aid,
+            bvid = "BV$aid",
             title = "video $aid",
             cover = "http://example.com/cover.jpg",
             author = "up",
@@ -107,6 +115,25 @@ class HomeViewModelTest {
             danmaku = 500,
         )
 
+    private fun fakeCard(
+        aid: Long,
+        epid: Int? = null,
+        tagName: String? = null,
+        description: String? = null,
+    ) = VideoCardData(
+        avid = aid,
+        bvid = "BV$aid",
+        epid = epid,
+        title = "card $aid",
+        cover = "https://i0.hdslb.com/bfs/archive/$aid.jpg",
+        upName = "UP_$aid",
+        playString = "1.2万",
+        danmakuString = "233",
+        timeString = "05:20",
+        tagName = tagName,
+        description = description,
+    )
+
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
@@ -128,6 +155,7 @@ class HomeViewModelTest {
                 nextPage = PopularVideoPage(),
                 noMore = false,
             )
+        coEvery { recommendRepo.getVideoBriefMeta(any(), any()) } returns null
         coEvery { userRepo.getDynamicVideos(any(), any(), any(), any()) } returns
             DynamicVideoData(
                 videos = listOf(fakeDynamicVideo(5), fakeDynamicVideo(6)),
@@ -141,6 +169,8 @@ class HomeViewModelTest {
 
     private fun createViewModel() = HomeViewModel(recommendRepo, userRepo, accountRepo)
 
+    private fun currentHero() = viewModel.uiState.value.heroShowcase
+
     @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
@@ -149,7 +179,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `init loads recommend and popular`() =
+    fun `init loads recommend and popular and seeds initial heroShowcase`() =
         runTest(testDispatcher) {
             viewModel = createViewModel()
             advanceUntilIdle()
@@ -157,6 +187,147 @@ class HomeViewModelTest {
             val state = viewModel.uiState.value
             assertThat(state.recommendItems).isNotEmpty()
             assertThat(state.popularItems).isNotEmpty()
+            assertThat(state.heroShowcase).isNotNull()
+            assertThat(state.heroShowcase?.avid).isEqualTo(1L)
+            assertThat(state.heroShowcase?.sourceShelfTitle).isEqualTo("为你推荐")
+        }
+
+    @Test
+    fun `init seeds heroShowcase from popular when recommend fails`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getRecommendVideos(any(), any()) } throws IOException("offline")
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            val hero = viewModel.uiState.value.heroShowcase
+            assertThat(hero).isNotNull()
+            assertThat(hero?.avid).isEqualTo(3L)
+            assertThat(hero?.sourceShelfTitle).isEqualTo("今日热门")
+        }
+
+    @Test
+    fun `onHeroCandidateFocused enforces 400ms debounce before switching`() =
+        runTest(testDispatcher) {
+            viewModel = createViewModel()
+            advanceUntilIdle()
+            assertThat(currentHero()?.avid).isEqualTo(1L)
+
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 10L), shelfTitle = "为你推荐")
+
+            // 399ms 内不应提前切换背景看板
+            advanceTimeBy(HERO_FOCUS_DEBOUNCE_MS - 1L)
+            runCurrent()
+            assertThat(currentHero()?.avid).isEqualTo(1L)
+
+            // 满 400ms 后正式切换
+            advanceTimeBy(1L)
+            runCurrent()
+            assertThat(currentHero()?.avid).isEqualTo(10L)
+        }
+
+    @Test
+    fun `rapid focus moves cancel intermediate hero updates and only enrich final card`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getVideoBriefMeta(12L, "BV12") } returns
+                VideoBriefMeta(
+                    aid = 12L,
+                    tagName = "科技数码",
+                    description = "最终停留卡片的详细简介",
+                )
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // 模拟遥控器每隔 150ms 快速横移 3 张卡片
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 10L), shelfTitle = "为你推荐")
+            advanceTimeBy(150L)
+            runCurrent()
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 11L), shelfTitle = "为你推荐")
+            advanceTimeBy(150L)
+            runCurrent()
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 12L), shelfTitle = "今日热门")
+
+            // 中途从未闪烁到 10 或 11
+            assertThat(currentHero()?.avid).isEqualTo(1L)
+
+            advanceTimeBy(HERO_FOCUS_DEBOUNCE_MS)
+            advanceUntilIdle()
+
+            val hero = currentHero()
+            assertThat(hero?.avid).isEqualTo(12L)
+            assertThat(hero?.sourceShelfTitle).isEqualTo("今日热门")
+            assertThat(hero?.tagName).isEqualTo("科技数码")
+            assertThat(hero?.description).isEqualTo("最终停留卡片的详细简介")
+            coVerify(exactly = 0) { recommendRepo.getVideoBriefMeta(10L, any()) }
+            coVerify(exactly = 0) { recommendRepo.getVideoBriefMeta(11L, any()) }
+            coVerify(exactly = 1) { recommendRepo.getVideoBriefMeta(12L, "BV12") }
+        }
+
+    @Test
+    fun `onHeroCandidateFocused reuses LRU brief meta cache without duplicate network call`() =
+        runTest(testDispatcher) {
+            coEvery { recommendRepo.getVideoBriefMeta(21L, "BV21") } returns
+                VideoBriefMeta(
+                    aid = 21L,
+                    tagName = "单机游戏",
+                    description = "缓存测试简介",
+                )
+
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // 首次停留 21L：触发一次网络补全
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 21L), shelfTitle = "为你推荐")
+            advanceUntilIdle()
+            assertThat(currentHero()?.tagName).isEqualTo("单机游戏")
+
+            // 移走焦点到已带完整元数据的 22L
+            viewModel.onHeroCandidateFocused(
+                fakeCard(aid = 22L, tagName = "音乐", description = "自带完整简介"),
+                shelfTitle = "今日热门",
+            )
+            advanceUntilIdle()
+            assertThat(currentHero()?.avid).isEqualTo(22L)
+
+            // 再次回到 21L：命中内存 LRU 缓存，不重复请求 getVideoBriefMeta
+            viewModel.onHeroCandidateFocused(fakeCard(aid = 21L), shelfTitle = "为你推荐")
+            advanceUntilIdle()
+
+            val hero = currentHero()
+            assertThat(hero?.avid).isEqualTo(21L)
+            assertThat(hero?.tagName).isEqualTo("单机游戏")
+            assertThat(hero?.description).isEqualTo("缓存测试简介")
+            coVerify(exactly = 1) { recommendRepo.getVideoBriefMeta(21L, "BV21") }
+            coVerify(exactly = 0) { recommendRepo.getVideoBriefMeta(22L, any()) }
+        }
+
+    @Test
+    fun `onHeroCandidateFocused skips network enrich in static degraded mode and for pgc cards`() =
+        runTest(testDispatcher) {
+            viewModel = createViewModel()
+            advanceUntilIdle()
+
+            // 低配静态降级模式：allowNetworkEnrich = false
+            viewModel.onHeroCandidateFocused(
+                card = fakeCard(aid = 30L),
+                shelfTitle = "为你推荐",
+                allowNetworkEnrich = false,
+            )
+            advanceUntilIdle()
+            assertThat(currentHero()?.avid).isEqualTo(30L)
+            coVerify(exactly = 0) { recommendRepo.getVideoBriefMeta(30L, any()) }
+
+            // PGC 番剧动态卡片：不请求 UGC 详情接口
+            viewModel.onHeroCandidateFocused(
+                card = fakeCard(aid = 31L, epid = 5001),
+                shelfTitle = "关注动态",
+                allowNetworkEnrich = true,
+            )
+            advanceUntilIdle()
+            assertThat(currentHero()?.avid).isEqualTo(31L)
+            assertThat(currentHero()?.tagName).isEqualTo("番剧影视")
+            coVerify(exactly = 0) { recommendRepo.getVideoBriefMeta(31L, any()) }
         }
 
     @Test
@@ -189,6 +360,7 @@ class HomeViewModelTest {
             // loadRecommend loops until 24 items or 3 loads, so 3 × 1 = 3 items
             assertThat(state.recommendItems).isNotEmpty()
             assertThat(state.recommendItems[0].aid).isEqualTo(100)
+            assertThat(state.heroShowcase?.avid).isEqualTo(100L)
         }
 
     @Test

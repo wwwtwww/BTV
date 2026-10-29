@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.app.data.AccountRepositoryImpl
+import dev.frost819.newbv.app.ui.component.home.HeroShowcaseData
+import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.biliapi.entity.home.RecommendData
 import dev.frost819.newbv.biliapi.entity.home.RecommendPage
+import dev.frost819.newbv.biliapi.entity.home.VideoBriefMeta
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
 import dev.frost819.newbv.biliapi.entity.user.DynamicVideo
@@ -14,8 +17,10 @@ import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import dev.frost819.newbv.biliapi.entity.ApiType as BiliApiType
@@ -32,8 +38,25 @@ import dev.frost819.newbv.data.datastore.ApiType as DataApiType
 /** 网络请求超时时间（毫秒）。 */
 private const val LOAD_TIMEOUT_MS = 10_000L
 
+/** Hero 看板卡片获焦防抖时长（毫秒），避免遥控器快速游走造成背景闪烁。 */
+const val HERO_FOCUS_DEBOUNCE_MS = 400L
+
+/** Hero 补充元数据单次请求超时时间（毫秒）。 */
+private const val HERO_META_TIMEOUT_MS = 5_000L
+
+/** Hero 补充元数据内存 LRU 缓存容量上限。 */
+private const val HERO_META_CACHE_MAX_SIZE = 48
+
+/** 默认推荐泳道标题。 */
+private const val SHELF_TITLE_RECOMMEND = "为你推荐"
+
+/** 默认热门泳道标题。 */
+private const val SHELF_TITLE_POPULAR = "今日热门"
+
 /**
  * 首页 Tab 状态。
+ *
+ * @property heroShowcase 顶部 Hero Showcase 当前展示的数据（综合「精选」视图使用）。
  */
 data class HomeUiState(
     val recommendItems: List<UgcItem> = emptyList(),
@@ -50,12 +73,14 @@ data class HomeUiState(
     val dynamicError: Boolean = false,
     val isLogin: Boolean = false,
     val currentUid: Long = 0L,
+    val heroShowcase: HeroShowcaseData? = null,
 )
 
 /**
  * 首页 ViewModel。
  *
- * 管理推荐、热门、动态三个 Tab 的数据加载、分页、刷新。
+ * 管理推荐、热门、动态三个 Tab 的数据加载、分页、刷新，以及综合页顶部 Hero Showcase
+ * 的 400ms 获焦防抖切换与按需轻量元数据补全（LRU 缓存）。
  * 使用 [StateFlow] 暴露状态，UI 通过 [uiState] 观察。
  *
  * @property recommendVideoRepository 推荐/热门数据仓库。
@@ -91,6 +116,18 @@ class HomeViewModel
         private var recommendLoadJob: Job? = null
         private var popularLoadJob: Job? = null
         private var dynamicLoadJob: Job? = null
+        private var heroDebounceJob: Job? = null
+
+        /**
+         * 视频轻量简介/分区内存 LRU 缓存，避免遥控器来回浏览时重复请求详情接口。
+         *
+         * 注意：[LinkedHashMap] 非线程安全，设计为仅在主线程（[Dispatchers.Main]）进行读写访问。
+         */
+        private val heroMetaCache =
+            object : LinkedHashMap<Long, VideoBriefMeta>(HERO_META_CACHE_MAX_SIZE, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, VideoBriefMeta>?): Boolean =
+                    size > HERO_META_CACHE_MAX_SIZE
+            }
 
         init {
             _uiState.update { it.copy(isLogin = Prefs.isLogin) }
@@ -110,6 +147,98 @@ class HomeViewModel
                         }
                     }
             }
+        }
+
+        /**
+         * 当综合页下方横向泳道卡片获得焦点时触发 Hero 看板预备切换。
+         *
+         * 严格执行 [HERO_FOCUS_DEBOUNCE_MS]（400ms）防抖：
+         * - 若用户在 400ms 内继续按方向键移动焦点，前一次挂起任务立即取消，不触发任何 UI 重绘或网络请求；
+         * - 焦点稳定停留满 400ms 后更新 [HomeUiState.heroShowcase]，并在非降级模式下按需补全缺失的分区与简介。
+         *
+         * @param card 当前获焦的视频卡片数据。
+         * @param shelfTitle 卡片所属泳道标题（如「为你推荐」「关注动态」「今日热门」）。
+         * @param allowNetworkEnrich 是否允许在缺失分区或简介时发起轻量网络补全（静态省流降级模式下传 false）。
+         */
+        fun onHeroCandidateFocused(
+            card: VideoCardData,
+            shelfTitle: String = "",
+            allowNetworkEnrich: Boolean = true,
+        ) {
+            val cachedMeta = heroMetaCache[card.avid]
+            val candidate =
+                HeroShowcaseData
+                    .fromVideoCardData(card, shelfTitle)
+                    .let { base -> if (cachedMeta != null) base.mergeBriefMeta(cachedMeta) else base }
+
+            val currentHero = _uiState.value.heroShowcase
+            val isSameTarget =
+                currentHero != null &&
+                    currentHero.avid == candidate.avid &&
+                    currentHero.sourceShelfTitle == candidate.sourceShelfTitle
+            if (isSameTarget && !needsBriefMetaEnrichment(currentHero, allowNetworkEnrich)) {
+                return
+            }
+
+            heroDebounceJob?.cancel()
+            heroDebounceJob =
+                viewModelScope.launch {
+                    delay(HERO_FOCUS_DEBOUNCE_MS)
+                    _uiState.update { it.copy(heroShowcase = candidate) }
+
+                    if (needsBriefMetaEnrichment(candidate, allowNetworkEnrich)) {
+                        enrichHeroShowcaseMeta(aid = card.avid, bvid = card.bvid)
+                    }
+                }
+        }
+
+        private fun needsBriefMetaEnrichment(
+            showcase: HeroShowcaseData?,
+            allowNetworkEnrich: Boolean,
+        ): Boolean {
+            if (showcase == null || !allowNetworkEnrich) return false
+            if (showcase.isPgc || showcase.avid <= 0L) return false
+            if (heroMetaCache.containsKey(showcase.avid)) return false
+            return showcase.tagName.isNullOrBlank() || showcase.description.isNullOrBlank()
+        }
+
+        private suspend fun enrichHeroShowcaseMeta(
+            aid: Long,
+            bvid: String,
+        ) {
+            val fetched =
+                runCatching {
+                    withTimeout(HERO_META_TIMEOUT_MS) {
+                        recommendVideoRepository.getVideoBriefMeta(aid = aid, bvid = bvid)
+                    }
+                }.getOrElse { error ->
+                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                        throw error
+                    }
+                    logger.debug { "Hero brief meta fetch skipped for aid=$aid: ${error.message}" }
+                    null
+                } ?: return
+
+            withContext(Dispatchers.Main.immediate) {
+                heroMetaCache[aid] = fetched
+                _uiState.update { state ->
+                    val active = state.heroShowcase
+                    if (active != null && active.avid == aid) {
+                        state.copy(heroShowcase = active.mergeBriefMeta(fetched))
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+
+        private fun buildSeedHeroFromUgc(
+            item: UgcItem,
+            shelfTitle: String,
+        ): HeroShowcaseData {
+            val base = HeroShowcaseData.fromUgcItem(item, shelfTitle)
+            val cached = heroMetaCache[item.aid]
+            return if (cached != null) base.mergeBriefMeta(cached) else base
         }
 
         /**
@@ -164,7 +293,8 @@ class HomeViewModel
 
                             if (data.items.isEmpty()) {
                                 logger.debug {
-                                    "loadRecommend received transient empty items on page $recommendNextPage, cursor preserved for retry"
+                                    "loadRecommend received transient empty items on page $recommendNextPage, " +
+                                        "cursor preserved for retry"
                                 }
                                 if (!data.hasMore) {
                                     _uiState.update { it.copy(recommendHasMore = false) }
@@ -175,10 +305,14 @@ class HomeViewModel
 
                             // 仅在成功获取非空数据后推进游标
                             recommendNextPage = data.nextPage
-                            _uiState.update {
-                                it.copy(
-                                    recommendItems = it.recommendItems + data.items,
+                            _uiState.update { state ->
+                                val seededHero =
+                                    state.heroShowcase
+                                        ?: buildSeedHeroFromUgc(data.items.first(), SHELF_TITLE_RECOMMEND)
+                                state.copy(
+                                    recommendItems = state.recommendItems + data.items,
                                     recommendHasMore = data.hasMore,
+                                    heroShowcase = seededHero,
                                 )
                             }
                             loadCount++
@@ -203,13 +337,21 @@ class HomeViewModel
          */
         fun refreshRecommend() {
             recommendLoadJob?.cancel()
+            heroDebounceJob?.cancel()
             recommendNextPage = RecommendPage()
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                val resetHero =
+                    if (state.heroShowcase?.sourceShelfTitle == SHELF_TITLE_RECOMMEND) {
+                        null
+                    } else {
+                        state.heroShowcase
+                    }
+                state.copy(
                     recommendItems = emptyList(),
                     recommendLoading = false,
                     recommendHasMore = true,
                     recommendError = false,
+                    heroShowcase = resetHero,
                 )
             }
             loadRecommend()
@@ -242,10 +384,16 @@ class HomeViewModel
                                         preferApiType = prefApiType(),
                                     )
                                 popularNextPage = data.nextPage
-                                _uiState.update {
-                                    it.copy(
-                                        popularItems = it.popularItems + data.list,
+                                _uiState.update { state ->
+                                    val fallbackHero =
+                                        state.heroShowcase
+                                            ?: data.list.firstOrNull()?.let {
+                                                buildSeedHeroFromUgc(it, SHELF_TITLE_POPULAR)
+                                            }
+                                    state.copy(
+                                        popularItems = state.popularItems + data.list,
                                         popularHasMore = !data.noMore,
+                                        heroShowcase = fallbackHero,
                                     )
                                 }
                             }
@@ -268,12 +416,19 @@ class HomeViewModel
         fun refreshPopular() {
             popularLoadJob?.cancel()
             popularNextPage = PopularVideoPage()
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                val resetHero =
+                    if (state.heroShowcase?.sourceShelfTitle == SHELF_TITLE_POPULAR) {
+                        null
+                    } else {
+                        state.heroShowcase
+                    }
+                state.copy(
                     popularItems = emptyList(),
                     popularLoading = false,
                     popularHasMore = true,
                     popularError = false,
+                    heroShowcase = resetHero,
                 )
             }
             loadPopular()
@@ -398,7 +553,9 @@ class HomeViewModel
          * @param uid 新用户 UID。
          */
         private fun onUserSwitched(uid: Long) {
-            _uiState.update { it.copy(currentUid = uid) }
+            heroDebounceJob?.cancel()
+            heroMetaCache.clear()
+            _uiState.update { it.copy(currentUid = uid, heroShowcase = null) }
             refreshRecommend()
             refreshPopular()
             refreshDynamic()

@@ -65,7 +65,7 @@ import kotlinx.coroutines.launch
  * 4. PlayStateTips — 播放状态提示
  * 5. RelatedVideosController — 相关视频
  * 6. ControllerVideoInfo — 信息栏 + 进度条 + 按钮
- * 7. VideoListController — 分集列表
+ * 7. VideoListController — 底部横向胶囊选集轨
  * 8. MenuController — 设置菜单
  */
 @Composable
@@ -105,6 +105,8 @@ fun VideoPlayerController(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val episodesAvailable = remember(uiState.videoList) { uiState.videoList.hasMultipleEpisodes() }
 
     // 覆盖层可见性
     var showListController by remember { mutableStateOf(false) }
@@ -245,12 +247,16 @@ fun VideoPlayerController(
         }
         var status: String? = null
         when (action) {
-            PlayerCustomShortcutAction.OpenSettings -> showMenuController = true
+            PlayerCustomShortcutAction.OpenSettings -> {
+                closeAllControllers()
+                showMenuController = true
+            }
             PlayerCustomShortcutAction.OpenRelatedVideos -> {
                 if (uiState.relatedVideos.isEmpty()) {
                     showShortcutTip(action, "暂无可展示内容")
                     return
                 }
+                closeAllControllers()
                 showRelatedVideosController = true
             }
             PlayerCustomShortcutAction.PlayPrevious -> onPlayPrevious()
@@ -334,8 +340,9 @@ fun VideoPlayerController(
             }
 
             Key.Menu, Key(763) -> {
-                showInfoSeekController = false
-                showMenuController = !showMenuController
+                val nextShowMenu = !showMenuController
+                closeAllControllers()
+                showMenuController = nextShowMenu
                 return true
             }
 
@@ -367,6 +374,7 @@ fun VideoPlayerController(
                 in confirmKeys -> {
                     if (event.type == KeyEventType.KeyDown) {
                         if (event.nativeKeyEvent.isLongPress) {
+                            closeAllControllers()
                             showMenuController = true
                         }
                         return true
@@ -381,7 +389,11 @@ fun VideoPlayerController(
                 }
 
                 Key.DirectionUp -> {
-                    showListController = true
+                    if (episodesAvailable) {
+                        showListController = true
+                    } else if (event.nativeKeyEvent.repeatCount == 0) {
+                        onShowShortcutTip("暂无其他分集")
+                    }
                     return true
                 }
 
@@ -499,8 +511,10 @@ fun VideoPlayerController(
                 }
             }
 
-            // 常显进度条（控制条或下沉推荐泳道展开时隐藏，避免视觉层叠）
-            if (showPersistentSeek && !showInfoSeekController && !showRelatedVideosController) {
+            // 常显进度条（任意底部浮层展开时隐藏，避免视觉层叠）
+            val hasBottomOverlay =
+                showInfoSeekController || showRelatedVideosController || showListController
+            if (showPersistentSeek && !hasBottomOverlay) {
                 VideoProgressSeek(
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                     duration = seekerState.value.totalDuration,
@@ -570,6 +584,7 @@ fun VideoPlayerController(
                 videoShot = uiState.videoShot,
                 videoShotCache = videoShotCache,
                 isPgc = isPgc,
+                episodesAvailable = episodesAvailable,
                 relatedAvailable = !isPgc && uiState.relatedVideos.isNotEmpty(),
                 danmakuEnabled = uiState.danmakuState.enabledTypes.isNotEmpty(),
                 isLooping = isLooping,
@@ -585,11 +600,20 @@ fun VideoPlayerController(
                     onToggleDanmaku()
                     startControllerAutoHide()
                 },
-                onShowSettings = { showMenuController = true },
+                onShowSettings = {
+                    closeAllControllers()
+                    showMenuController = true
+                },
+                onShowEpisodes = {
+                    if (episodesAvailable) {
+                        closeAllControllers()
+                        showListController = true
+                    }
+                },
                 onShowRelatedVideos = {
                     // PGC 无相关视频数据，空列表打开浮层会造成焦点死角
                     if (!isPgc && uiState.relatedVideos.isNotEmpty()) {
-                        showInfoSeekController = false
+                        closeAllControllers()
                         showRelatedVideosController = true
                     }
                 },
@@ -603,15 +627,17 @@ fun VideoPlayerController(
                 onShowComments = onShowComments,
             )
 
-            // 分集列表
+            // 底部横向胶囊选集轨
             VideoListController(
                 show = showListController,
                 currentCid = uiState.cid,
+                currentAid = uiState.aid,
                 videoList = uiState.videoList,
                 onPlayNewVideo = { item ->
                     onPlayNewVideo(item)
                     showListController = false
                 },
+                onClose = { showListController = false },
             )
 
             // 设置菜单

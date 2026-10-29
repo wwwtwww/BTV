@@ -7,7 +7,7 @@ import dev.frost819.newbv.biliapi.entity.video.RelatedVideo
 /**
  * 视频卡片数据。
  *
- * 用于 [SmallVideoCard] 的展示数据，由 [dev.frost819.newbv.biliapi.entity.ugc.UgcItem]
+ * 用于 [SmallVideoCard] 与首页沉浸看板的展示数据，由 [dev.frost819.newbv.biliapi.entity.ugc.UgcItem]
  * 或 [dev.frost819.newbv.biliapi.entity.user.DynamicVideo] 转换而来。
  *
  * @property avid 视频 AV 号。
@@ -24,6 +24,9 @@ import dev.frost819.newbv.biliapi.entity.video.RelatedVideo
  * @property timeString 时长显示字符串（已格式化）。
  * @property pubTime 发布时间显示字符串。
  * @property progress 播放进度比例（0.0–1.0），null 表示不显示进度条。
+ * @property tagName 视频分区名称（可选，如「数码」「单机游戏」）。
+ * @property rcmdReason 推荐理由文案（可选，如「百万播放」「飙升」）。
+ * @property description 视频简介文案（可选）。
  */
 data class VideoCardData(
     val avid: Long,
@@ -40,6 +43,9 @@ data class VideoCardData(
     val timeString: String = "",
     val pubTime: String? = null,
     val progress: Float? = null,
+    val tagName: String? = null,
+    val rcmdReason: String? = null,
+    val description: String? = null,
 ) {
     companion object {
         /**
@@ -76,6 +82,9 @@ data class VideoCardData(
                 upName = item.author,
                 upMid = item.authorMid,
                 pubTime = item.pubTime,
+                tagName = item.tagName,
+                rcmdReason = item.rcmdReason,
+                description = item.description,
             )
 
         /**

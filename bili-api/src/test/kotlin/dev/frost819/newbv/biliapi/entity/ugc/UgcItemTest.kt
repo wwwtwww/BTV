@@ -19,7 +19,7 @@ class UgcItemTest {
         val item = UgcItem.fromVideoInfo(videoInfo)
 
         assertThat(item.aid).isEqualTo(100L)
-        assertThat(item.bvid).isEmpty()
+        assertThat(item.bvid).isEqualTo("BV100")
         assertThat(item.title).isEqualTo("测试视频")
         assertThat(item.cover).isEqualTo("http://pic.test")
         assertThat(item.author).isEqualTo("UP主")
@@ -28,6 +28,8 @@ class UgcItemTest {
         assertThat(item.danmaku).isEqualTo(100)
         assertThat(item.duration).isEqualTo(300)
         assertThat(item.idx).isEqualTo(-1)
+        assertThat(item.tagName).isEqualTo("test")
+        assertThat(item.description).isEqualTo("desc")
     }
 
     @Test

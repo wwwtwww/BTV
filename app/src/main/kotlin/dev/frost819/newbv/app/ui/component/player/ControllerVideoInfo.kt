@@ -84,6 +84,7 @@ import kotlinx.coroutines.delay
  * @param videoShot 缩略图数据（为 null 时不显示预览）
  * @param videoShotCache 缩略图缓存
  * @param isPgc 是否来自番剧（为 true 时隐藏详情/UP/相关视频按钮）
+ * @param episodesAvailable 是否存在可切换的多集/多分 P（为 true 时展示「选集」入口及向下快捷提示）
  * @param relatedAvailable 相关推荐是否可用（PGC 或列表为空时为 false，此时隐藏入口与提示）
  * @param danmakuEnabled 弹幕是否开启
  * @param isLooping 是否循环播放
@@ -94,6 +95,7 @@ import kotlinx.coroutines.delay
  * @param onPlayPause 播放/暂停回调
  * @param onDanmakuSwitchChange 弹幕开关回调
  * @param onShowSettings 打开设置回调
+ * @param onShowEpisodes 打开底部选集胶囊轨回调
  * @param onShowRelatedVideos 打开相关视频回调
  * @param onGoToVideoInfo 跳转视频详情回调
  * @param onToggleLoop 切换循环回调
@@ -114,6 +116,7 @@ fun ControllerVideoInfo(
     videoShot: VideoShot?,
     videoShotCache: VideoShotImageCache,
     isPgc: Boolean,
+    episodesAvailable: Boolean = false,
     relatedAvailable: Boolean = true,
     danmakuEnabled: Boolean,
     isLooping: Boolean,
@@ -124,6 +127,7 @@ fun ControllerVideoInfo(
     onPlayPause: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
+    onShowEpisodes: () -> Unit = {},
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
@@ -161,6 +165,7 @@ fun ControllerVideoInfo(
                 videoShot = videoShot,
                 videoShotCache = videoShotCache,
                 isPgc = isPgc,
+                episodesAvailable = episodesAvailable,
                 relatedAvailable = relatedAvailable,
                 danmakuEnabled = danmakuEnabled,
                 isLooping = isLooping,
@@ -171,6 +176,7 @@ fun ControllerVideoInfo(
                 onPlayPause = onPlayPause,
                 onDanmakuSwitchChange = onDanmakuSwitchChange,
                 onShowSettings = onShowSettings,
+                onShowEpisodes = onShowEpisodes,
                 onShowRelatedVideos = onShowRelatedVideos,
                 onGoToVideoInfo = onGoToVideoInfo,
                 onToggleLoop = onToggleLoop,
@@ -264,6 +270,11 @@ fun ControllerVideoInfoTop(
 
 /**
  * 控制器底部信息（缩略图预览 + 时间 + 进度条 + 操作按钮）。
+ *
+ * 「选集」与「相关推荐」相互独立展示：
+ * - [episodesAvailable] 为 `true` 时显示「选集」按钮（含番剧多集、UGC 合集、单视频多 P）；
+ * - [relatedAvailable] 为 `true` 时显示「相关推荐」按钮；
+ * - 在操作按钮行继续按遥控器「向下」键时，优先呼出底部选集胶囊轨，无选集时呼出相关推荐泳道。
  */
 @Composable
 fun ControllerVideoInfoBottom(
@@ -274,6 +285,7 @@ fun ControllerVideoInfoBottom(
     videoShot: VideoShot?,
     videoShotCache: VideoShotImageCache,
     isPgc: Boolean,
+    episodesAvailable: Boolean = false,
     relatedAvailable: Boolean = true,
     danmakuEnabled: Boolean,
     isLooping: Boolean,
@@ -284,6 +296,7 @@ fun ControllerVideoInfoBottom(
     onPlayPause: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
+    onShowEpisodes: () -> Unit = {},
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
@@ -450,8 +463,11 @@ fun ControllerVideoInfoBottom(
                     ),
                 )
                 add(ControllerIcon(R.drawable.settings_24px, "清晰度与设置", onShowSettings))
+                if (episodesAvailable) {
+                    add(ControllerIcon(R.drawable.playlist_play_24px, "选集", onShowEpisodes))
+                }
                 if (relatedAvailable) {
-                    add(ControllerIcon(R.drawable.related_videos_24px, "相关推荐与选集", onShowRelatedVideos))
+                    add(ControllerIcon(R.drawable.related_videos_24px, "相关推荐", onShowRelatedVideos))
                 }
                 if (!isPgc) {
                     add(ControllerIcon(R.drawable.info_24px, "视频详情", onGoToVideoInfo))
@@ -491,11 +507,17 @@ fun ControllerVideoInfoBottom(
                             seekFocusRequester.requestFocus()
                             return@onKeyEvent true
                         }
-                        // 相关推荐不可用时不消费向下键，交由焦点系统默认处理
-                        if (it.key == Key.DirectionDown && relatedAvailable) {
-                            if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
-                            onShowRelatedVideos()
-                            return@onKeyEvent true
+                        if (it.key == Key.DirectionDown) {
+                            if (episodesAvailable) {
+                                if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
+                                onShowEpisodes()
+                                return@onKeyEvent true
+                            }
+                            if (relatedAvailable) {
+                                if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
+                                onShowRelatedVideos()
+                                return@onKeyEvent true
+                            }
                         }
                         false
                     }.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -539,10 +561,13 @@ fun ControllerVideoInfoBottom(
             }
         }
 
-        val hintText =
-            focusedDescription.ifBlank {
-                if (relatedAvailable) "按遥控器「向下」浏览选集与推荐" else ""
+        val defaultDownHint =
+            when {
+                episodesAvailable -> "按遥控器「向下」展开底部选集"
+                relatedAvailable -> "按遥控器「向下」浏览相关推荐"
+                else -> ""
             }
+        val hintText = focusedDescription.ifBlank { defaultDownHint }
         if (hintText.isNotEmpty()) {
             Text(
                 modifier = Modifier.padding(start = 28.dp, bottom = 14.dp),
@@ -618,6 +643,7 @@ private fun ControllerVideoInfoPreview() {
             videoShot = null,
             videoShotCache = VideoShotImageCache(),
             isPgc = false,
+            episodesAvailable = true,
             relatedAvailable = true,
             danmakuEnabled = true,
             isLooping = false,
@@ -628,6 +654,7 @@ private fun ControllerVideoInfoPreview() {
             onPlayPause = {},
             onDanmakuSwitchChange = {},
             onShowSettings = {},
+            onShowEpisodes = {},
             onShowRelatedVideos = {},
             onGoToVideoInfo = {},
             onToggleLoop = {},
