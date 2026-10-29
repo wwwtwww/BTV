@@ -64,6 +64,7 @@ import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.biliapi.entity.video.VideoShot
 import dev.frost819.newbv.core.focus.touchClickable
+import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.core.theme.BVTypography
@@ -304,26 +305,26 @@ private fun VideoQualityBadges(
             Resolution.R8K ->
                 QualityBadge(
                     text = "8K ULTRA HD",
-                    backgroundColor = Color(0xFF1E293B),
-                    contentColor = Color(0xFF67E8F9),
+                    backgroundColor = BVColors.Badge8kBackground,
+                    contentColor = BVColors.Badge8kContent,
                 )
             Resolution.R4K ->
                 QualityBadge(
                     text = "4K ULTRA HD",
-                    backgroundColor = Color(0xFF1E293B),
-                    contentColor = Color(0xFF38BDF8),
+                    backgroundColor = BVColors.Badge4kBackground,
+                    contentColor = BVColors.Badge4kContent,
                 )
             Resolution.RDolby ->
                 QualityBadge(
                     text = "DOLBY VISION",
-                    backgroundColor = Color(0xFF18181B),
-                    contentColor = Color(0xFFFDE047),
+                    backgroundColor = BVColors.BadgeDolbyVisionBackground,
+                    contentColor = BVColors.BadgeDolbyVisionContent,
                 )
             Resolution.RHdr ->
                 QualityBadge(
                     text = "HDR",
-                    backgroundColor = Color(0xFF18181B),
-                    contentColor = Color(0xFFFDBA74),
+                    backgroundColor = BVColors.BadgeHdrBackground,
+                    contentColor = BVColors.BadgeHdrContent,
                 )
             else -> {}
         }
@@ -332,14 +333,14 @@ private fun VideoQualityBadges(
             Audio.ADolbyAtoms ->
                 QualityBadge(
                     text = "DOLBY ATMOS",
-                    backgroundColor = Color(0xFF2E1065),
-                    contentColor = Color(0xFFD8B4FE),
+                    backgroundColor = BVColors.BadgeDolbyAtmosBackground,
+                    contentColor = BVColors.BadgeDolbyAtmosContent,
                 )
             Audio.AHiRes ->
                 QualityBadge(
                     text = "Hi-Res AUDIO",
-                    backgroundColor = Color(0xFF78350F),
-                    contentColor = Color(0xFFFDE047),
+                    backgroundColor = BVColors.BadgeHiResBackground,
+                    contentColor = BVColors.BadgeHiResContent,
                 )
             else -> {}
         }
@@ -398,15 +399,15 @@ fun ControllerVideoInfoBottom(
     onPlayPause: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
-    onShowEpisodes: () -> Unit = {},
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
-    aspectRatio: VideoAspectRatio = VideoAspectRatio.Default,
-    onCycleAspectRatio: () -> Unit = {},
     onShowInteraction: () -> Unit,
     onShowComments: () -> Unit,
+    onShowEpisodes: () -> Unit = {},
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.Default,
+    onCycleAspectRatio: () -> Unit = {},
 ) {
     val seekFocusRequester = remember { FocusRequester() }
     val buttonsFocusRequester = remember { FocusRequester() }

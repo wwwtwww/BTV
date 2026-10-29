@@ -1526,25 +1526,28 @@ class PlayerViewModel
             val overlayInfo = resolveNextPlayOverlayInfo(target)
             playNextCountdownJob =
                 viewModelScope.launch {
-                    _uiState.update {
-                        it.copy(
-                            showSkipToNextEp = true,
-                            nextPlayInfo = overlayInfo,
-                            nextPlayCountdownSec = 5,
-                        )
-                    }
-                    for (sec in 4 downTo 1) {
+                    try {
+                        _uiState.update {
+                            it.copy(
+                                showSkipToNextEp = true,
+                                nextPlayInfo = overlayInfo,
+                                nextPlayCountdownSec = 5,
+                            )
+                        }
+                        for (sec in 4 downTo 1) {
+                            delay(1000L)
+                            _uiState.update { it.copy(nextPlayCountdownSec = sec) }
+                        }
                         delay(1000L)
-                        _uiState.update { it.copy(nextPlayCountdownSec = sec) }
-                    }
-                    delay(1000L)
-                    playNextTarget(target)
-                    _uiState.update {
-                        it.copy(
-                            showSkipToNextEp = false,
-                            nextPlayInfo = null,
-                            nextPlayCountdownSec = 0,
-                        )
+                        playNextTarget(target)
+                    } finally {
+                        _uiState.update {
+                            it.copy(
+                                showSkipToNextEp = false,
+                                nextPlayInfo = null,
+                                nextPlayCountdownSec = 0,
+                            )
+                        }
                     }
                 }
         }

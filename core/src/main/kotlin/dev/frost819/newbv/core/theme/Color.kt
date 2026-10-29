@@ -51,4 +51,30 @@ object BVColors {
     val LightOnSurface = Color(0xFF111827)
     val LightOnSurfaceVariant = Color(0xFF4B5563)
     val LightBorder = PrimaryStrong
+
+    // --- 播放器视听专属高光微标色彩 (Quality & Audio Badges) ---
+
+    /** 8K 超高清微标主色（青蓝高动态）。 */
+    val Badge8kContent = Color(0xFF67E8F9)
+    val Badge8kBackground = Color(0xFF1E293B)
+
+    /** 4K 超高清微标主色（天蓝）。 */
+    val Badge4kContent = Color(0xFF38BDF8)
+    val Badge4kBackground = Color(0xFF1E293B)
+
+    /** 杜比视界 (Dolby Vision) 金黄色。 */
+    val BadgeDolbyVisionContent = Color(0xFFFDE047)
+    val BadgeDolbyVisionBackground = Color(0xFF18181B)
+
+    /** HDR 高动态范围暖金色。 */
+    val BadgeHdrContent = Color(0xFFFDBA74)
+    val BadgeHdrBackground = Color(0xFF18181B)
+
+    /** 杜比全景声 (Dolby Atmos) 专属紫罗兰金标。 */
+    val BadgeDolbyAtmosContent = Color(0xFFD8B4FE)
+    val BadgeDolbyAtmosBackground = Color(0xFF2E1065)
+
+    /** Hi-Res 无损音质小金标。 */
+    val BadgeHiResContent = Color(0xFFFDE047)
+    val BadgeHiResBackground = Color(0xFF78350F)
 }

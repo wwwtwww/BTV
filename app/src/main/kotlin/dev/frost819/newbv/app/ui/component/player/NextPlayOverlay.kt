@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +78,7 @@ fun NextPlayOverlay(
                     } else {
                         Modifier
                     },
-                ).background(Color(0xF0121622))
+                ).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
                 .border(1.5.dp, MaterialTheme.colorScheme.border.copy(alpha = 0.7f), MaterialTheme.shapes.large)
                 .padding(14.dp)
 
@@ -96,7 +95,7 @@ fun NextPlayOverlay(
                             Modifier
                                 .size(width = 112.dp, height = 63.dp)
                                 .clip(MaterialTheme.shapes.small)
-                                .background(Color(0xFF202636)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                     ) {
                         if (!info.cover.isNullOrEmpty()) {
                             AsyncImage(
@@ -141,7 +140,7 @@ fun NextPlayOverlay(
                         Text(
                             text = info.title,
                             style = MaterialTheme.typography.titleSmall,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.SemiBold,
@@ -190,7 +189,7 @@ fun NextPlayOverlay(
                     Text(
                         text = "[OK] 立即播 · [返回] 取消",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.65f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier =
                             if (onCancel != null) {
                                 Modifier.clickable(role = Role.Button, onClick = onCancel)
