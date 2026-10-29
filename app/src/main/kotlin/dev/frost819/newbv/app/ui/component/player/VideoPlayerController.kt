@@ -341,6 +341,11 @@ fun VideoPlayerController(
                     closeAllControllers()
                     return true
                 }
+                // 连播浮层可见时，取消浮层而非退出
+                if (uiState.showSkipToNextEp && uiState.nextPlayInfo != null) {
+                    onCancelSkipToNextEp()
+                    return true
+                }
                 onExit()
                 return true
             }
@@ -385,6 +390,11 @@ fun VideoPlayerController(
                         }
                         return true
                     } else {
+                        // 连播浮层可见时，OK 键立即播放下一集
+                        if (uiState.showSkipToNextEp && uiState.nextPlayInfo != null) {
+                            onPlayNext()
+                            return true
+                        }
                         if (uiState.showBackToStart) {
                             onBackToStart()
                         } else {
@@ -561,6 +571,8 @@ fun VideoPlayerController(
                 visible = uiState.showSkipToNextEp && uiState.nextPlayInfo != null,
                 info = uiState.nextPlayInfo,
                 countdownSec = uiState.nextPlayCountdownSec,
+                onClick = onPlayNext,
+                onCancel = onCancelSkipToNextEp,
             )
 
             // 播放状态提示

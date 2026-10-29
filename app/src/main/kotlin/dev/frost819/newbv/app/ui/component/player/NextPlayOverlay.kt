@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,6 +48,8 @@ import dev.frost819.newbv.core.theme.BVTypography
  * @param visible 是否可见
  * @param info 下一部视频元数据信息
  * @param countdownSec 倒计时剩余秒数（1~5）
+ * @param onClick 点击立即起播回调
+ * @param onCancel 点击取消回调
  */
 @Composable
 fun NextPlayOverlay(
@@ -53,6 +57,8 @@ fun NextPlayOverlay(
     visible: Boolean,
     info: NextPlayOverlayInfo?,
     countdownSec: Int,
+    onClick: (() -> Unit)? = null,
+    onCancel: (() -> Unit)? = null,
 ) {
     AnimatedVisibility(
         visible = visible && info != null,
@@ -62,15 +68,23 @@ fun NextPlayOverlay(
     ) {
         if (info == null) return@AnimatedVisibility
 
+        val cardModifier =
+            Modifier
+                .width(380.dp)
+                .padding(bottom = 32.dp, end = 36.dp)
+                .clip(MaterialTheme.shapes.large)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(role = Role.Button, onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                ).background(Color(0xF0121622))
+                .border(1.5.dp, MaterialTheme.colorScheme.border.copy(alpha = 0.7f), MaterialTheme.shapes.large)
+                .padding(14.dp)
+
         Box(
-            modifier =
-                Modifier
-                    .width(380.dp)
-                    .padding(bottom = 32.dp, end = 36.dp)
-                    .clip(MaterialTheme.shapes.large)
-                    .background(Color(0xF0121622))
-                    .border(1.5.dp, MaterialTheme.colorScheme.border.copy(alpha = 0.7f), MaterialTheme.shapes.large)
-                    .padding(14.dp),
+            modifier = cardModifier,
         ) {
             Column {
                 Row(
@@ -177,6 +191,12 @@ fun NextPlayOverlay(
                         text = "[OK] 立即播 · [返回] 取消",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.65f),
+                        modifier =
+                            if (onCancel != null) {
+                                Modifier.clickable(role = Role.Button, onClick = onCancel)
+                            } else {
+                                Modifier
+                            },
                     )
                 }
             }
