@@ -40,7 +40,7 @@ fun AudioMenuList(
 }
 
 /** 音轨详细说明与码率。 */
-val Audio.detailedDisplayName: String
+private val Audio.detailedDisplayName: String
     get() =
         when (this) {
             Audio.ADolbyAtoms -> "杜比全景声 (Dolby Atmos)"

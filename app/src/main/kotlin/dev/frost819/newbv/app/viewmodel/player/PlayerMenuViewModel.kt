@@ -121,6 +121,11 @@ enum class VideoPlayerClosedCaptionMenuItem(
 
 /**
  * 菜单焦点状态。
+ *
+ * 三态焦点模型：
+ * - [MenuNav] — 焦点在右侧导航列表（倍速/声音/画质/弹幕/字幕）
+ * - [Menu] — 焦点在中间二级子项列表
+ * - [Items] — 焦点在最左侧三级选项值面板
  */
 enum class MenuFocusState {
     MenuNav,
@@ -128,8 +133,16 @@ enum class MenuFocusState {
     Items,
 }
 
+/**
+ * 菜单焦点状态数据，通过 CompositionLocal 传递给子组件。
+ *
+ * @property focusState 当前焦点所处菜单层级
+ */
 data class MenuFocusStateData(
     val focusState: MenuFocusState = MenuFocusState.MenuNav,
 )
 
+/**
+ * 菜单焦点状态 CompositionLocal。
+ */
 val LocalMenuFocusStateData = compositionLocalOf { MenuFocusStateData() }
