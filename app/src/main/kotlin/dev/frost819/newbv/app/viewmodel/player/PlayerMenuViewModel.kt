@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.viewmodel.player
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.outlined.ClearAll
 import androidx.compose.material.icons.outlined.ClosedCaption
 import androidx.compose.material.icons.outlined.Image
@@ -38,7 +39,7 @@ class PlayerMenuViewModel
             }
         }
 
-        /** 选中画质/编码/宽高比/音轨中的子项。 */
+        /** 选中画质/编码/宽高比中的子项。 */
         fun selectPictureItem(item: VideoPlayerPictureMenuItem?) {
             _menuState.update { it.copy(selectedPictureItem = item) }
         }
@@ -82,6 +83,7 @@ enum class VideoPlayerMenuNavItem(
 ) {
     PlaySpeed("倍速", Icons.Outlined.Speed),
     Picture("画质", Icons.Outlined.Image),
+    Audio("声音", Icons.Filled.Audiotrack),
     Danmaku("弹幕", Icons.Outlined.ClearAll),
     ClosedCaption("字幕", Icons.Outlined.ClosedCaption),
 }
@@ -93,7 +95,6 @@ enum class VideoPlayerPictureMenuItem(
     Resolution("分辨率"),
     Codec("编码"),
     AspectRatio("宽高比"),
-    Audio("音轨"),
 }
 
 /** 弹幕设置子项。 */
@@ -120,11 +121,6 @@ enum class VideoPlayerClosedCaptionMenuItem(
 
 /**
  * 菜单焦点状态。
- *
- * 三态焦点模型：
- * - [MenuNav] — 焦点在右侧导航列表
- * - [Menu] — 焦点在中间子项列表
- * - [Items] — 焦点在最左侧选项值面板
  */
 enum class MenuFocusState {
     MenuNav,
@@ -132,14 +128,8 @@ enum class MenuFocusState {
     Items,
 }
 
-/**
- * 菜单焦点状态数据，通过 CompositionLocal 传递给子组件。
- */
 data class MenuFocusStateData(
     val focusState: MenuFocusState = MenuFocusState.MenuNav,
 )
 
-/**
- * 菜单焦点状态 CompositionLocal。
- */
 val LocalMenuFocusStateData = compositionLocalOf { MenuFocusStateData() }

@@ -15,6 +15,7 @@ import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.state.player.MediaProfileState
+import dev.frost819.newbv.app.ui.state.player.NextPlayOverlayInfo
 import dev.frost819.newbv.app.ui.state.player.PlayerState
 import dev.frost819.newbv.app.ui.state.player.PlayerUiEffect
 import dev.frost819.newbv.app.ui.state.player.PlayerUiState
@@ -623,7 +624,7 @@ class PlayerViewModel
         /** 立即播放下一集。 */
         fun playNextNow() {
             playNextCountdownJob?.cancel()
-            _uiState.update { it.copy(showSkipToNextEp = false) }
+            _uiState.update { it.copy(showSkipToNextEp = false, nextPlayInfo = null, nextPlayCountdownSec = 0) }
             val target = findNextPlayTarget()
             if (target != null) {
                 playNextTarget(target)
@@ -635,7 +636,7 @@ class PlayerViewModel
         /** 立即播放上一集。 */
         fun playPreviousNow() {
             playNextCountdownJob?.cancel()
-            _uiState.update { it.copy(showSkipToNextEp = false) }
+            _uiState.update { it.copy(showSkipToNextEp = false, nextPlayInfo = null, nextPlayCountdownSec = 0) }
             val target = findPreviousPlayTarget()
             if (target != null) {
                 playNextTarget(target)
@@ -658,7 +659,7 @@ class PlayerViewModel
         /** 取消自动播放下一集。 */
         fun cancelPlayNext() {
             playNextCountdownJob?.cancel()
-            _uiState.update { it.copy(showSkipToNextEp = false) }
+            _uiState.update { it.copy(showSkipToNextEp = false, nextPlayInfo = null, nextPlayCountdownSec = 0) }
         }
 
         /**
@@ -845,6 +846,17 @@ class PlayerViewModel
         /** 更新宽高比。 */
         fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
             _uiState.update { it.copy(aspectRatio = ratio) }
+        }
+
+        /** 循环切换宽高比模式并弹出快捷提示。 */
+        fun cycleVideoAspectRatio(): VideoAspectRatio {
+            val entries = VideoAspectRatio.entries
+            val currentIndex = entries.indexOf(_uiState.value.aspectRatio)
+            val nextIndex = if (currentIndex in entries.indices) (currentIndex + 1) % entries.size else 0
+            val nextRatio = entries[nextIndex]
+            updateVideoAspectRatio(nextRatio)
+            showShortcutTip("画面比例: ${nextRatio.displayName}")
+            return nextRatio
         }
 
         /** 切换循环播放。 */
@@ -1481,14 +1493,59 @@ class PlayerViewModel
             return null
         }
 
+        private fun resolveNextPlayOverlayInfo(target: NextPlayTarget): NextPlayOverlayInfo =
+            when (target) {
+                is NextPlayTarget.UgcPage -> {
+                    val currentDetails = videoInfoRepository.videoDetail.value
+                    NextPlayOverlayInfo(
+                        title = target.title,
+                        cover = currentDetails?.cover,
+                        author = _uiState.value.authorName,
+                        isEpisode = true,
+                    )
+                }
+                is NextPlayTarget.VideoItem -> {
+                    val isNextEp =
+                        _uiState.value.isPgc || videoInfoRepository.videoList.value.any { it.aid == target.video.aid }
+                    val related = videoInfoRepository.relatedVideos.value.firstOrNull { it.aid == target.video.aid }
+                    val currentDetails = videoInfoRepository.videoDetail.value
+                    val cover =
+                        related?.cover ?: if (target.video.aid == _uiState.value.aid) currentDetails?.cover else null
+                    val author = related?.author?.name ?: _uiState.value.authorName
+                    NextPlayOverlayInfo(
+                        title = target.title,
+                        cover = cover,
+                        author = author,
+                        isEpisode = isNextEp,
+                    )
+                }
+            }
+
         private fun startNextEpisodeCountdown(target: NextPlayTarget) {
             playNextCountdownJob?.cancel()
+            val overlayInfo = resolveNextPlayOverlayInfo(target)
             playNextCountdownJob =
                 viewModelScope.launch {
-                    _uiState.update { it.copy(showSkipToNextEp = true) }
-                    delay(PlayerConstants.COUNTDOWN_DURATION_MS)
+                    _uiState.update {
+                        it.copy(
+                            showSkipToNextEp = true,
+                            nextPlayInfo = overlayInfo,
+                            nextPlayCountdownSec = 5,
+                        )
+                    }
+                    for (sec in 4 downTo 1) {
+                        delay(1000L)
+                        _uiState.update { it.copy(nextPlayCountdownSec = sec) }
+                    }
+                    delay(1000L)
                     playNextTarget(target)
-                    _uiState.update { it.copy(showSkipToNextEp = false) }
+                    _uiState.update {
+                        it.copy(
+                            showSkipToNextEp = false,
+                            nextPlayInfo = null,
+                            nextPlayCountdownSec = 0,
+                        )
+                    }
                 }
         }
 

@@ -45,6 +45,7 @@ object PlayerCustomShortcutCatalog {
                     PlayerCustomShortcutAction.TogglePersistentBottomProgress,
                 ),
             )
+            add(simple("switch_aspect_ratio", "切换画面比例与去黑边", PlayerCustomShortcutAction.SwitchAspectRatio))
 
             // 参数化动作
             add(

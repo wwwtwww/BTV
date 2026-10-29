@@ -35,6 +35,7 @@ class PlayerCustomShortcutCatalogTest {
             "toggle_danmaku_mask",
             "toggle_subtitle",
             "toggle_persistent_bottom_progress",
+            "switch_aspect_ratio",
         )
     }
 

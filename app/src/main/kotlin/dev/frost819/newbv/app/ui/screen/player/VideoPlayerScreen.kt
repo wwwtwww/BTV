@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.component.comment.CommentDialogMode
 import dev.frost819.newbv.app.ui.component.comment.CommentsDialog
@@ -326,6 +327,7 @@ fun VideoPlayerScreen(
             },
             onMediaProfileSettingChange = { action -> playerViewModel.updateMediaProfile(action) },
             onAspectRatioChange = { ratio -> playerViewModel.updateVideoAspectRatio(ratio) },
+            onCycleAspectRatio = { playerViewModel.cycleVideoAspectRatio() },
             onPlaySpeedChange = { speed ->
                 logger.info { "[PLAYBACK] speedChange aid=${uiState.aid}, speed=$speed" }
                 playerViewModel.updatePlaySpeed(speed)
@@ -355,20 +357,51 @@ fun VideoPlayerScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                // 视频画面
-                val aspectRatio =
-                    uiState.aspectRatio.ratio ?: run {
-                        if (uiState.videoWidth > 0 && uiState.videoHeight > 0) {
-                            uiState.videoWidth.toFloat() / uiState.videoHeight.toFloat()
-                        } else {
-                            16f / 9f
+                // 视频画面与缩放裁剪模式
+                val (playerModifier, resizeMode, activeAspectRatio) =
+                    when (val ratioMode = uiState.aspectRatio) {
+                        VideoAspectRatio.Crop -> {
+                            Triple(
+                                Modifier.fillMaxSize(),
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+                                16f / 9f,
+                            )
+                        }
+                        VideoAspectRatio.Stretch -> {
+                            Triple(
+                                Modifier.fillMaxSize(),
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL,
+                                16f / 9f,
+                            )
+                        }
+                        VideoAspectRatio.Default -> {
+                            val rawRatio =
+                                if (uiState.videoWidth > 0 && uiState.videoHeight > 0) {
+                                    uiState.videoWidth.toFloat() / uiState.videoHeight.toFloat()
+                                } else {
+                                    16f / 9f
+                                }
+                            Triple(
+                                Modifier.fillMaxSize(),
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT,
+                                rawRatio,
+                            )
+                        }
+                        else -> {
+                            val targetRatio = ratioMode.ratio ?: (16f / 9f)
+                            Triple(
+                                Modifier.fillMaxHeight().aspectRatio(targetRatio),
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL,
+                                targetRatio,
+                            )
                         }
                     }
 
                 if (videoPlayer != null) {
                     BvVideoPlayer(
-                        modifier = Modifier.fillMaxHeight().aspectRatio(aspectRatio),
+                        modifier = playerModifier,
                         videoPlayer = videoPlayer,
+                        resizeMode = resizeMode,
                     )
                 }
 
@@ -381,7 +414,7 @@ fun VideoPlayerScreen(
                                 .alpha(if (danmakuState.enabledTypes.isNotEmpty()) danmakuState.alpha else 0f)
                                 .danmakuMask(
                                     frame = currentDanmakuMaskFrame,
-                                    aspectRatio = aspectRatio,
+                                    aspectRatio = activeAspectRatio,
                                 ),
                         danmakuPlayer = danmakuPlayer,
                     )

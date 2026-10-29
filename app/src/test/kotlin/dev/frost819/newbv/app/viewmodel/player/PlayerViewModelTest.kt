@@ -9,6 +9,7 @@ import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
 import dev.frost819.newbv.app.ui.state.player.MediaProfileState
+import dev.frost819.newbv.app.ui.state.player.NextPlayOverlayInfo
 import dev.frost819.newbv.app.ui.state.player.PlayerState
 import dev.frost819.newbv.app.ui.state.player.PlayerUiEffect
 import dev.frost819.newbv.app.ui.state.player.PlayerUiState
@@ -116,6 +117,7 @@ class PlayerViewModelTest {
 
         every { videoInfoRepository.videoList } returns MutableStateFlow(emptyList())
         every { videoInfoRepository.relatedVideos } returns MutableStateFlow(emptyList())
+        every { videoInfoRepository.videoDetail } returns MutableStateFlow(null)
         every { videoInfoRepository.videoSharedState } returns MutableStateFlow(null)
 
         viewModel =
@@ -565,6 +567,19 @@ class PlayerViewModelTest {
             assertThat(viewModel.uiState.value.aspectRatio).isEqualTo(VideoAspectRatio.FourToThree)
         }
 
+    @Test
+    fun `cycleVideoAspectRatio cycles through aspect ratios and updates state`() =
+        runTest(testDispatcher) {
+            viewModel.updateVideoAspectRatio(VideoAspectRatio.Default)
+            val next1 = viewModel.cycleVideoAspectRatio()
+            assertThat(next1).isEqualTo(VideoAspectRatio.Crop)
+            assertThat(viewModel.uiState.value.aspectRatio).isEqualTo(VideoAspectRatio.Crop)
+
+            val next2 = viewModel.cycleVideoAspectRatio()
+            assertThat(next2).isEqualTo(VideoAspectRatio.Stretch)
+            assertThat(viewModel.uiState.value.aspectRatio).isEqualTo(VideoAspectRatio.Stretch)
+        }
+
     // ── Listener callback tests ──────────────────────────────
 
     @Test
@@ -834,14 +849,23 @@ class PlayerViewModelTest {
     // ── cancelPlayNext test ───────────────────────────────────
 
     @Test
-    fun `cancelPlayNext clears showSkipToNextEp`() =
+    fun `cancelPlayNext clears showSkipToNextEp and nextPlayInfo`() =
         runTest(testDispatcher) {
-            updateUiState { it.copy(showSkipToNextEp = true) }
+            updateUiState {
+                it.copy(
+                    showSkipToNextEp = true,
+                    nextPlayInfo = NextPlayOverlayInfo(title = "test"),
+                    nextPlayCountdownSec = 3,
+                )
+            }
             assertThat(viewModel.uiState.value.showSkipToNextEp).isTrue()
+            assertThat(viewModel.uiState.value.nextPlayInfo).isNotNull()
 
             viewModel.cancelPlayNext()
 
             assertThat(viewModel.uiState.value.showSkipToNextEp).isFalse()
+            assertThat(viewModel.uiState.value.nextPlayInfo).isNull()
+            assertThat(viewModel.uiState.value.nextPlayCountdownSec).isEqualTo(0)
         }
 
     // ── updateMediaProfile tests ──────────────────────────────

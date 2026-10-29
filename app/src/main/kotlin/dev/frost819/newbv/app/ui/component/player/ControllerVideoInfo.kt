@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +58,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
+import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.ui.state.player.SeekerState
 import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
@@ -65,6 +67,8 @@ import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.core.theme.BVTypography
+import dev.frost819.newbv.data.datastore.Audio
+import dev.frost819.newbv.data.datastore.Resolution
 import kotlinx.coroutines.delay
 
 /**
@@ -113,6 +117,9 @@ fun ControllerVideoInfo(
     title: String,
     clock: Pair<Int, Int>,
     onlineWatching: String,
+    audio: Audio? = null,
+    resolution: Resolution? = null,
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.Default,
     videoShot: VideoShot?,
     videoShotCache: VideoShotImageCache,
     isPgc: Boolean,
@@ -134,6 +141,7 @@ fun ControllerVideoInfo(
     onGoToUpPage: () -> Unit,
     onShowInteraction: () -> Unit,
     onShowComments: () -> Unit,
+    onCycleAspectRatio: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -160,6 +168,8 @@ fun ControllerVideoInfo(
             ControllerVideoInfoBottom(
                 modifier = Modifier.align(Alignment.BottomCenter),
                 isSeeking = isSeeking,
+                aspectRatio = aspectRatio,
+                onCycleAspectRatio = onCycleAspectRatio,
                 goTime = goTime,
                 seekerState = seekerState,
                 videoShot = videoShot,
@@ -199,6 +209,8 @@ fun ControllerVideoInfoTop(
     title: String,
     clock: Pair<Int, Int>,
     onlineWatching: String,
+    audio: Audio? = null,
+    resolution: Resolution? = null,
 ) {
     Column(
         modifier =
@@ -242,29 +254,119 @@ fun ControllerVideoInfoTop(
             )
             Clock(hour = clock.first, minute = clock.second)
         }
-        if (onlineWatching.isNotEmpty()) {
-            // 同时观看人数 meta 行（标题下方小字，参考 Web 端样式）
-            Row(
-                modifier = Modifier.padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_player_watching),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-                    modifier = Modifier.size(16.dp),
-                )
-                Text(
-                    text = "${onlineWatching}人正在看",
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            shadow = Shadow(color = Color.Black, blurRadius = 1f),
-                        ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-                )
+
+        // Meta 行（同时观看人数 + 杜比/Hi-Res/4K专属视听高光徽标）
+        Row(
+            modifier = Modifier.padding(top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (onlineWatching.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_player_watching),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "${onlineWatching}人正在看",
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                shadow = Shadow(color = Color.Black, blurRadius = 1f),
+                            ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                    )
+                }
             }
+
+            // 画质与音质专属视听徽标
+            VideoQualityBadges(audio = audio, resolution = resolution)
         }
+    }
+}
+
+@Composable
+private fun VideoQualityBadges(
+    audio: Audio?,
+    resolution: Resolution?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (resolution) {
+            Resolution.R8K ->
+                QualityBadge(
+                    text = "8K ULTRA HD",
+                    backgroundColor = Color(0xFF1E293B),
+                    contentColor = Color(0xFF67E8F9),
+                )
+            Resolution.R4K ->
+                QualityBadge(
+                    text = "4K ULTRA HD",
+                    backgroundColor = Color(0xFF1E293B),
+                    contentColor = Color(0xFF38BDF8),
+                )
+            Resolution.RDolby ->
+                QualityBadge(
+                    text = "DOLBY VISION",
+                    backgroundColor = Color(0xFF18181B),
+                    contentColor = Color(0xFFFDE047),
+                )
+            Resolution.RHdr ->
+                QualityBadge(
+                    text = "HDR",
+                    backgroundColor = Color(0xFF18181B),
+                    contentColor = Color(0xFFFDBA74),
+                )
+            else -> {}
+        }
+
+        when (audio) {
+            Audio.ADolbyAtoms ->
+                QualityBadge(
+                    text = "DOLBY ATMOS",
+                    backgroundColor = Color(0xFF2E1065),
+                    contentColor = Color(0xFFD8B4FE),
+                )
+            Audio.AHiRes ->
+                QualityBadge(
+                    text = "Hi-Res AUDIO",
+                    backgroundColor = Color(0xFF78350F),
+                    contentColor = Color(0xFFFDE047),
+                )
+            else -> {}
+        }
+    }
+}
+
+@Composable
+private fun QualityBadge(
+    text: String,
+    backgroundColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(backgroundColor)
+                .border(1.dp, contentColor.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+        )
     }
 }
 
@@ -301,6 +403,8 @@ fun ControllerVideoInfoBottom(
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.Default,
+    onCycleAspectRatio: () -> Unit = {},
     onShowInteraction: () -> Unit,
     onShowComments: () -> Unit,
 ) {
@@ -463,6 +567,13 @@ fun ControllerVideoInfoBottom(
                     ),
                 )
                 add(ControllerIcon(R.drawable.settings_24px, "清晰度与设置", onShowSettings))
+                add(
+                    ControllerIcon(
+                        icon = R.drawable.aspect_ratio_24px,
+                        description = "画面比例：${aspectRatio.displayName}",
+                        action = onCycleAspectRatio,
+                    ),
+                )
                 if (episodesAvailable) {
                     add(ControllerIcon(R.drawable.playlist_play_24px, "选集", onShowEpisodes))
                 }

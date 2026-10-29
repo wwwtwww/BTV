@@ -8,7 +8,6 @@ import dev.frost819.newbv.app.ui.component.player.menu.component.PlayerThreeLeve
 import dev.frost819.newbv.app.ui.component.player.menu.component.RadioMenuList
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
 import dev.frost819.newbv.app.viewmodel.player.VideoPlayerPictureMenuItem
-import dev.frost819.newbv.data.datastore.Audio
 import dev.frost819.newbv.data.datastore.Resolution
 import dev.frost819.newbv.data.datastore.VideoCodec
 
@@ -16,43 +15,36 @@ import dev.frost819.newbv.data.datastore.VideoCodec
  * 画质设置面板。
  *
  * 双列布局：左侧为选项值列表（[RadioMenuList]），右侧为子项列表。
- * 子项包括：分辨率、编码、宽高比、音轨。
+ * 子项包括：分辨率、编码、宽高比。
  *
  * @param modifier 修饰符
  * @param availableQualityIds 可用画质 ID 列表
- * @param availableAudio 可用音轨列表
  * @param availableVideoCodec 可用编码列表
  * @param currentResolution 当前画质 ID
  * @param currentVideoCodec 当前编码
  * @param currentVideoAspectRatio 当前宽高比
- * @param currentAudio 当前音轨
  * @param onResolutionChange 画质变化回调
  * @param onCodecChange 编码变化回调
  * @param onAspectRatioChange 宽高比变化回调
- * @param onAudioChange 音轨变化回调
  * @param onFocusStateChange 焦点状态变化回调
  */
 @Composable
 fun PictureMenuList(
     modifier: Modifier = Modifier,
     availableQualityIds: List<Int>,
-    availableAudio: List<Audio>,
     availableVideoCodec: List<VideoCodec>,
     currentResolution: Int?,
     currentVideoCodec: VideoCodec,
     currentVideoAspectRatio: VideoAspectRatio,
-    currentAudio: Audio,
     onResolutionChange: (Int) -> Unit,
     onCodecChange: (VideoCodec) -> Unit,
     onAspectRatioChange: (VideoAspectRatio) -> Unit,
-    onAudioChange: (Audio) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
 ) {
     val qualityIdList =
         remember(availableQualityIds) {
             availableQualityIds.sortedByDescending { it }
         }
-    val audioList = remember(availableAudio) { availableAudio.sortedBy { it.ordinal } }
 
     PlayerThreeLevelMenu(
         modifier = modifier,
@@ -90,15 +82,6 @@ fun PictureMenuList(
                     onSelectedChanged = { onAspectRatioChange(VideoAspectRatio.entries[it]) },
                     onFocusBackToParent = backToMenu,
                 )
-
-            VideoPlayerPictureMenuItem.Audio ->
-                RadioMenuList(
-                    modifier = itemModifier,
-                    items = audioList.map { it.displayName },
-                    selected = audioList.indexOf(currentAudio),
-                    onSelectedChanged = { onAudioChange(audioList[it]) },
-                    onFocusBackToParent = backToMenu,
-                )
         }
     }
 }
@@ -129,24 +112,4 @@ private val VideoCodec.displayName: String
             VideoCodec.HEVC -> "HEVC/H.265"
             VideoCodec.AV1 -> "AV1"
             VideoCodec.DVH1 -> "DV H.1"
-        }
-
-/** 音轨显示名称。 */
-private val Audio.displayName: String
-    get() =
-        when (this) {
-            Audio.A64K -> "64K"
-            Audio.A132K -> "132K"
-            Audio.A192K -> "192K"
-            Audio.ADolbyAtoms -> "Dolby Atmos"
-            Audio.AHiRes -> "Hi-Res"
-        }
-
-/** 宽高比显示名称。 */
-private val VideoAspectRatio.displayName: String
-    get() =
-        when (this) {
-            VideoAspectRatio.Default -> "默认"
-            VideoAspectRatio.FourToThree -> "4:3"
-            VideoAspectRatio.SixteenToNine -> "16:9"
         }

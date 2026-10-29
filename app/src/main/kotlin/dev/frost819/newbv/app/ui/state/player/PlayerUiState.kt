@@ -40,8 +40,10 @@ data class PlayerUiState(
     val isBuffering: Boolean = false,
     val videoShot: VideoShot? = null,
     val clock: Pair<Int, Int> = Pair(0, 0),
-    // 提示
+    // 提示与连播浮层
     val showSkipToNextEp: Boolean = false,
+    val nextPlayInfo: NextPlayOverlayInfo? = null,
+    val nextPlayCountdownSec: Int = 0,
     val showBackToStart: Boolean = false,
     val showPreviewTip: Boolean = false,
     val shortcutTipText: String? = null,
@@ -75,6 +77,21 @@ data class PlayerUiState(
      */
     val isPgc: Boolean get() = (epid ?: 0) != 0
 }
+
+/**
+ * 播毕下一集/推荐微浮层信息。
+ *
+ * @property title 下一个视频标题
+ * @property cover 封面图片 URL
+ * @property author UP 主名称
+ * @property isEpisode 是否为分集/连续播放（true 为下一集，false 为相关推荐）
+ */
+data class NextPlayOverlayInfo(
+    val title: String,
+    val cover: String? = null,
+    val author: String? = null,
+    val isEpisode: Boolean = true,
+)
 
 /**
  * 播放器进度条状态（高频更新，100ms 间隔）。

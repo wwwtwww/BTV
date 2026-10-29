@@ -113,5 +113,6 @@ class ControllerVideoInfoBottomTest {
 
         composeRule.onNodeWithContentDescription("播放 / 暂停").assertExists()
         composeRule.onNodeWithContentDescription("清晰度与设置").assertExists()
+        composeRule.onNodeWithContentDescription("画面比例：默认（原始）").assertExists()
     }
 }

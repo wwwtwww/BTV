@@ -48,6 +48,7 @@ import dev.frost819.newbv.biliapi.entity.video.Subtitle
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.core.theme.ThemeMode
 import dev.frost819.newbv.data.datastore.Prefs
+import dev.frost819.newbv.data.datastore.Resolution
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,6 +95,7 @@ fun VideoPlayerController(
     onShowComments: () -> Unit,
     onMediaProfileSettingChange: (MediaProfileSettingAction) -> Unit,
     onAspectRatioChange: (VideoAspectRatio) -> Unit,
+    onCycleAspectRatio: () -> Unit = {},
     onPlaySpeedChange: (Float) -> Unit,
     onDanmakuSettingChange: (DanmakuSettingAction) -> Unit,
     onSubtitleChange: (Subtitle) -> Unit,
@@ -295,6 +297,10 @@ fun VideoPlayerController(
                 onDanmakuSettingChange(
                     DanmakuSettingAction.SetMaskEnabled(newMaskEnabled),
                 )
+            }
+            PlayerCustomShortcutAction.SwitchAspectRatio -> {
+                onCycleAspectRatio()
+                return
             }
         }
         showShortcutTip(action, status)
@@ -544,9 +550,17 @@ fun VideoPlayerController(
             // 跳转提示
             SkipTips(
                 showBackToStart = uiState.showBackToStart,
-                showSkipToNextEp = uiState.showSkipToNextEp,
+                showSkipToNextEp = uiState.showSkipToNextEp && uiState.nextPlayInfo == null,
                 showPreviewTip = uiState.showPreviewTip,
                 shortcutTipText = uiState.shortcutTipText,
+            )
+
+            // 播毕沉浸连播倒计时微浮层
+            NextPlayOverlay(
+                modifier = Modifier.align(Alignment.BottomEnd),
+                visible = uiState.showSkipToNextEp && uiState.nextPlayInfo != null,
+                info = uiState.nextPlayInfo,
+                countdownSec = uiState.nextPlayCountdownSec,
             )
 
             // 播放状态提示
@@ -581,6 +595,9 @@ fun VideoPlayerController(
                 title = uiState.title,
                 clock = uiState.clock,
                 onlineWatching = uiState.onlineWatching,
+                audio = uiState.mediaProfileState.audio,
+                resolution = Resolution.fromCode(uiState.mediaProfileState.qualityId),
+                aspectRatio = uiState.aspectRatio,
                 videoShot = uiState.videoShot,
                 videoShotCache = videoShotCache,
                 isPgc = isPgc,
@@ -625,6 +642,7 @@ fun VideoPlayerController(
                 onGoToUpPage = onGoToUpPage,
                 onShowInteraction = onShowInteraction,
                 onShowComments = onShowComments,
+                onCycleAspectRatio = onCycleAspectRatio,
             )
 
             // 底部横向胶囊选集轨

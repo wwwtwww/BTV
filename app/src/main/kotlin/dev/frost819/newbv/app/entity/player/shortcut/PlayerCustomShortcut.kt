@@ -161,6 +161,7 @@ object PlayerCustomShortcutsCodec {
             PlayerCustomShortcutAction.ToggleSubtitle -> "toggle_subtitle" to buildJsonObject { }
             PlayerCustomShortcutAction.TogglePersistentBottomProgress ->
                 "toggle_persistent_bottom_progress" to buildJsonObject { }
+            PlayerCustomShortcutAction.SwitchAspectRatio -> "switch_aspect_ratio" to buildJsonObject { }
 
             is PlayerCustomShortcutAction.TogglePlaybackSpeed ->
                 "set_playback_speed" to buildJsonObject { put("speed", speed) }
@@ -184,6 +185,7 @@ object PlayerCustomShortcutsCodec {
             "toggle_danmaku_mask" -> PlayerCustomShortcutAction.ToggleDanmakuMask
             "toggle_subtitle" -> PlayerCustomShortcutAction.ToggleSubtitle
             "toggle_persistent_bottom_progress" -> PlayerCustomShortcutAction.TogglePersistentBottomProgress
+            "switch_aspect_ratio" -> PlayerCustomShortcutAction.SwitchAspectRatio
 
             "set_playback_speed" ->
                 PlayerCustomShortcutAction.TogglePlaybackSpeed(

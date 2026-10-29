@@ -38,6 +38,7 @@ class PlayerCustomShortcutsTest {
                 PlayerCustomShortcutAction.ToggleDanmakuMask,
                 PlayerCustomShortcutAction.ToggleSubtitle,
                 PlayerCustomShortcutAction.TogglePersistentBottomProgress,
+                PlayerCustomShortcutAction.SwitchAspectRatio,
             )
         val shortcuts =
             simpleActions.mapIndexed { i, action ->

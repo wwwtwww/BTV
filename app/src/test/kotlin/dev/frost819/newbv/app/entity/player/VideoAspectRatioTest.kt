@@ -6,12 +6,31 @@ import org.junit.jupiter.api.Test
 /**
  * [VideoAspectRatio] 的单元测试。
  *
- * 验证枚举值、ratio 属性及 [VideoAspectRatio.fromOrdinal] 安全解析。
+ * 验证枚举值、ratio 属性、缩放标记及 [VideoAspectRatio.fromOrdinal] 安全解析。
  */
 class VideoAspectRatioTest {
     @Test
-    fun `Default has null ratio`() {
+    fun `Default has null ratio and false flags`() {
         assertThat(VideoAspectRatio.Default.ratio).isNull()
+        assertThat(VideoAspectRatio.Default.isCrop).isFalse()
+        assertThat(VideoAspectRatio.Default.isStretch).isFalse()
+        assertThat(VideoAspectRatio.Default.displayName).isEqualTo("默认（原始）")
+    }
+
+    @Test
+    fun `Crop has null ratio and isCrop true`() {
+        assertThat(VideoAspectRatio.Crop.ratio).isNull()
+        assertThat(VideoAspectRatio.Crop.isCrop).isTrue()
+        assertThat(VideoAspectRatio.Crop.isStretch).isFalse()
+        assertThat(VideoAspectRatio.Crop.displayName).isEqualTo("去黑边（裁剪）")
+    }
+
+    @Test
+    fun `Stretch has null ratio and isStretch true`() {
+        assertThat(VideoAspectRatio.Stretch.ratio).isNull()
+        assertThat(VideoAspectRatio.Stretch.isCrop).isFalse()
+        assertThat(VideoAspectRatio.Stretch.isStretch).isTrue()
+        assertThat(VideoAspectRatio.Stretch.displayName).isEqualTo("铺满（拉伸）")
     }
 
     @Test
@@ -25,15 +44,23 @@ class VideoAspectRatioTest {
     }
 
     @Test
-    fun `entries contains exactly three values`() {
-        assertThat(VideoAspectRatio.entries).hasSize(3)
+    fun `TwentyOneToNine has 21f divided by 9f ratio`() {
+        assertThat(VideoAspectRatio.TwentyOneToNine.ratio).isEqualTo(21f / 9f)
+    }
+
+    @Test
+    fun `entries contains exactly six values`() {
+        assertThat(VideoAspectRatio.entries).hasSize(6)
     }
 
     @Test
     fun `fromOrdinal returns correct value for valid ordinals`() {
         assertThat(VideoAspectRatio.fromOrdinal(0)).isEqualTo(VideoAspectRatio.Default)
-        assertThat(VideoAspectRatio.fromOrdinal(1)).isEqualTo(VideoAspectRatio.FourToThree)
-        assertThat(VideoAspectRatio.fromOrdinal(2)).isEqualTo(VideoAspectRatio.SixteenToNine)
+        assertThat(VideoAspectRatio.fromOrdinal(1)).isEqualTo(VideoAspectRatio.Crop)
+        assertThat(VideoAspectRatio.fromOrdinal(2)).isEqualTo(VideoAspectRatio.Stretch)
+        assertThat(VideoAspectRatio.fromOrdinal(3)).isEqualTo(VideoAspectRatio.SixteenToNine)
+        assertThat(VideoAspectRatio.fromOrdinal(4)).isEqualTo(VideoAspectRatio.FourToThree)
+        assertThat(VideoAspectRatio.fromOrdinal(5)).isEqualTo(VideoAspectRatio.TwentyOneToNine)
     }
 
     @Test

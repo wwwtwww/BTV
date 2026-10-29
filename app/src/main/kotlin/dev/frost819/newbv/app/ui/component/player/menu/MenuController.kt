@@ -246,15 +246,20 @@ private fun MenuList(
             VideoPlayerMenuNavItem.Picture ->
                 PictureMenuList(
                     availableQualityIds = uiState.availableQuality.keys.toList(),
-                    availableAudio = uiState.availableAudio,
                     availableVideoCodec = uiState.availableVideoCodec,
                     currentResolution = uiState.mediaProfileState.qualityId,
                     currentVideoCodec = uiState.mediaProfileState.videoCodec,
                     currentVideoAspectRatio = uiState.aspectRatio,
-                    currentAudio = uiState.mediaProfileState.audio,
                     onResolutionChange = onResolutionChange,
                     onCodecChange = onCodecChange,
                     onAspectRatioChange = onAspectRatioChange,
+                    onFocusStateChange = onFocusStateChange,
+                )
+
+            VideoPlayerMenuNavItem.Audio ->
+                AudioMenuList(
+                    availableAudio = uiState.availableAudio,
+                    currentAudio = uiState.mediaProfileState.audio,
                     onAudioChange = onAudioChange,
                     onFocusStateChange = onFocusStateChange,
                 )

@@ -33,6 +33,10 @@ class PlayerMenuViewModelTest {
         assertThat(viewModel.menuState.value.selectedNavItem)
             .isEqualTo(VideoPlayerMenuNavItem.Picture)
 
+        viewModel.selectNavItem(VideoPlayerMenuNavItem.Audio)
+        assertThat(viewModel.menuState.value.selectedNavItem)
+            .isEqualTo(VideoPlayerMenuNavItem.Audio)
+
         viewModel.selectNavItem(VideoPlayerMenuNavItem.Danmaku)
         assertThat(viewModel.menuState.value.selectedNavItem)
             .isEqualTo(VideoPlayerMenuNavItem.Danmaku)
