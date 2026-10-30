@@ -139,4 +139,24 @@ class FocusExtTest {
             assertThat(job.isCompleted).isTrue()
             assertThat(callCount).isEqualTo(2)
         }
+
+    @Test
+    fun `async safeRequestFocus completes cleanly when onSuccess is null on success`() =
+        runTest(testDispatcher) {
+            val requester = mockk<FocusRequester>()
+            every { requester.requestFocus() } returns true
+
+            // 显式验证 onSuccess = null（默认值）场景下成功获焦不抛出异常并安全完成
+            val job =
+                requester.safeRequestFocus(
+                    scope = this,
+                    maxRetries = 3,
+                    retryDelayMs = 50,
+                    onSuccess = null,
+                )
+
+            runCurrent()
+
+            assertThat(job.isCompleted).isTrue()
+        }
 }
