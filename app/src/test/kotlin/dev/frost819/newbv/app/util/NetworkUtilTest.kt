@@ -1,8 +1,10 @@
 package dev.frost819.newbv.app.util
 
 import com.google.common.truth.Truth.assertThat
+import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import java.net.InetSocketAddress
 
 /**
  * [NetworkUtil] 与相关数据模型的单元测试。
@@ -55,5 +57,62 @@ class NetworkUtilTest {
             // 192.0.2.0/24 为 TEST-NET-1 保留网段，不可达且应在超时后返回 null
             val latency = NetworkUtil.probeLatency(targetUrl = "http://192.0.2.1:81/unreachable", timeoutMs = 200)
             assertThat(latency).isNull()
+        }
+
+    @Test
+    fun `probeLatency accepts HTTP 405 as reachable`() =
+        runTest {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.createContext("/") { exchange ->
+                exchange.sendResponseHeaders(405, -1)
+                exchange.close()
+            }
+            server.start()
+
+            try {
+                val port = server.address.port
+                val latency = NetworkUtil.probeLatency(targetUrl = "http://127.0.0.1:$port/", timeoutMs = 1500)
+                assertThat(latency).isNotNull()
+            } finally {
+                server.stop(0)
+            }
+        }
+
+    @Test
+    fun `probeLatency accepts HTTP 200 as reachable`() =
+        runTest {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.createContext("/") { exchange ->
+                exchange.sendResponseHeaders(200, -1)
+                exchange.close()
+            }
+            server.start()
+
+            try {
+                val port = server.address.port
+                val latency = NetworkUtil.probeLatency(targetUrl = "http://127.0.0.1:$port/", timeoutMs = 1500)
+                assertThat(latency).isNotNull()
+            } finally {
+                server.stop(0)
+            }
+        }
+
+    @Test
+    fun `probeLatency returns null for HTTP 500 server error`() =
+        runTest {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.createContext("/") { exchange ->
+                exchange.sendResponseHeaders(500, -1)
+                exchange.close()
+            }
+            server.start()
+
+            try {
+                val port = server.address.port
+                val latency = NetworkUtil.probeLatency(targetUrl = "http://127.0.0.1:$port/", timeoutMs = 1500)
+                assertThat(latency).isNull()
+            } finally {
+                server.stop(0)
+            }
         }
 }
