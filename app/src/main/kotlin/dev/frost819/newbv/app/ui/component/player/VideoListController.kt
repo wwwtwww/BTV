@@ -819,11 +819,9 @@ private suspend fun LazyListState.scrollToCentered(
 }
 
 private suspend fun requestFocusSafely(focusRequester: FocusRequester) {
-    runCatching {
-        focusRequester.safeRequestFocus()
-    }.onFailure {
+    if (!focusRequester.safeRequestFocus()) {
         delay(60)
-        runCatching { focusRequester.safeRequestFocus() }
+        focusRequester.safeRequestFocus()
     }
 }
 

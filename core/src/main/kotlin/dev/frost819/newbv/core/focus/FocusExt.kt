@@ -32,6 +32,7 @@ import androidx.tv.material3.MaterialTheme
 import dev.frost819.newbv.core.interaction.InputMethod
 import dev.frost819.newbv.core.interaction.LocalInteractionTracker
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -138,7 +139,7 @@ fun FocusRequester.safeRequestFocus(
     retryDelayMs: Long = 60,
     onSuccess: (() -> Unit)? = null,
 ) {
-    scope.launch {
+    scope.launch(Dispatchers.Main) {
         repeat(maxRetries) { attempt ->
             if (safeRequestFocus()) {
                 onSuccess?.invoke()
