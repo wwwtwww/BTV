@@ -614,8 +614,9 @@ class PersonalViewModel
                 }
             videoInfoRepository.updateVideoList(videoList)
 
+            // progress == -1 表示无播放数据（未开始/哨兵值），in 0 until duration 已在区间上隐含排除了 -1
             val target =
-                toViewItems.firstOrNull { it.progress in 0 until it.duration && it.progress != -1 }
+                toViewItems.firstOrNull { it.progress in 0 until it.duration }
                     ?: toViewItems.first()
             onPlay(
                 VideoCardData(
@@ -649,6 +650,8 @@ class PersonalViewModel
                 items.map { item ->
                     VideoListItem(
                         aid = item.id,
+                        // B 站收藏夹明细接口 (/x/v3/fav/resource/list) 仅返回稿件维度元数据，不包含分 P 的 cid。
+                        // 此处传入 0L 作为有意设计的哨兵占位值，播放器起播时会自动调用视频详情接口补全真实 cid。
                         cid = 0L,
                         title = item.title,
                     )
