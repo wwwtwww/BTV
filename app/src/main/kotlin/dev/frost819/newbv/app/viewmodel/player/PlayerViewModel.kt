@@ -754,6 +754,8 @@ class PlayerViewModel
                     onlineWatching = "",
                     showPreviewTip = false,
                     showSkipToNextEp = false,
+                    nextPlayInfo = null,
+                    nextPlayCountdownSec = 0,
                     showBackToStart = false,
                     shortcutTipText = null,
                     mediaProfileState =
@@ -1541,12 +1543,16 @@ class PlayerViewModel
                         delay(1000L)
                         playNextTarget(target)
                     } finally {
-                        _uiState.update {
-                            it.copy(
-                                showSkipToNextEp = false,
-                                nextPlayInfo = null,
-                                nextPlayCountdownSec = 0,
-                            )
+                        // 仅在协程正常完成（非外部取消）时清理 UI 状态。
+                        // 外部取消方（playNextNow/cancelPlayNext 等）已自行重置状态。
+                        if (coroutineContext[Job]?.isCancelled != true) {
+                            _uiState.update {
+                                it.copy(
+                                    showSkipToNextEp = false,
+                                    nextPlayInfo = null,
+                                    nextPlayCountdownSec = 0,
+                                )
+                            }
                         }
                     }
                 }

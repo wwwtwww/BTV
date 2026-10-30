@@ -86,6 +86,9 @@ import kotlinx.coroutines.delay
  * @param title 视频标题
  * @param clock 时钟（hour, minute）
  * @param onlineWatching 同时观看人数文案（空串时不显示）
+ * @param audio 当前音轨（用于显示杜比全景声 / Hi-Res 专属徽标，为 null 时不展示）
+ * @param resolution 当前画质（用于显示 8K / 4K / 杜比视界 / HDR 徽标，为 null 时不展示）
+ * @param aspectRatio 当前画面填充比例
  * @param videoShot 缩略图数据（为 null 时不显示预览）
  * @param videoShotCache 缩略图缓存
  * @param isPgc 是否来自番剧（为 true 时隐藏详情/UP/相关视频按钮）
@@ -100,13 +103,14 @@ import kotlinx.coroutines.delay
  * @param onPlayPause 播放/暂停回调
  * @param onDanmakuSwitchChange 弹幕开关回调
  * @param onShowSettings 打开设置回调
- * @param onShowEpisodes 打开底部选集胶囊轨回调
  * @param onShowRelatedVideos 打开相关视频回调
  * @param onGoToVideoInfo 跳转视频详情回调
  * @param onToggleLoop 切换循环回调
  * @param onGoToUpPage 跳转 UP 主页面回调
  * @param onShowInteraction 打开视频交互弹窗回调
  * @param onShowComments 打开评论弹窗回调
+ * @param onShowEpisodes 打开底部选集胶囊轨回调
+ * @param onCycleAspectRatio 循环切换画面比例回调
  */
 @Composable
 fun ControllerVideoInfo(
@@ -135,13 +139,13 @@ fun ControllerVideoInfo(
     onPlayPause: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
-    onShowEpisodes: () -> Unit = {},
     onShowRelatedVideos: () -> Unit,
     onGoToVideoInfo: () -> Unit,
     onToggleLoop: () -> Unit,
     onGoToUpPage: () -> Unit,
     onShowInteraction: () -> Unit,
     onShowComments: () -> Unit,
+    onShowEpisodes: () -> Unit = {},
     onCycleAspectRatio: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -157,6 +161,8 @@ fun ControllerVideoInfo(
                 title = title,
                 clock = clock,
                 onlineWatching = onlineWatching,
+                audio = audio,
+                resolution = resolution,
             )
         }
         AnimatedVisibility(
@@ -200,9 +206,14 @@ fun ControllerVideoInfo(
 }
 
 /**
- * 控制器顶部信息（标题 + 同时观看人数 + 时钟）。
+ * 控制器顶部信息（标题 + 同时观看人数 + 时钟 + 视听专属徽标）。
  *
+ * @param modifier 修饰符
+ * @param title 视频标题
+ * @param clock 时钟（hour, minute）
  * @param onlineWatching 同时观看人数文案（服务端预格式化，如 "9.4万+"），空串时不显示
+ * @param audio 当前音轨（用于显示杜比全景声 / Hi-Res 音质徽标，为 null 时不展示）
+ * @param resolution 当前画质（用于显示 8K / 4K / 杜比视界 / HDR 徽标，为 null 时不展示）
  */
 @Composable
 fun ControllerVideoInfoTop(

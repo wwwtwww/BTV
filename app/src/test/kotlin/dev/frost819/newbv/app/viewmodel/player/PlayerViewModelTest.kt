@@ -868,6 +868,51 @@ class PlayerViewModelTest {
             assertThat(viewModel.uiState.value.nextPlayCountdownSec).isEqualTo(0)
         }
 
+    @Test
+    fun `cancelled countdown does not overwrite uiState when cancelled`() =
+        runTest(testDispatcher) {
+            every { Prefs.actionAfterPlay } returns ActionAfterPlay.PlayRelated
+            every { videoInfoRepository.relatedVideos } returns
+                MutableStateFlow(
+                    listOf(
+                        RelatedVideo(
+                            aid = 999L,
+                            cid = 888L,
+                            cover = "",
+                            title = "Related Video",
+                            duration = 0,
+                            author = null,
+                            jumpToSeason = false,
+                            epid = null,
+                            view = 0,
+                            danmaku = 0,
+                        ),
+                    ),
+                )
+
+            viewModel.checkAndPlayNext()
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.showSkipToNextEp).isTrue()
+            assertThat(viewModel.uiState.value.nextPlayInfo).isNotNull()
+
+            // 外部操作取消倒计时并更新 UI 状态
+            viewModel.cancelPlayNext()
+
+            // 外部操作设置了新的状态，确认被取消的协程 finally 不会将其覆写清空
+            updateUiState {
+                it.copy(
+                    nextPlayInfo = NextPlayOverlayInfo(title = "Custom New Overlay"),
+                )
+            }
+
+            advanceUntilIdle()
+
+            // 验证 finally 块跳过了清理，没有覆写为 null
+            val nextPlayInfo = viewModel.uiState.value.nextPlayInfo
+            assertThat(nextPlayInfo?.title).isEqualTo("Custom New Overlay")
+        }
+
     // ── updateMediaProfile tests ──────────────────────────────
 
     @Test
