@@ -145,7 +145,8 @@ object NetworkUtil {
                 connection.instanceFollowRedirects = false
                 val code = connection.responseCode
                 val elapsed = System.currentTimeMillis() - start
-                if (code in 200..399 || code == 403 || code == 412) {
+                // 200-399 为正常/重定向，403/412 为 B 站安全拦截但网络可通，405 为部分 CDN 不支持 HEAD 方法但服务端连接完好
+                if (code in 200..399 || code == 403 || code == 405 || code == 412) {
                     elapsed
                 } else {
                     null

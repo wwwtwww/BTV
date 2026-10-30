@@ -1414,4 +1414,82 @@ class PlayerViewModelTest {
 
             assertThat(viewModel.uiState.value.playerState).isEqualTo(PlayerState.Playing)
         }
+
+    @Test
+    fun `buffering watchdog does not trigger error when state is Ended`() =
+        runTest(testDispatcher) {
+            every { Prefs.autoSelectCdn } returns false
+            val listener = getVideoPlayerListener()
+
+            updateUiState {
+                it.copy(
+                    playerState = PlayerState.Playing,
+                    isBuffering = false,
+                )
+            }
+
+            listener.onBuffering()
+            runCurrent()
+            assertThat(viewModel.uiState.value.isBuffering).isTrue()
+
+            updateUiState { it.copy(playerState = PlayerState.Ended) }
+
+            advanceTimeBy(18001)
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.playerState).isEqualTo(PlayerState.Ended)
+        }
+
+    @Test
+    fun `buffering watchdog dismisses and does not trigger error when player is actually playing`() =
+        runTest(testDispatcher) {
+            every { Prefs.autoSelectCdn } returns false
+            val listener = getVideoPlayerListener()
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.isPlaying } returns true
+
+            updateUiState {
+                it.copy(
+                    playerState = PlayerState.Playing,
+                    isBuffering = false,
+                )
+            }
+
+            listener.onBuffering()
+            runCurrent()
+
+            advanceTimeBy(18001)
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.playerState).isEqualTo(PlayerState.Playing)
+            assertThat(viewModel.uiState.value.isBuffering).isFalse()
+        }
+
+    @Test
+    fun `retryPlayback transitions to Error state when play url resolution throws exception`() =
+        runTest(testDispatcher) {
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.currentPosition } returns 30000L
+            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } throws
+                RuntimeException("CDN resolution failed")
+
+            updateUiState {
+                it.copy(
+                    aid = 100L,
+                    cid = 200L,
+                    mediaProfileState = MediaProfileState(qualityId = 80),
+                    availableQuality = mapOf(80 to "1080P", 64 to "720P"),
+                    playerState = PlayerState.Error(message = "Previous error"),
+                )
+            }
+
+            viewModel.retryPlayback(downgradeQuality = true)
+            runCurrent()
+
+            val state = viewModel.uiState.value.playerState
+            assertThat(state).isInstanceOf(PlayerState.Error::class.java)
+            val error = state as PlayerState.Error
+            assertThat(error.message).contains("CDN resolution failed")
+            assertThat(viewModel.uiState.value.isBuffering).isFalse()
+        }
 }

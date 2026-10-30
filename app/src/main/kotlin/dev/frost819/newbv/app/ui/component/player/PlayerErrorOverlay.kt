@@ -1,6 +1,5 @@
 package dev.frost819.newbv.app.ui.component.player
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SignalWifiOff
@@ -142,12 +140,9 @@ fun PlayerErrorOverlay(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 横向胶囊操作按钮行（支持横向滚动，首项自动获焦）
+                // 横向胶囊操作按钮行（居中排列，首项自动获焦）
                 Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -179,7 +174,7 @@ fun PlayerErrorOverlay(
 
                     if (onExit != null) {
                         ErrorActionPill(
-                            icon = Icons.Rounded.ArrowBack,
+                            icon = Icons.AutoMirrored.Rounded.ArrowBack,
                             text = "退出播放",
                             onClick = onExit,
                         )
