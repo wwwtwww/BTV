@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
-
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +41,7 @@ import dev.frost819.newbv.app.entity.player.shortcut.PlayerCustomShortcutCatalog
 import dev.frost819.newbv.app.entity.player.shortcut.PlayerCustomShortcutKeys
 import dev.frost819.newbv.app.entity.player.shortcut.PlayerCustomShortcutsStore
 import dev.frost819.newbv.app.ui.component.settings.SettingsMenuSelectItem
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 
@@ -255,7 +255,7 @@ private fun CaptureKeyStage(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        focusRequester.safeRequestFocus()
     }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {

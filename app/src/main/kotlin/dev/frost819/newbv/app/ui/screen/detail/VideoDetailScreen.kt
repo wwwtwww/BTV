@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.detail
-
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -101,6 +100,7 @@ import dev.frost819.newbv.biliapi.entity.video.VideoPage
 import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import java.text.SimpleDateFormat
@@ -196,7 +196,7 @@ private fun ErrorScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        focusRequester.safeRequestFocus()
     }
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -487,7 +487,7 @@ private fun FavoriteFolderDialog(
                 Modifier
                     .focusRequester(defaultFocusRequester)
                     .onGloballyPositioned {
-                        runCatching { defaultFocusRequester.requestFocus() }
+                        defaultFocusRequester.safeRequestFocus()
                     }.width(500.dp)
                     .clip(MaterialTheme.shapes.large)
                     .background(MaterialTheme.colorScheme.surface)
@@ -575,7 +575,7 @@ private fun VideoInfoHeader(
 
     LaunchedEffect(Unit) {
         if (focusSaver.let { it.savedKeyValue() }.isEmpty()) {
-            runCatching { coverFocusRequester.requestFocus() }
+            coverFocusRequester.safeRequestFocus()
         }
     }
 

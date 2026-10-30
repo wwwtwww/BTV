@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.search
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +36,7 @@ import androidx.tv.material3.Text
 import dev.frost819.newbv.biliapi.repositories.SearchFilterDuration
 import dev.frost819.newbv.biliapi.repositories.SearchFilterOrderType
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
@@ -102,7 +102,7 @@ fun SearchResultFilter(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         LaunchedEffect(Unit) {
-            runCatching { initialFocusRequester.requestFocus() }
+            initialFocusRequester.safeRequestFocus()
         }
 
         Box(

@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.main
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -36,6 +35,8 @@ import dev.frost819.newbv.app.ui.component.rememberFocusSaver
 import dev.frost819.newbv.app.ui.component.user.UserPanel
 import dev.frost819.newbv.app.ui.screen.home.HomeContent
 import dev.frost819.newbv.app.viewmodel.user.UserViewModel
+import dev.frost819.newbv.core.focus.dpadFocusFallback
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.LeftNaviItem
 import dev.frost819.newbv.data.datastore.Prefs
 
@@ -81,7 +82,7 @@ fun MainScreen(
     // 返回 true 表示已把焦点移入内容区入口；返回 false 时由左侧栏回退到
     // 焦点系统的默认右向搜索（内容区入口被懒列表回收时，见 issue #287）。
     val onFocusToContent: () -> Boolean = {
-        runCatching { homeFocusRequester.requestFocus() }.isSuccess
+        homeFocusRequester.safeRequestFocus()
     }
 
     LaunchedEffect(Unit) {
@@ -122,7 +123,7 @@ fun MainScreen(
             )
         },
     ) {
-        Box(modifier = Modifier) {
+        Box(modifier = Modifier.dpadFocusFallback(homeFocusRequester)) {
             AnimatedContent(
                 targetState = selectedDrawerItem,
                 label = "main-animated-content",
@@ -181,7 +182,7 @@ fun MainScreen(
             if (showUserPanel) {
                 val userPanelFocusRequester = remember { FocusRequester() }
                 LaunchedEffect(Unit) {
-                    runCatching { userPanelFocusRequester.requestFocus() }
+                    userPanelFocusRequester.safeRequestFocus()
                 }
                 BackHandler { showUserPanel = false }
                 Dialog(

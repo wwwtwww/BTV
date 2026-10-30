@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.settings
-
 import android.os.SystemClock
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -70,6 +69,7 @@ import dev.frost819.newbv.app.util.ReleaseNotesParser
 import dev.frost819.newbv.core.focus.isDpadDown
 import dev.frost819.newbv.core.focus.isDpadUp
 import dev.frost819.newbv.core.focus.isKeyDown
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.core.theme.BVShape
@@ -557,7 +557,7 @@ fun UpdateDialog(
     LaunchedEffect(show, updateStatus, mode) {
         if (show && updateStatus.shouldAutoFocusPrimaryButton()) {
             delay(60L)
-            runCatching { primaryButtonFocusRequester.requestFocus() }
+            primaryButtonFocusRequester.safeRequestFocus()
         }
     }
 
@@ -961,7 +961,7 @@ private fun ReleaseNotesScrollSection(
                                             }
                                         }
                                 } else {
-                                    runCatching { primaryButtonFocusRequester.requestFocus() }
+                                    primaryButtonFocusRequester.safeRequestFocus()
                                 }
                                 true
                             }
@@ -1097,7 +1097,7 @@ private fun UpdateDialogFooter(
         if (hasReleaseNotesBox) {
             Modifier.onPreviewKeyEvent { keyEvent ->
                 if (keyEvent.isKeyDown() && keyEvent.isDpadUp()) {
-                    runCatching { notesScrollFocusRequester.requestFocus() }
+                    notesScrollFocusRequester.safeRequestFocus()
                     true
                 } else {
                     false

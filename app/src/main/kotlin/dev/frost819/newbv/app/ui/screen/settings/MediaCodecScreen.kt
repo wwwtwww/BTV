@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.settings
-
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -47,6 +46,7 @@ import dev.frost819.newbv.app.util.CodecMedia
 import dev.frost819.newbv.app.util.CodecMode
 import dev.frost819.newbv.app.util.CodecType
 import dev.frost819.newbv.app.util.CodecUtil
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -125,13 +125,13 @@ private fun MediaCodecListItems(
 
     LaunchedEffect(isFocusing) {
         if (isFocusing) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 
     LaunchedEffect(codecInfoDataList) {
         if (codecInfoDataList.isNotEmpty()) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 

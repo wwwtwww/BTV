@@ -33,6 +33,7 @@ import dev.frost819.newbv.core.interaction.InputMethod
 import dev.frost819.newbv.core.interaction.LocalInteractionTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -132,13 +133,14 @@ fun FocusRequester.safeRequestFocus(): Boolean =
  * @param maxRetries 最大重试次数（默认 3 次）。
  * @param retryDelayMs 重试间隔毫秒数（默认 60ms）。
  * @param onSuccess 成功获取焦点后的回调。
+ * @return 负责执行重试的协程 [Job]，调用方可用于取消或追踪完成状态。
  */
 fun FocusRequester.safeRequestFocus(
     scope: CoroutineScope,
     maxRetries: Int = 3,
     retryDelayMs: Long = 60,
     onSuccess: (() -> Unit)? = null,
-) {
+): Job =
     scope.launch(Dispatchers.Main) {
         repeat(maxRetries) { attempt ->
             if (safeRequestFocus()) {
@@ -150,7 +152,6 @@ fun FocusRequester.safeRequestFocus(
             }
         }
     }
-}
 
 /**
  * 改进的请求焦点方法（兼容旧接口）。
@@ -158,17 +159,23 @@ fun FocusRequester.safeRequestFocus(
  * 首次请求失败后重试，内部代理至 [safeRequestFocus]。
  *
  * @param scope 协程作用域，在 Main 调度器执行。
+ * @return 负责执行重试的协程 [Job]。
  */
-fun FocusRequester.requestFocus(scope: CoroutineScope) {
+fun FocusRequester.requestFocus(scope: CoroutineScope): Job =
     safeRequestFocus(scope = scope, maxRetries = 2, retryDelayMs = 100)
-}
 
 /**
  * 电视端焦点丢失兜底修饰符。
  *
- * 当此容器及其子节点全部未获得焦点时（例如列表清空、重刷或异步切换发生焦点丢失），
+ * 当此容器及其子节点全部未获得焦点时（例如列表异步刷新重建、Tab/泳道切换、列表内容清空），
  * 用户按下遥控器任何 D-Pad 导航按键（上下左右或确认键）时，自动将焦点导向 [fallbackRequester]，
- * 避免电视端"光标消失、无响应假死"的严重体验缺陷。
+ * 避免电视大屏出现"光标消失、遥控器按键无响应假死"的严重体验缺陷。
+ *
+ * 典型应用场景：
+ * 1. 首页/分栏根容器：当列表数据重新加载或由分页滑动导致焦点游离时，用户按键自动兜底恢复到导航栏或置顶分类。
+ * 2. 播放器控制器（OSD）与选集抽屉：当抽屉切换或控制层浮现但子项未及时获焦时，兜底回主控制按钮。
+ * 3. 对话框（如更新弹窗、评论列表）：当点击空白区或过渡期间失去焦点时，兜底到确定/取消按钮。
+ * 4. 历史记录/收藏夹/稍后再看等列表页：当用户清空最后一条数据后，兜底至顶部筛选器或返回按钮。
  *
  * @param fallbackRequester 兜底获焦节点。
  * @param enabled 是否启用兜底（默认 true）。

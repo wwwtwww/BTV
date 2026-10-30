@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player.menu
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +14,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import dev.frost819.newbv.app.ui.component.player.ifElse
 import dev.frost819.newbv.app.ui.component.player.menu.component.MenuListItem
+import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
  * 菜单导航列表（右侧）。
@@ -45,7 +45,7 @@ fun <T> MenuNavList(
     val restorerFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        focusRequester.safeRequestFocus()
     }
 
     LazyColumn(

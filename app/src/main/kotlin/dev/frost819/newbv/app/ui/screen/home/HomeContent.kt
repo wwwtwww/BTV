@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.home
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,6 +28,7 @@ import dev.frost819.newbv.app.viewmodel.common.CollectWatchLaterEffects
 import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.home.HomeViewModel
 import dev.frost819.newbv.core.focus.isMenuKey
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.Prefs
 
@@ -88,7 +88,7 @@ fun HomeContent(
                 .onPreviewKeyEvent { event ->
                     if (event.isMenuKey() && event.type == KeyEventType.KeyUp && chipsHasFocus) {
                         refreshCurrentTab(selectedTab)
-                        runCatching { navFocusRequester.requestFocus() }
+                        navFocusRequester.safeRequestFocus()
                         return@onPreviewKeyEvent true
                     }
                     false

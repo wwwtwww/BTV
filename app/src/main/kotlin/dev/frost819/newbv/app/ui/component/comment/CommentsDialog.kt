@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.comment
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -75,6 +74,7 @@ import dev.frost819.newbv.core.focus.isDpadDown
 import dev.frost819.newbv.core.focus.isDpadLeft
 import dev.frost819.newbv.core.focus.isDpadRight
 import dev.frost819.newbv.core.focus.isDpadUp
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
@@ -204,7 +204,7 @@ fun CommentsDialog(
         val focusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) {
             delay(50)
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
 
         Box(
@@ -339,7 +339,7 @@ private fun CommentsContent(
             state.error && state.comments.isEmpty() -> {
                 val retryFocusRequester = remember { FocusRequester() }
                 LaunchedEffect(Unit) {
-                    runCatching { retryFocusRequester.requestFocus() }
+                    retryFocusRequester.safeRequestFocus()
                 }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -718,7 +718,7 @@ private fun CommentImageOverlay(
         BackHandler(onBack = onDismiss)
 
         LaunchedEffect(Unit) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
 
         Box(

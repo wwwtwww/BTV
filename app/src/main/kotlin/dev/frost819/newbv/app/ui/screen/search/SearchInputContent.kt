@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.search
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -117,6 +116,7 @@ import dev.frost819.newbv.biliapi.repositories.SearchType
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.isKeyUp
 import dev.frost819.newbv.core.focus.isMenuKey
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
@@ -241,8 +241,9 @@ fun SearchInputContent(
         enabled = focusInRightPane || (!isStandaloneRoute && inputState.keyword.isNotEmpty()),
     ) {
         if (focusInRightPane) {
-            runCatching { lastLeftFocusRequester.requestFocus() }
-                .onFailure { runCatching { focusRequester.requestFocus() } }
+            if (!lastLeftFocusRequester.safeRequestFocus()) {
+                focusRequester.safeRequestFocus()
+            }
         } else if (inputState.keyword.isNotEmpty()) {
             inputViewModel.updateKeyword("")
         }

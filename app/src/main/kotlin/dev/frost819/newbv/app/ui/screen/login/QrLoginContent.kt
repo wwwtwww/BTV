@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.login
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,6 +34,7 @@ import dev.frost819.newbv.R
 import dev.frost819.newbv.app.viewmodel.login.LoginViewModel
 import dev.frost819.newbv.biliapi.entity.login.QrLoginState
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import io.github.g0dkar.qrcode.QRCode
 
@@ -125,7 +125,7 @@ fun QrLoginContent(
                     ) {
                         val retryFocusRequester = remember { FocusRequester() }
                         LaunchedEffect(Unit) {
-                            runCatching { retryFocusRequester.requestFocus() }
+                            retryFocusRequester.safeRequestFocus()
                         }
                         Surface(
                             modifier =

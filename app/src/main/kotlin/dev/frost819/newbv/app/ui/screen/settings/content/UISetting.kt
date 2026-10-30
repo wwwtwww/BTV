@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
-
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +40,7 @@ import dev.frost819.newbv.app.ui.component.settings.SettingSwitchListItem
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.screen.main.displayName
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.HomeHeroMode
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.LeftNaviItem
@@ -259,7 +259,7 @@ private fun UIDensityDialog(
 
     LaunchedEffect(show) {
         if (show) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 

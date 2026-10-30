@@ -48,16 +48,32 @@ class FocusExtTest {
             val requester = FocusRequester()
             var successCallbackInvoked = false
 
-            requester.safeRequestFocus(
-                scope = this,
-                maxRetries = 3,
-                retryDelayMs = 50,
-                onSuccess = { successCallbackInvoked = true },
-            )
+            val job =
+                requester.safeRequestFocus(
+                    scope = this,
+                    maxRetries = 3,
+                    retryDelayMs = 50,
+                    onSuccess = { successCallbackInvoked = true },
+                )
 
+            // 第 1 次尝试执行失败，进入第 1 次重试延迟（50ms）
             runCurrent()
-            advanceTimeBy(200)
+            assertThat(job.isActive).isTrue()
+
+            // 时间前进 40ms（尚未达到第 1 次重试间隔 50ms），job 仍处于活跃等待中
+            advanceTimeBy(40)
             runCurrent()
+            assertThat(job.isActive).isTrue()
+
+            // 时间再前进 20ms（共 60ms，超过第 1 次重试，正在进行第 2 次重试延迟）
+            advanceTimeBy(20)
+            runCurrent()
+            assertThat(job.isActive).isTrue()
+
+            // 时间再前进 50ms（共 110ms，达到 (maxRetries - 1) * retryDelayMs = 100ms），第 3 次重试失败并退出协程
+            advanceTimeBy(50)
+            runCurrent()
+            assertThat(job.isCompleted).isTrue()
 
             // 因 requester 从未被绑定，所有 3 次重试失败后退出，不崩溃，回调未被触发
             assertThat(successCallbackInvoked).isFalse()

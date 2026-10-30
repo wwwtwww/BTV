@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player.menu
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
@@ -38,6 +37,7 @@ import dev.frost819.newbv.biliapi.entity.video.Subtitle
 import dev.frost819.newbv.biliapi.entity.video.SubtitleAiStatus
 import dev.frost819.newbv.biliapi.entity.video.SubtitleAiType
 import dev.frost819.newbv.biliapi.entity.video.SubtitleType
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.Audio
 import dev.frost819.newbv.data.datastore.DanmakuType
 import dev.frost819.newbv.data.datastore.VideoCodec
@@ -93,7 +93,7 @@ fun MenuController(
 
     LaunchedEffect(show) {
         if (show) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 

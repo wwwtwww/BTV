@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.settings
-
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -42,6 +41,7 @@ import androidx.tv.material3.ListItem
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.viewmodel.settings.LogViewerViewModel
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import io.github.g0dkar.qrcode.QRCode
 import java.io.ByteArrayInputStream
@@ -74,7 +74,7 @@ fun LogViewerScreen(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        focusRequester.safeRequestFocus()
     }
 
     LaunchedEffect(selectedFile, isCreateFocused, uiState.serverAddress) {

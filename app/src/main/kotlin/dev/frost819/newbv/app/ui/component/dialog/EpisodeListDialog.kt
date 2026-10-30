@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.dialog
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +40,7 @@ import androidx.tv.material3.TabRow
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.ui.component.TvLazyVerticalGrid
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 
 /**
@@ -180,7 +180,7 @@ fun <T> EpisodeListDialog(
     val tabFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        runCatching { dialogFocusRequester.requestFocus() }
+        dialogFocusRequester.safeRequestFocus()
     }
 
     Dialog(

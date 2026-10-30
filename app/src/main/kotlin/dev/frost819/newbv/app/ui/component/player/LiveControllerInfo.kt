@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -47,6 +46,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import kotlinx.coroutines.delay
 
@@ -224,7 +224,7 @@ private fun LiveControllerInfoBottom(
 
     LaunchedEffect(Unit) {
         delay(50)
-        runCatching { buttonsFocusRequester.requestFocus() }
+        buttonsFocusRequester.safeRequestFocus()
     }
 
     Column(

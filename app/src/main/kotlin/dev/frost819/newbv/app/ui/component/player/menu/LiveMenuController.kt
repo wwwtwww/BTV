@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player.menu
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
@@ -37,6 +36,7 @@ import dev.frost819.newbv.app.viewmodel.player.LocalMenuFocusStateData
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusStateData
 import dev.frost819.newbv.biliapi.repositories.LivePlayLine
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.danmaku.config.DanmakuState
 import dev.frost819.newbv.data.datastore.DanmakuType
 
@@ -87,7 +87,7 @@ fun LiveMenuController(
 
     LaunchedEffect(show) {
         if (show) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 

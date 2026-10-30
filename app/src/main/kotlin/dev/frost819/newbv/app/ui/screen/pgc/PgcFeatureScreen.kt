@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.pgc
-
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +75,7 @@ import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
 import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 
@@ -278,7 +278,7 @@ private fun SeasonInfoHeader(
 
     LaunchedEffect(Unit) {
         if (focusSaver.savedKeyValue().isEmpty()) {
-            runCatching { coverFocusRequester.requestFocus() }
+            coverFocusRequester.safeRequestFocus()
         }
     }
 
@@ -726,7 +726,7 @@ private fun SeasonErrorScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        focusRequester.safeRequestFocus()
     }
     Box(
         modifier = Modifier.fillMaxSize(),

@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.settings
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +41,7 @@ import dev.frost819.newbv.app.ui.screen.settings.content.InfoSetting
 import dev.frost819.newbv.app.ui.screen.settings.content.OtherSetting
 import dev.frost819.newbv.app.ui.screen.settings.content.StorageSetting
 import dev.frost819.newbv.app.ui.screen.settings.content.UISetting
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 
@@ -134,13 +134,13 @@ private fun SettingsNav(
 
     LaunchedEffect(isFocusing) {
         if (isFocusing) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 
     LaunchedEffect(Unit) {
         if (screenFocusSaver.savedKeyValue().isEmpty()) {
-            runCatching { focusRequester.requestFocus() }
+            focusRequester.safeRequestFocus()
         }
     }
 
