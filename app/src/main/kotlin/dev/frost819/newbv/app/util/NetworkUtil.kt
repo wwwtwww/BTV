@@ -134,17 +134,17 @@ object NetworkUtil {
         timeoutMs: Int = 3000,
     ): Long? =
         withContext(Dispatchers.IO) {
+            var connection: HttpURLConnection? = null
             try {
                 val start = System.currentTimeMillis()
                 val url = URL(targetUrl)
-                val connection = url.openConnection() as HttpURLConnection
+                connection = (url.openConnection() as? HttpURLConnection) ?: return@withContext null
                 connection.requestMethod = "HEAD"
                 connection.connectTimeout = timeoutMs
                 connection.readTimeout = timeoutMs
                 connection.instanceFollowRedirects = false
                 val code = connection.responseCode
                 val elapsed = System.currentTimeMillis() - start
-                connection.disconnect()
                 if (code in 200..399 || code == 403 || code == 412) {
                     elapsed
                 } else {
@@ -152,6 +152,11 @@ object NetworkUtil {
                 }
             } catch (_: Exception) {
                 null
+            } finally {
+                try {
+                    connection?.disconnect()
+                } catch (_: Exception) {
+                }
             }
         }
 
