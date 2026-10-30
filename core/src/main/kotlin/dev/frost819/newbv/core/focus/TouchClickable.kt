@@ -50,13 +50,13 @@ fun Modifier.touchClickable(
             .pointerInput(hasLongClick) {
                 detectTapGestures(
                     onTap = {
-                        runCatching { focusRequester.requestFocus() }
+                        focusRequester.safeRequestFocus()
                         currentOnClick()
                     },
                     onLongPress =
                         if (hasLongClick) {
                             {
-                                runCatching { focusRequester.requestFocus() }
+                                focusRequester.safeRequestFocus()
                                 currentOnLongClick?.invoke()
                             }
                         } else {

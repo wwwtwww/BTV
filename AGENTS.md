@@ -1041,7 +1041,7 @@ AnimatedVisibility(visible = showPanel) {
 ```kotlin
 val focusRequester = remember { FocusRequester() }
 LaunchedEffect(Unit) {
-    runCatching { focusRequester.requestFocus() }
+    focusRequester.safeRequestFocus()
 }
 BackHandler { visible = false }  // 同时处理返回键
 ```
@@ -1584,7 +1584,7 @@ fun Modifier.touchClickable(
         .pointerInput(hasLongClick) {
             detectTapGestures(
                 onTap = {
-                    runCatching { focusRequester.requestFocus() }
+                    focusRequester.safeRequestFocus()
                     currentOnClick()
                 },
                 onLongPress = if (hasLongClick) { { ... } } else { null },
