@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.settings
+
 import android.os.SystemClock
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke

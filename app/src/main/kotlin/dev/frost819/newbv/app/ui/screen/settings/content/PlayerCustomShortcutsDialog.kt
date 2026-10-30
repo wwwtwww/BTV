@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
+
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

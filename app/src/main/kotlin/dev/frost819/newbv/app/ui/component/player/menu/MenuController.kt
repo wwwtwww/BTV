@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.player.menu
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally

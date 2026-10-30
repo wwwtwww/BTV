@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.player
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically

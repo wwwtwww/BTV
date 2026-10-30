@@ -2,6 +2,8 @@ package dev.frost819.newbv.core.focus
 
 import androidx.compose.ui.focus.FocusRequester
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -77,5 +79,64 @@ class FocusExtTest {
 
             // 因 requester 从未被绑定，所有 3 次重试失败后退出，不崩溃，回调未被触发
             assertThat(successCallbackInvoked).isFalse()
+        }
+
+    @Test
+    fun `async safeRequestFocus triggers onSuccess and completes immediately on success`() =
+        runTest(testDispatcher) {
+            val requester = mockk<FocusRequester>()
+            every { requester.requestFocus() } returns true
+
+            var successCallbackInvoked = false
+            val job =
+                requester.safeRequestFocus(
+                    scope = this,
+                    maxRetries = 3,
+                    retryDelayMs = 50,
+                    onSuccess = { successCallbackInvoked = true },
+                )
+
+            runCurrent()
+
+            // 首次尝试成功，立即触发 onSuccess 回调
+            assertThat(successCallbackInvoked).isTrue()
+            // 协程已立即完成，无需等待后续 retryDelayMs
+            assertThat(job.isCompleted).isTrue()
+        }
+
+    @Test
+    fun `async safeRequestFocus retries on failure and completes when subsequent attempt succeeds`() =
+        runTest(testDispatcher) {
+            val requester = mockk<FocusRequester>()
+            var callCount = 0
+            every { requester.requestFocus() } answers {
+                callCount++
+                if (callCount == 1) {
+                    throw IllegalStateException("FocusRequester is not initialized")
+                }
+                // 第 2 次尝试成功
+                true
+            }
+
+            var successCallbackInvoked = false
+            val job =
+                requester.safeRequestFocus(
+                    scope = this,
+                    maxRetries = 3,
+                    retryDelayMs = 50,
+                    onSuccess = { successCallbackInvoked = true },
+                )
+
+            // 第 1 次失败，进入重试延迟
+            runCurrent()
+            assertThat(successCallbackInvoked).isFalse()
+            assertThat(job.isActive).isTrue()
+
+            // 时间前进 50ms，触发第 2 次尝试并成功
+            advanceTimeBy(50)
+            runCurrent()
+            assertThat(successCallbackInvoked).isTrue()
+            assertThat(job.isCompleted).isTrue()
+            assertThat(callCount).isEqualTo(2)
         }
 }

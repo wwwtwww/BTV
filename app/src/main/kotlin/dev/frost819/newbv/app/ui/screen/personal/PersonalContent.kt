@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.personal
+
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn

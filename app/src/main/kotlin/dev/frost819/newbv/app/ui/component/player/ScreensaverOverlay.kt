@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.player
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.tween

@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.detail
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

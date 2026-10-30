@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.dialog
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

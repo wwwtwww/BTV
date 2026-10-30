@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.main
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn

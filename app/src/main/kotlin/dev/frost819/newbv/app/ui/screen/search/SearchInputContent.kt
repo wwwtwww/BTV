@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.search
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.component.videocard
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement

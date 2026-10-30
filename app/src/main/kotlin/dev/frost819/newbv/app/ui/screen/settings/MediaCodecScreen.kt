@@ -1,4 +1,5 @@
 package dev.frost819.newbv.app.ui.screen.settings
+
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background

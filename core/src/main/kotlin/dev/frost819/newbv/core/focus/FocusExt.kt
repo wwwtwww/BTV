@@ -133,7 +133,14 @@ fun FocusRequester.safeRequestFocus(): Boolean =
  * @param maxRetries 最大重试次数（默认 3 次）。
  * @param retryDelayMs 重试间隔毫秒数（默认 60ms）。
  * @param onSuccess 成功获取焦点后的回调。
- * @return 负责执行重试的协程 [Job]，调用方可用于取消或追踪完成状态。
+ *
+ * 示例：
+ * `kotlin
+ * // 启动异步重试并在生命周期销毁或导航离开时提前取消
+ * val focusJob = requester.safeRequestFocus(scope) { showFocusedHighlight() }
+ * onDispose { focusJob.cancel() }
+ * `
+ * @return 负责执行重试的协程 [Job]，调用方可用于取消未完成的重试循环或追踪就绪状态。
  */
 fun FocusRequester.safeRequestFocus(
     scope: CoroutineScope,
