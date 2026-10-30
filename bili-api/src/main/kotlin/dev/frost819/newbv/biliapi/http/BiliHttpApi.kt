@@ -609,6 +609,29 @@ object BiliHttpApi {
             }.body()
 
     /**
+     * 删除单条历史记录
+     *
+     * @param kid 条目标识，格式如 "archive_{aid}" 或 "pgc_{epid}"
+     * @param csrf CSRF Token (bili_jct)
+     */
+    suspend fun deleteHistory(
+        kid: String,
+        csrf: String,
+    ): BiliResponse<Unit> =
+        client
+            .post("/x/v2/history/delete") {
+                setBody(
+                    FormDataContent(
+                        Parameters.build {
+                            append("kid", kid)
+                            append("csrf", csrf)
+                        },
+                    ),
+                )
+                header("referer", "https://www.bilibili.com")
+            }.body()
+
+    /**
      * 获取稍后再看列表
      */
 

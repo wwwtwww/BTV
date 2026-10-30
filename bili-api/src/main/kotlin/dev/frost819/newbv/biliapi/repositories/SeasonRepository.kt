@@ -89,4 +89,34 @@ class SeasonRepository(
                     .map { Timeline.fromTimeline(it) }
             }
         }
+
+    /**
+     * 取消剧集追番/追剧。
+     *
+     * @param seasonId 剧集 Season ID
+     */
+    suspend fun delSeasonFollow(
+        seasonId: Int,
+        preferApiType: ApiType,
+    ) {
+        when (preferApiType) {
+            ApiType.Web -> {
+                val csrf = authRepository.biliJct?.takeIf { it.isNotBlank() }
+                    ?: throw IllegalStateException("bili_jct is empty")
+                BiliHttpApi.delSeasonFollow(
+                    seasonId = seasonId,
+                    csrf = csrf,
+                ).getResponseData()
+            }
+
+            ApiType.App -> {
+                val accessKey = authRepository.accessToken?.takeIf { it.isNotBlank() }
+                    ?: throw IllegalStateException("access_token is empty")
+                BiliHttpApi.delSeasonFollowApp(
+                    seasonId = seasonId,
+                    accessKey = accessKey,
+                ).getResponseData()
+            }
+        }
+    }
 }

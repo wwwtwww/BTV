@@ -143,6 +143,7 @@ fun HistoryScreen(
                         { navController.navigate(UserSpaceRoute(mid = mid, name = item.author)) }
                     },
                 onAddWatchLater = { watchLaterViewModel.addToView(aid = item.oid) },
+                onDeleteHistory = { viewModel.deleteHistoryItem(item) },
             )
         }
 

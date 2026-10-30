@@ -297,4 +297,10 @@ tasks.withType<Test> {
     maxHeapSize = "2048m"
     forkEvery = 50L
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+    jvmArgs(
+        "-XX:+EnableDynamicAgentLoading",
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+        "--add-opens=java.base/java.util=ALL-UNNAMED",
+    )
 }

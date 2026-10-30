@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
@@ -28,6 +29,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,8 @@ import dev.frost819.newbv.core.theme.BVTypography
  * @param onGoToDetailPage 详情页回调（null 时不显示按钮）。
  * @param onGoToUpPage UP 主页回调（null 时不显示按钮）。
  * @param onRemoveWatchLater 移除稍后再看回调（null 时不显示按钮）。
+ * @param onDeleteHistory 删除历史记录回调（null 时不显示按钮）。
+ * @param onRemoveFavorite 取消收藏回调（null 时不显示按钮）。
  */
 @Composable
 fun SmallVideoCard(
@@ -66,14 +70,19 @@ fun SmallVideoCard(
     onGoToDetailPage: (() -> Unit)? = null,
     onGoToUpPage: (() -> Unit)? = null,
     onRemoveWatchLater: (() -> Unit)? = null,
+    onDeleteHistory: (() -> Unit)? = null,
+    onRemoveFavorite: (() -> Unit)? = null,
 ) {
     var showActions by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
 
     val hasAnyAction =
         onAddWatchLater != null ||
             onGoToDetailPage != null ||
             onGoToUpPage != null ||
-            onRemoveWatchLater != null
+            onRemoveWatchLater != null ||
+            onDeleteHistory != null ||
+            onRemoveFavorite != null
 
     // Back 键由 VideoCardActionDialog（独立 Dialog 窗口）的 onDismissRequest 处理，
     // 此处无需也不应再注册 BackHandler。
@@ -88,6 +97,7 @@ fun SmallVideoCard(
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(1.6f)
+                    .onFocusChanged { isFocused = it.isFocused }
                     .onPreviewKeyEvent { event ->
                         if (event.isMenuKey() && event.type == KeyEventType.KeyUp) {
                             if (hasAnyAction) {
@@ -104,22 +114,46 @@ fun SmallVideoCard(
             scale = TvFocusDefaults.cardScale(),
             border = TvFocusDefaults.cardBorder(),
         ) {
-            CardCover(
-                cover = data.cover,
-                play = data.playString,
-                danmaku = data.danmakuString,
-                time = data.timeString,
-                progress = data.progress,
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                CardCover(
+                    cover = data.cover,
+                    play = data.playString,
+                    danmaku = data.danmakuString,
+                    time = data.timeString,
+                    progress = data.progress,
+                )
+                if (isFocused && hasAnyAction) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .clip(BVShape.pill)
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            text = "菜单 更多",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
         }
 
         if (showActions && hasAnyAction) {
             VideoCardActionDialog(
                 title = data.title,
                 upName = data.upName,
+                cover = data.cover,
+                timeString = data.timeString,
                 onDismiss = { showActions = false },
-                onAddWatchLater = onAddWatchLater,
                 onRemoveWatchLater = onRemoveWatchLater,
+                onDeleteHistory = onDeleteHistory,
+                onRemoveFavorite = onRemoveFavorite,
+                onAddWatchLater = onAddWatchLater,
                 onGoToDetailPage = onGoToDetailPage,
                 onGoToUpPage = onGoToUpPage,
             )

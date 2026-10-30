@@ -45,4 +45,18 @@ class HistoryRepository(
                 HistoryData.fromHistoryResponse(reply!!)
             }
         }
+
+    /**
+     * 删除单条历史记录。
+     *
+     * @param kid 条目标识（如 "archive_12345" 或 "pgc_67890"）
+     */
+    suspend fun deleteHistory(kid: String) {
+        val csrf = authRepository.biliJct?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("bili_jct is empty")
+        BiliHttpApi.deleteHistory(
+            kid = kid,
+            csrf = csrf,
+        ).getResponseData()
+    }
 }

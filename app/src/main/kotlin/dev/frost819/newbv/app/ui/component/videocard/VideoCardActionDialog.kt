@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -18,7 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,32 +34,47 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
+import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
+import coil3.compose.AsyncImage
 import dev.frost819.newbv.R
+import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 
 /**
- * 视频卡片上下文快捷菜单浮层（对标 YouTube TV 菜单弹窗）。
+ * 视频与剧集卡片上下文快捷操作浮层（对标 YouTube TV 底部半屏 ActionSheet）。
  *
- * 通过遥控器「Menu / 菜单键」或长按触发，在屏幕中央浮动展示操作项，
- * 避免粗暴替换卡片封面，提供更平滑的高清客厅大屏体验。
+ * 通过遥控器【菜单】键或长按卡片触发，在屏幕底部呈现悬浮抽屉面板，
+ * 包含视频缩略图、元信息与横向排布的胶囊操作按钮。
+ * 首选焦点直接定位至首个管理操作（如移出/删除），便于遥控器一键高频流转。
  *
- * @param title 视频标题。
- * @param upName UP 主名称。
+ * @param title 视频或剧集标题。
+ * @param upName UP 主名称或副标题信息。
+ * @param cover 封面图片 URL。
+ * @param timeString 时长或播放进度文本。
  * @param onDismiss 关闭弹窗回调。
- * @param onAddWatchLater 添加到稍后再看。
  * @param onRemoveWatchLater 移出稍后再看。
+ * @param onDeleteHistory 从历史记录中删除。
+ * @param onRemoveFavorite 从当前收藏夹中取消收藏。
+ * @param onCancelFollowingSeason 取消追番或追剧。
+ * @param onAddWatchLater 添加到稍后再看。
  * @param onGoToDetailPage 查看详情页。
- * @param onGoToUpPage 查看 UP 主主页。
+ * @param onGoToUpPage 查看 UP 主空间。
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun VideoCardActionDialog(
     title: String,
     upName: String = "",
+    cover: String = "",
+    timeString: String = "",
     onDismiss: () -> Unit,
-    onAddWatchLater: (() -> Unit)? = null,
     onRemoveWatchLater: (() -> Unit)? = null,
+    onDeleteHistory: (() -> Unit)? = null,
+    onRemoveFavorite: (() -> Unit)? = null,
+    onCancelFollowingSeason: (() -> Unit)? = null,
+    onAddWatchLater: (() -> Unit)? = null,
     onGoToDetailPage: (() -> Unit)? = null,
     onGoToUpPage: (() -> Unit)? = null,
 ) {
@@ -72,94 +91,218 @@ fun VideoCardActionDialog(
         Box(
             modifier =
                 Modifier
-                    .width(420.dp)
-                    .clip(BVShape.large)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(20.dp),
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .touchClickable(onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Surface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .touchClickable(onClick = {}),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                colors =
+                    SurfaceDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                    ),
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 48.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    // 顶部：封面 + 标题 + UP 主 / 进度信息
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        if (cover.isNotBlank()) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .width(160.dp)
+                                        .aspectRatio(1.6f)
+                                        .clip(BVShape.medium),
+                            ) {
+                                AsyncImage(
+                                    model = cover,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        }
 
-                val actions =
-                    buildList {
-                        onRemoveWatchLater?.let { action ->
-                            add(
-                                DialogAction(
-                                    iconRes = R.drawable.remove_from_list,
-                                    text = "从稍后再看中移除",
-                                    onClick = {
-                                        action()
-                                        onDismiss()
-                                    },
-                                ),
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = FontWeight.Bold,
                             )
-                        }
-                        onAddWatchLater?.let { action ->
-                            add(
-                                DialogAction(
-                                    iconRes = R.drawable.add_to_list,
-                                    text = "添加到稍后再看",
-                                    onClick = {
-                                        action()
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        onGoToUpPage?.let { action ->
-                            val label = if (upName.isNotBlank()) "查看 UP 主主页 ($upName)" else "查看 UP 主主页"
-                            add(
-                                DialogAction(
-                                    iconRes = R.drawable.contact_page_24px,
-                                    text = label,
-                                    onClick = {
-                                        action()
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        onGoToDetailPage?.let { action ->
-                            add(
-                                DialogAction(
-                                    iconRes = R.drawable.info_24px,
-                                    text = "查看视频详情",
-                                    onClick = {
-                                        action()
-                                        onDismiss()
-                                    },
-                                ),
-                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                if (upName.isNotBlank()) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_up),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Text(
+                                            text = upName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+
+                                if (timeString.isNotBlank()) {
+                                    Text(
+                                        text = timeString,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                        maxLines = 1,
+                                    )
+                                }
+                            }
                         }
                     }
 
-                actions.forEachIndexed { index, dialogAction ->
-                    ActionDialogItem(
-                        icon = painterResource(id = dialogAction.iconRes),
-                        text = dialogAction.text,
-                        focusRequester = if (index == 0) firstFocusRequester else null,
-                        onClick = dialogAction.onClick,
-                    )
+                    // 动作项列表构建
+                    val actions =
+                        buildList {
+                            onRemoveWatchLater?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.remove_from_list,
+                                        text = "移出稍后再看",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onDeleteHistory?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.remove_from_list,
+                                        text = "从历史中删除",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onRemoveFavorite?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.remove_from_list,
+                                        text = "取消收藏",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onCancelFollowingSeason?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.remove_from_list,
+                                        text = "取消追番",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onAddWatchLater?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.add_to_list,
+                                        text = "稍后再看",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onGoToDetailPage?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.info_24px,
+                                        text = "查看详情",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                            onGoToUpPage?.let { action ->
+                                add(
+                                    DialogAction(
+                                        iconRes = R.drawable.contact_page_24px,
+                                        text = "UP 主空间",
+                                        onClick = {
+                                            action()
+                                            onDismiss()
+                                        },
+                                    ),
+                                )
+                            }
+                        }
+
+                    // 底部：横向胶囊操作按钮
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        actions.forEachIndexed { index, dialogAction ->
+                            ActionPillItem(
+                                icon = painterResource(id = dialogAction.iconRes),
+                                text = dialogAction.text,
+                                focusRequester = if (index == 0) firstFocusRequester else null,
+                                onClick = dialogAction.onClick,
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * 底部操作栏胶囊按钮。
+ */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun ActionDialogItem(
+private fun ActionPillItem(
     icon: Painter,
     text: String,
     focusRequester: FocusRequester? = null,
@@ -169,9 +312,9 @@ private fun ActionDialogItem(
         onClick = onClick,
         modifier =
             Modifier
-                .fillMaxWidth()
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.medium),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        scale = TvFocusDefaults.surfaceScale(),
         colors =
             ClickableSurfaceDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -182,21 +325,20 @@ private fun ActionDialogItem(
         Row(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(modifier = Modifier.width(14.dp))
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

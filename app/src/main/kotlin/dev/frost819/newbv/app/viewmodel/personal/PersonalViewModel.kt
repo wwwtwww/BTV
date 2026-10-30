@@ -4,6 +4,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.frost819.newbv.app.data.VideoInfoRepository
+import dev.frost819.newbv.app.entity.player.VideoListItem
+import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.biliapi.entity.FavoriteFolderData
 import dev.frost819.newbv.biliapi.entity.FavoriteFolderMetadata
 import dev.frost819.newbv.biliapi.entity.FavoriteItem
@@ -11,6 +14,7 @@ import dev.frost819.newbv.biliapi.entity.season.FollowingSeason
 import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonStatus
 import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonType
 import dev.frost819.newbv.biliapi.entity.user.HistoryItem
+import dev.frost819.newbv.biliapi.entity.user.HistoryItemType
 import dev.frost819.newbv.biliapi.entity.user.ToViewItem
 import dev.frost819.newbv.biliapi.repositories.FavoriteRepository
 import dev.frost819.newbv.biliapi.repositories.HistoryRepository
@@ -108,6 +112,7 @@ class PersonalViewModel
         private val historyRepository: HistoryRepository,
         private val favoriteRepository: FavoriteRepository,
         private val seasonRepository: SeasonRepository,
+        private val videoInfoRepository: VideoInfoRepository,
     ) : ViewModel() {
         private val logger = Loggers.get("PersonalViewModel")
 
@@ -475,6 +480,193 @@ class PersonalViewModel
         }
 
         // endregion
+
+        /**
+         * 删除单条历史记录。
+         *
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         *
+         * @param item 待删除的历史记录条目
+         */
+        fun deleteHistoryItem(item: HistoryItem) {
+            val previousList = _uiState.value.historyItems
+            _uiState.update { state ->
+                state.copy(
+                    historyItems = state.historyItems.filterNot { it.oid == item.oid && it.type == item.type },
+                )
+            }
+            viewModelScope.launch {
+                runCatching {
+                    val business =
+                        when (item.type) {
+                            HistoryItemType.Pgc -> "pgc"
+                            else -> "archive"
+                        }
+                    val kid = "${business}_${item.oid}"
+                    historyRepository.deleteHistory(kid)
+                    _effect.emit(PersonalUiEffect.ShowToast("已删除历史记录"))
+                }.onFailure { error ->
+                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                        throw error
+                    }
+                    logger.error(error) { "Failed to delete history item: oid=${item.oid}" }
+                    _uiState.update { it.copy(historyItems = previousList) }
+                    val msg = error.message ?: "未知错误"
+                    _effect.emit(PersonalUiEffect.ShowToast("删除失败: $msg"))
+                }
+            }
+        }
+
+        /**
+         * 从当前收藏夹中移除视频。
+         *
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         *
+         * @param aid 视频 AV 号
+         * @param folderId 收藏夹 ID
+         */
+        fun delFavoriteItem(
+            aid: Long,
+            folderId: Long,
+        ) {
+            val previousList = _uiState.value.favoriteItems
+            _uiState.update { state ->
+                state.copy(
+                    favoriteItems = state.favoriteItems.filterNot { it.id == aid },
+                )
+            }
+            viewModelScope.launch {
+                runCatching {
+                    favoriteRepository.delVideoFromFavoriteFolder(
+                        aid = aid,
+                        delMediaIds = listOf(folderId),
+                        preferApiType = prefApiType(),
+                    )
+                    _effect.emit(PersonalUiEffect.ShowToast("已取消收藏"))
+                }.onFailure { error ->
+                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                        throw error
+                    }
+                    logger.error(error) { "Failed to remove favorite item: aid=$aid, folderId=$folderId" }
+                    _uiState.update { it.copy(favoriteItems = previousList) }
+                    val msg = error.message ?: "未知错误"
+                    _effect.emit(PersonalUiEffect.ShowToast("取消收藏失败: $msg"))
+                }
+            }
+        }
+
+        /**
+         * 取消追番或追剧。
+         *
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         *
+         * @param seasonId 剧集 Season ID
+         */
+        fun cancelFollowingSeason(seasonId: Int) {
+            val previousList = _uiState.value.followingSeasons
+            _uiState.update { state ->
+                state.copy(
+                    followingSeasons = state.followingSeasons.filterNot { it.seasonId == seasonId },
+                )
+            }
+            viewModelScope.launch {
+                runCatching {
+                    seasonRepository.delSeasonFollow(
+                        seasonId = seasonId,
+                        preferApiType = prefApiType(),
+                    )
+                    _effect.emit(PersonalUiEffect.ShowToast("已取消追番"))
+                }.onFailure { error ->
+                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                        throw error
+                    }
+                    logger.error(error) { "Failed to cancel following season: seasonId=$seasonId" }
+                    _uiState.update { it.copy(followingSeasons = previousList) }
+                    val msg = error.message ?: "未知错误"
+                    _effect.emit(PersonalUiEffect.ShowToast("取消追番失败: $msg"))
+                }
+            }
+        }
+
+        /**
+         * 稍后再看「全部播放」。
+         *
+         * 将整张稍后再看列表填充至 [VideoInfoRepository]，智能寻址首个未看完视频并触发起播回调。
+         *
+         * @param onPlay 起播回调，传入目标视频卡片数据
+         */
+        fun playAllToView(onPlay: (VideoCardData) -> Unit) {
+            if (toViewItems.isEmpty()) {
+                viewModelScope.launch {
+                    _effect.emit(PersonalUiEffect.ShowToast("稍后再看列表为空"))
+                }
+                return
+            }
+            val videoList =
+                toViewItems.map { item ->
+                    VideoListItem(
+                        aid = item.oid,
+                        cid = item.cid,
+                        epid = item.epid,
+                        seasonId = item.seasonId,
+                        title = item.title,
+                    )
+                }
+            videoInfoRepository.updateVideoList(videoList)
+
+            val target =
+                toViewItems.firstOrNull { it.progress in 0 until it.duration && it.progress != -1 }
+                    ?: toViewItems.first()
+            onPlay(
+                VideoCardData(
+                    avid = target.oid,
+                    bvid = target.bvid,
+                    cid = target.cid,
+                    epid = target.epid,
+                    title = target.title,
+                    cover = target.cover,
+                    upName = target.author,
+                ),
+            )
+        }
+
+        /**
+         * 收藏夹「全部播放」。
+         *
+         * 将当前收藏夹视频列表填充至 [VideoInfoRepository]，从首个视频触发起播回调。
+         *
+         * @param onPlay 起播回调，传入目标视频卡片数据
+         */
+        fun playAllFavorite(onPlay: (VideoCardData) -> Unit) {
+            val items = _uiState.value.favoriteItems
+            if (items.isEmpty()) {
+                viewModelScope.launch {
+                    _effect.emit(PersonalUiEffect.ShowToast("当前收藏夹为空"))
+                }
+                return
+            }
+            val videoList =
+                items.map { item ->
+                    VideoListItem(
+                        aid = item.id,
+                        cid = 0L,
+                        title = item.title,
+                    )
+                }
+            videoInfoRepository.updateVideoList(videoList)
+
+            val target = items.first()
+            onPlay(
+                VideoCardData(
+                    avid = target.id,
+                    bvid = target.bvid,
+                    title = target.title,
+                    cover = target.cover,
+                    upName = target.upper.name,
+                    upMid = target.upper.mid,
+                ),
+            )
+        }
 
         /**
          * 刷新指定 Tab 的数据。

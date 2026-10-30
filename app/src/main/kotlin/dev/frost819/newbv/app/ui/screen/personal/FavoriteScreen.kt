@@ -178,6 +178,7 @@ fun FavoriteScreen(
                         navController.navigate(UserSpaceRoute(mid = item.upper.mid, name = item.upper.name))
                     },
                     onAddWatchLater = { watchLaterViewModel.addToView(aid = item.id) },
+                    onRemoveFavorite = { viewModel.delFavoriteItem(item.id, state.currentFolderId) },
                 )
             }
 

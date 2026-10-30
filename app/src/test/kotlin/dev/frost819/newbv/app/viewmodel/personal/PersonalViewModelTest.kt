@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
+import dev.frost819.newbv.app.data.VideoInfoRepository
+import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.biliapi.entity.FavoriteFolderData
 import dev.frost819.newbv.biliapi.entity.FavoriteFolderMetadata
 import dev.frost819.newbv.biliapi.entity.FavoriteItem
@@ -57,6 +59,7 @@ class PersonalViewModelTest {
     private lateinit var historyRepo: HistoryRepository
     private lateinit var favoriteRepo: FavoriteRepository
     private lateinit var seasonRepo: SeasonRepository
+    private lateinit var videoInfoRepo: VideoInfoRepository
     private lateinit var viewModel: PersonalViewModel
 
     companion object {
@@ -92,6 +95,7 @@ class PersonalViewModelTest {
         historyRepo = mockk()
         favoriteRepo = mockk()
         seasonRepo = mockk()
+        videoInfoRepo = mockk(relaxed = true)
     }
 
     @AfterEach
@@ -106,6 +110,7 @@ class PersonalViewModelTest {
                 historyRepository = historyRepo,
                 favoriteRepository = favoriteRepo,
                 seasonRepository = seasonRepo,
+                videoInfoRepository = videoInfoRepo,
             )
         return viewModel
     }
@@ -784,5 +789,181 @@ class PersonalViewModelTest {
             advanceUntilIdle()
 
             coVerify(exactly = 2) { toViewRepo.getToView(any(), any()) }
+        }
+
+    @Test
+    fun `deleteHistoryItem optimistic removes and calls api`() =
+        runTest(testDispatcher) {
+            val item1 = fakeHistoryItem(101L)
+            val item2 = fakeHistoryItem(102L)
+            coEvery { historyRepo.getHistories(any(), any()) } returns
+                fakeHistoryData(listOf(item1, item2), cursor = 0L)
+            coEvery { historyRepo.deleteHistory(any()) } returns Unit
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.deleteHistoryItem(item1)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.historyItems
+                    .map { it.oid },
+            ).containsExactly(102L)
+            coVerify(exactly = 1) { historyRepo.deleteHistory("archive_101") }
+        }
+
+    @Test
+    fun `deleteHistoryItem on failure rolls back state`() =
+        runTest(testDispatcher) {
+            val item1 = fakeHistoryItem(101L)
+            coEvery { historyRepo.getHistories(any(), any()) } returns fakeHistoryData(listOf(item1), cursor = 0L)
+            coEvery { historyRepo.deleteHistory(any()) } throws RuntimeException("网络错误")
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.deleteHistoryItem(item1)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.historyItems
+                    .map { it.oid },
+            ).containsExactly(101L)
+        }
+
+    @Test
+    fun `delFavoriteItem optimistic removes and calls api`() =
+        runTest(testDispatcher) {
+            val fav1 = fakeFavoriteItem(1L)
+            val fav2 = fakeFavoriteItem(2L)
+            val folder = fakeFolder(100L)
+            coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } returns listOf(folder)
+            coEvery { favoriteRepo.getFavoriteFolderData(any(), any(), any(), any()) } returns
+                fakeFavoriteFolderData(listOf(fav1, fav2), hasMore = false)
+            coEvery { favoriteRepo.delVideoFromFavoriteFolder(any(), any(), any()) } returns Unit
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.delFavoriteItem(aid = 1L, folderId = 100L)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.favoriteItems
+                    .map { it.id },
+            ).containsExactly(2L)
+            coVerify(exactly = 1) {
+                favoriteRepo.delVideoFromFavoriteFolder(aid = 1L, delMediaIds = listOf(100L), preferApiType = any())
+            }
+        }
+
+    @Test
+    fun `delFavoriteItem on failure rolls back state`() =
+        runTest(testDispatcher) {
+            val fav1 = fakeFavoriteItem(1L)
+            val folder = fakeFolder(100L)
+            coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } returns listOf(folder)
+            coEvery { favoriteRepo.getFavoriteFolderData(any(), any(), any(), any()) } returns
+                fakeFavoriteFolderData(listOf(fav1), hasMore = false)
+            coEvery { favoriteRepo.delVideoFromFavoriteFolder(any(), any(), any()) } throws RuntimeException("接口错误")
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.delFavoriteItem(aid = 1L, folderId = 100L)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.favoriteItems
+                    .map { it.id },
+            ).containsExactly(1L)
+        }
+
+    @Test
+    fun `cancelFollowingSeason optimistic removes and calls api`() =
+        runTest(testDispatcher) {
+            val season1 = fakeFollowingSeason(1)
+            val season2 = fakeFollowingSeason(2)
+            coEvery { seasonRepo.getFollowingSeasons(any(), any(), any(), any(), any()) } returns
+                fakeFollowingSeasonData(listOf(season1, season2), total = 2)
+            coEvery { seasonRepo.delSeasonFollow(any(), any()) } returns Unit
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.cancelFollowingSeason(seasonId = 1)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.followingSeasons
+                    .map { it.seasonId },
+            ).containsExactly(2)
+            coVerify(exactly = 1) { seasonRepo.delSeasonFollow(seasonId = 1, preferApiType = any()) }
+        }
+
+    @Test
+    fun `cancelFollowingSeason on failure rolls back state`() =
+        runTest(testDispatcher) {
+            val season1 = fakeFollowingSeason(1)
+            coEvery { seasonRepo.getFollowingSeasons(any(), any(), any(), any(), any()) } returns
+                fakeFollowingSeasonData(listOf(season1), total = 1)
+            coEvery { seasonRepo.delSeasonFollow(any(), any()) } throws RuntimeException("网络错误")
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.cancelFollowingSeason(seasonId = 1)
+            advanceUntilIdle()
+
+            assertThat(
+                vm.uiState.value.followingSeasons
+                    .map { it.seasonId },
+            ).containsExactly(1)
+        }
+
+    @Test
+    fun `playAllToView updates VideoInfoRepository and starts first unwatched video`() =
+        runTest(testDispatcher) {
+            val watched = fakeToViewItem(aid = 10L, progress = 300, duration = 300)
+            val unwatched = fakeToViewItem(aid = 20L, progress = 50, duration = 300)
+            coEvery { toViewRepo.getToView(any(), any()) } returns fakeToViewData(listOf(watched, unwatched))
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            var playedTarget: VideoCardData? = null
+            vm.playAllToView { playedTarget = it }
+
+            assertThat(playedTarget?.avid).isEqualTo(20L)
+            coVerify(exactly = 1) {
+                videoInfoRepo.updateVideoList(
+                    match {
+                        it.size == 2 &&
+                            it[0].aid == 10L &&
+                            it[1].aid == 20L
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `playAllFavorite updates VideoInfoRepository and starts first video`() =
+        runTest(testDispatcher) {
+            val fav1 = fakeFavoriteItem(1L)
+            val fav2 = fakeFavoriteItem(2L)
+            val folder = fakeFolder(100L)
+            coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } returns listOf(folder)
+            coEvery { favoriteRepo.getFavoriteFolderData(any(), any(), any(), any()) } returns
+                fakeFavoriteFolderData(listOf(fav1, fav2), hasMore = false)
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            var playedTarget: VideoCardData? = null
+            vm.playAllFavorite { playedTarget = it }
+
+            assertThat(playedTarget?.avid).isEqualTo(1L)
+            coVerify(exactly = 1) {
+                videoInfoRepo.updateVideoList(
+                    match {
+                        it.size == 2 &&
+                            it[0].aid == 1L &&
+                            it[1].aid == 2L
+                    },
+                )
+            }
         }
 }
