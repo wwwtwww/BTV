@@ -101,21 +101,25 @@ class SeasonRepository(
     ) {
         when (preferApiType) {
             ApiType.Web -> {
-                val csrf = authRepository.biliJct?.takeIf { it.isNotBlank() }
-                    ?: throw IllegalStateException("bili_jct is empty")
-                BiliHttpApi.delSeasonFollow(
-                    seasonId = seasonId,
-                    csrf = csrf,
-                ).getResponseData()
+                val csrf =
+                    authRepository.biliJct?.takeIf { it.isNotBlank() }
+                        ?: throw IllegalStateException("bili_jct is empty")
+                BiliHttpApi
+                    .delSeasonFollow(
+                        seasonId = seasonId,
+                        csrf = csrf,
+                    ).getResponseData()
             }
 
             ApiType.App -> {
-                val accessKey = authRepository.accessToken?.takeIf { it.isNotBlank() }
-                    ?: throw IllegalStateException("access_token is empty")
-                BiliHttpApi.delSeasonFollowApp(
-                    seasonId = seasonId,
-                    accessKey = accessKey,
-                ).getResponseData()
+                val accessKey =
+                    authRepository.accessToken?.takeIf { it.isNotBlank() }
+                        ?: throw IllegalStateException("access_token is empty")
+                BiliHttpApi
+                    .delSeasonFollowApp(
+                        seasonId = seasonId,
+                        accessKey = accessKey,
+                    ).getResponseData()
             }
         }
     }

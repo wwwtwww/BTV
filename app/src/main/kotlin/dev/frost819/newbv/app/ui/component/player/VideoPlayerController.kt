@@ -40,6 +40,7 @@ import dev.frost819.newbv.app.ui.action.player.DanmakuSettingAction
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
 import dev.frost819.newbv.app.ui.action.player.SubtitleSettingAction
 import dev.frost819.newbv.app.ui.component.player.menu.MenuController
+import dev.frost819.newbv.app.ui.state.player.PlayerErrorType
 import dev.frost819.newbv.app.ui.state.player.PlayerState
 import dev.frost819.newbv.app.ui.state.player.PlayerUiState
 import dev.frost819.newbv.app.ui.state.player.SeekerState
@@ -103,6 +104,9 @@ fun VideoPlayerController(
     onRelatedVideoClicked: (dev.frost819.newbv.app.ui.component.videocard.VideoCardData) -> Unit,
     onToggleDanmaku: () -> Unit,
     onShowShortcutTip: (String) -> Unit,
+    onRetryPlayback: (() -> Unit)? = null,
+    onDowngradeQuality: (() -> Unit)? = null,
+    onOpenDiagnostics: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -381,6 +385,10 @@ fun VideoPlayerController(
 
         // 覆盖层未打开时的按键（KeyUp 已被顶层过滤，此处均为 KeyDown）
         if (!showClickableControllers) {
+            // 错误卡片展示时按键交给居中错误卡片上的按钮消费，避免 OK 键误触发播放/暂停
+            if (uiState.playerState is PlayerState.Error) {
+                return false
+            }
             when (event.key) {
                 in confirmKeys -> {
                     if (event.type == KeyEventType.KeyDown) {
@@ -576,11 +584,18 @@ fun VideoPlayerController(
             )
 
             // 播放状态提示
+            val errorState = uiState.playerState as? PlayerState.Error
             PlayStateTips(
                 isPlaying = uiState.playerState == PlayerState.Playing,
                 isBuffering = uiState.isBuffering,
-                isError = uiState.playerState is PlayerState.Error,
-                errorMessage = (uiState.playerState as? PlayerState.Error)?.message,
+                isError = errorState != null,
+                errorMessage = errorState?.message,
+                errorType = errorState?.type ?: PlayerErrorType.Generic,
+                canDowngradeQuality = errorState?.canDowngradeQuality ?: false,
+                onRetry = onRetryPlayback,
+                onDowngradeQuality = onDowngradeQuality,
+                onOpenDiagnostics = onOpenDiagnostics,
+                onExit = onExit,
             )
 
             // 手势提示（亮度/音量/倍速反馈）

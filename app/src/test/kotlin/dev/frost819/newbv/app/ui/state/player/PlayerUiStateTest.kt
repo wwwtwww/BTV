@@ -4,10 +4,9 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * [PlayerUiState.isPgc] 的单元测试。
+ * [PlayerUiState] 与播放器状态模型的单元测试。
  *
- * 验证番剧（PGC）判定仅取决于 [PlayerUiState.epid]，
- * 与播放侧 [PlayerUiState.fromSeason] 解耦。
+ * 验证番剧判定、错误类型分类、画质降级标识与 CDN 地址等状态字段的正确性。
  */
 class PlayerUiStateTest {
     @Test
@@ -29,5 +28,37 @@ class PlayerUiStateTest {
     fun `isPgc is independent of fromSeason`() {
         assertThat(PlayerUiState(epid = null, fromSeason = true).isPgc).isFalse()
         assertThat(PlayerUiState(epid = 1, fromSeason = false).isPgc).isTrue()
+    }
+
+    @Test
+    fun `playerState Error preserves type and canDowngradeQuality`() {
+        val error =
+            PlayerState.Error(
+                message = "缓冲超时",
+                type = PlayerErrorType.Timeout,
+                canDowngradeQuality = true,
+            )
+
+        assertThat(error.type).isEqualTo(PlayerErrorType.Timeout)
+        assertThat(error.canDowngradeQuality).isTrue()
+        assertThat(error.message).isEqualTo("缓冲超时")
+    }
+
+    @Test
+    fun `playerUiState stores currentCdnUrl`() {
+        val state = PlayerUiState(currentCdnUrl = "https://upos-sz-mirror08c.bilivideo.com/live/test.m3u8")
+        assertThat(state.currentCdnUrl).isEqualTo("https://upos-sz-mirror08c.bilivideo.com/live/test.m3u8")
+    }
+
+    @Test
+    fun `playerErrorType contains expected enum values`() {
+        val names = PlayerErrorType.entries.map { it.name }
+        assertThat(names).containsExactly(
+            "NetworkDisconnected",
+            "Timeout",
+            "SourceResolutionFailed",
+            "DecoderError",
+            "Generic",
+        )
     }
 }

@@ -10,6 +10,7 @@ import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
 import dev.frost819.newbv.app.ui.state.player.MediaProfileState
 import dev.frost819.newbv.app.ui.state.player.NextPlayOverlayInfo
+import dev.frost819.newbv.app.ui.state.player.PlayerErrorType
 import dev.frost819.newbv.app.ui.state.player.PlayerState
 import dev.frost819.newbv.app.ui.state.player.PlayerUiEffect
 import dev.frost819.newbv.app.ui.state.player.PlayerUiState
@@ -1305,5 +1306,112 @@ class PlayerViewModelTest {
             runCurrent()
 
             assertThat(viewModel.uiState.value.cid).isEqualTo(111L)
+        }
+
+    // ── Network Fault Tolerance & Retry tests ────────────────
+
+    @Test
+    fun `canDowngradeQuality returns true when lower qualities are available`() {
+        updateUiState {
+            it.copy(
+                mediaProfileState = MediaProfileState(qualityId = 80),
+                availableQuality = mapOf(112 to "1080P+", 80 to "1080P", 64 to "720P", 32 to "480P"),
+            )
+        }
+
+        assertThat(viewModel.canDowngradeQuality()).isTrue()
+    }
+
+    @Test
+    fun `canDowngradeQuality returns false when currently at lowest quality`() {
+        updateUiState {
+            it.copy(
+                mediaProfileState = MediaProfileState(qualityId = 32),
+                availableQuality = mapOf(112 to "1080P+", 80 to "1080P", 64 to "720P", 32 to "480P"),
+            )
+        }
+
+        assertThat(viewModel.canDowngradeQuality()).isFalse()
+    }
+
+    @Test
+    fun `retryPlayback downgrades to next lower quality when requested`() =
+        runTest(testDispatcher) {
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.currentPosition } returns 45000L
+            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } coAnswers {
+                delay(Long.MAX_VALUE)
+                error("unreachable")
+            }
+
+            updateUiState {
+                it.copy(
+                    aid = 100L,
+                    cid = 200L,
+                    mediaProfileState = MediaProfileState(qualityId = 80),
+                    availableQuality = mapOf(80 to "1080P", 64 to "720P", 32 to "480P"),
+                    playerState = PlayerState.Error(message = "Network error"),
+                )
+            }
+
+            viewModel.retryPlayback(downgradeQuality = true)
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.mediaProfileState.qualityId).isEqualTo(64)
+            assertThat(viewModel.uiState.value.lastPlayed).isEqualTo(45)
+        }
+
+    @Test
+    fun `buffering watchdog transitions to Error after timeout`() =
+        runTest(testDispatcher) {
+            every { Prefs.autoSelectCdn } returns false
+            val listener = getVideoPlayerListener()
+
+            updateUiState {
+                it.copy(
+                    playerState = PlayerState.Playing,
+                    isBuffering = false,
+                )
+            }
+
+            listener.onBuffering()
+            runCurrent()
+            assertThat(viewModel.uiState.value.isBuffering).isTrue()
+
+            advanceTimeBy(18001)
+            runCurrent()
+
+            val state = viewModel.uiState.value.playerState
+            assertThat(state).isInstanceOf(PlayerState.Error::class.java)
+            val errorState = state as PlayerState.Error
+            assertThat(errorState.type).isEqualTo(PlayerErrorType.Timeout)
+        }
+
+    @Test
+    fun `buffering watchdog cancels when playback starts`() =
+        runTest(testDispatcher) {
+            every { Prefs.autoSelectCdn } returns false
+            val listener = getVideoPlayerListener()
+
+            updateUiState {
+                it.copy(
+                    playerState = PlayerState.Playing,
+                    isBuffering = false,
+                )
+            }
+
+            listener.onBuffering()
+            runCurrent()
+            assertThat(viewModel.uiState.value.isBuffering).isTrue()
+
+            advanceTimeBy(5000)
+            listener.onPlay()
+            runCurrent()
+            assertThat(viewModel.uiState.value.isBuffering).isFalse()
+
+            advanceTimeBy(20000)
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.playerState).isEqualTo(PlayerState.Playing)
         }
 }

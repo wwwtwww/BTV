@@ -23,6 +23,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
+import dev.frost819.newbv.app.ui.state.player.PlayerErrorType
 import dev.frost819.newbv.core.theme.BVTheme
 
 /**
@@ -48,6 +49,12 @@ fun PlayStateTips(
     isBuffering: Boolean,
     isError: Boolean,
     errorMessage: String? = null,
+    errorType: PlayerErrorType = PlayerErrorType.Generic,
+    canDowngradeQuality: Boolean = false,
+    onRetry: (() -> Unit)? = null,
+    onDowngradeQuality: (() -> Unit)? = null,
+    onOpenDiagnostics: (() -> Unit)? = null,
+    onExit: (() -> Unit)? = null,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (!isPlaying && !isBuffering && !isError) {
@@ -64,10 +71,23 @@ fun PlayStateTips(
             )
         }
         if (isError) {
-            PlayErrorTip(
-                modifier = Modifier.align(Alignment.Center),
-                errorMessage = errorMessage,
-            )
+            if (onRetry != null || onExit != null) {
+                PlayerErrorOverlay(
+                    modifier = Modifier.align(Alignment.Center),
+                    errorMessage = errorMessage,
+                    errorType = errorType,
+                    canDowngradeQuality = canDowngradeQuality,
+                    onRetry = onRetry,
+                    onDowngradeQuality = onDowngradeQuality,
+                    onOpenDiagnostics = onOpenDiagnostics,
+                    onExit = onExit,
+                )
+            } else {
+                PlayErrorTip(
+                    modifier = Modifier.align(Alignment.Center),
+                    errorMessage = errorMessage,
+                )
+            }
         }
     }
 }

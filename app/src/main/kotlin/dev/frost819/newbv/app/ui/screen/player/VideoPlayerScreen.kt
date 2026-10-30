@@ -27,6 +27,7 @@ import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.component.comment.CommentDialogMode
 import dev.frost819.newbv.app.ui.component.comment.CommentsDialog
+import dev.frost819.newbv.app.ui.component.player.NetworkDiagnosticsDialog
 import dev.frost819.newbv.app.ui.component.player.ScreensaverOverlay
 import dev.frost819.newbv.app.ui.component.player.VideoInteractionDialog
 import dev.frost819.newbv.app.ui.component.player.VideoPlayerController
@@ -95,6 +96,7 @@ fun VideoPlayerScreen(
     var currentDanmakuMaskFrame by remember { mutableStateOf<DanmakuMaskFrame?>(null) }
     var showInteractionDialog by remember { mutableStateOf(false) }
     var showCommentsDialog by remember { mutableStateOf(false) }
+    var showNetworkDiagnostics by remember { mutableStateOf(false) }
     var resumeAfterComments by remember { mutableStateOf(false) }
     var resumeAfterInteraction by remember { mutableStateOf(false) }
 
@@ -352,6 +354,9 @@ fun VideoPlayerScreen(
             },
             onToggleDanmaku = { danmakuViewModel.toggleDanmaku() },
             onShowShortcutTip = { text -> playerViewModel.showShortcutTip(text) },
+            onRetryPlayback = { playerViewModel.retryPlayback(downgradeQuality = false) },
+            onDowngradeQuality = { playerViewModel.retryPlayback(downgradeQuality = true) },
+            onOpenDiagnostics = { showNetworkDiagnostics = true },
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -453,6 +458,13 @@ fun VideoPlayerScreen(
                     }
                     resumeAfterComments = false
                 },
+            )
+        }
+
+        if (showNetworkDiagnostics) {
+            NetworkDiagnosticsDialog(
+                currentCdnUrl = uiState.currentCdnUrl,
+                onDismiss = { showNetworkDiagnostics = false },
             )
         }
 

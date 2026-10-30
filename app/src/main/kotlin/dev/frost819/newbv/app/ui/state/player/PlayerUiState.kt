@@ -67,6 +67,8 @@ data class PlayerUiState(
     // 列表
     val videoList: List<VideoListItem> = emptyList(),
     val relatedVideos: List<VideoCardData> = emptyList(),
+    // 当前网络与 CDN 调试信息
+    val currentCdnUrl: String? = null,
 ) {
     /**
      * 是否为番剧（PGC）播放内容。
@@ -137,6 +139,26 @@ data class SubtitleState(
 )
 
 /**
+ * 播放错误类型分类。
+ */
+enum class PlayerErrorType {
+    /** 网络连接断开（无网络）。 */
+    NetworkDisconnected,
+
+    /** 网络缓冲或加载超时。 */
+    Timeout,
+
+    /** 视频源解析失败。 */
+    SourceResolutionFailed,
+
+    /** 播放器解码或流媒体渲染异常。 */
+    DecoderError,
+
+    /** 通用或其他未知异常。 */
+    Generic,
+}
+
+/**
  * 播放器状态枚举。
  */
 sealed class PlayerState {
@@ -154,8 +176,12 @@ sealed class PlayerState {
 
     /** 发生错误。
      * @param message 错误信息
+     * @param type 错误分类
+     * @param canDowngradeQuality 是否支持尝试降级画质重试
      */
     data class Error(
         val message: String,
+        val type: PlayerErrorType = PlayerErrorType.Generic,
+        val canDowngradeQuality: Boolean = false,
     ) : PlayerState()
 }

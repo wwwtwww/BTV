@@ -16,10 +16,12 @@ import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.state.player.MediaProfileState
 import dev.frost819.newbv.app.ui.state.player.NextPlayOverlayInfo
+import dev.frost819.newbv.app.ui.state.player.PlayerErrorType
 import dev.frost819.newbv.app.ui.state.player.PlayerState
 import dev.frost819.newbv.app.ui.state.player.PlayerUiEffect
 import dev.frost819.newbv.app.ui.state.player.PlayerUiState
 import dev.frost819.newbv.app.ui.state.player.SeekerState
+import dev.frost819.newbv.app.util.NetworkUtil
 import dev.frost819.newbv.app.util.PlaybackCandidate
 import dev.frost819.newbv.app.util.PlayerConstants
 import dev.frost819.newbv.app.util.VideoCapabilityProvider
@@ -173,6 +175,8 @@ class PlayerViewModel
         private var shortcutTipJob: Job? = null
         private var previewTipCountdownJob: Job? = null
         private var onlineWatchJob: Job? = null
+        private var bufferingWatchdogJob: Job? = null
+        private var appContext: Context? = null
 
         /**
          * 切换视频事件。
@@ -189,11 +193,25 @@ class PlayerViewModel
             object : VideoPlayerListener {
                 override fun onError(error: Exception) {
                     logger.info { "onError: $error" }
+                    stopBufferingWatchdog()
                     // 自动选源模式下，优先尝试切换到下一个候选 CDN，避免单个节点故障导致播放中断
                     if (Prefs.autoSelectCdn && tryNextCdnFallback()) return
+                    val isDisconnected = appContext?.let { !NetworkUtil.isNetworkConnected(it) } ?: false
+                    val errorType =
+                        if (isDisconnected) {
+                            PlayerErrorType.NetworkDisconnected
+                        } else {
+                            PlayerErrorType.Generic
+                        }
+                    val errorMsg = if (isDisconnected) "网络连接已断开，请检查网络设置" else (error.message ?: "Unknown error")
                     _uiState.update {
                         it.copy(
-                            playerState = PlayerState.Error(error.message ?: "Unknown error"),
+                            playerState =
+                                PlayerState.Error(
+                                    message = errorMsg,
+                                    type = errorType,
+                                    canDowngradeQuality = canDowngradeQuality(),
+                                ),
                             isBuffering = false,
                         )
                     }
@@ -217,6 +235,7 @@ class PlayerViewModel
 
                 override fun onPlay() {
                     logger.info { "onPlay" }
+                    stopBufferingWatchdog()
                     _uiState.update { it.copy(playerState = PlayerState.Playing, isBuffering = false) }
                     if (_uiState.value.lastPlayed > 0) {
                         seekToLastPlayed()
@@ -232,10 +251,12 @@ class PlayerViewModel
                 override fun onBuffering() {
                     logger.info { "onBuffering" }
                     _uiState.update { it.copy(isBuffering = true) }
+                    startBufferingWatchdog()
                 }
 
                 override fun onEnd() {
                     logger.info { "onEnd" }
+                    stopBufferingWatchdog()
                     stopSeekerUpdater()
                     stopDebugInfoUpdater()
                     _uiState.update { it.copy(playerState = PlayerState.Ended) }
@@ -438,6 +459,7 @@ class PlayerViewModel
          * 创建 ExoPlayer 并绑定事件监听器。
          */
         fun initVideoPlayer(context: Context) {
+            appContext = context.applicationContext
             val apiType = Prefs.apiType
             val options =
                 VideoPlayerOptions(
@@ -467,6 +489,7 @@ class PlayerViewModel
             syncProgress(scope = detachedWorkScope, isDetaching = true)
             videoPlayer?.release()
             videoPlayer = null
+            stopBufferingWatchdog()
             stopSeekerUpdater()
             stopDebugInfoUpdater()
             stopOnlineWatchingPolling()
@@ -730,6 +753,7 @@ class PlayerViewModel
 
             // 清空旧视频状态，防止新视频加载失败时残留旧数据
             playData = null
+            stopBufferingWatchdog()
             stopSeekerUpdater()
             stopDebugInfoUpdater()
 
@@ -823,14 +847,171 @@ class PlayerViewModel
                         throw e
                     } catch (e: Exception) {
                         logger.error(e) { "Loading video data error: $e" }
+                        stopBufferingWatchdog()
+                        val isDisconnected = appContext?.let { !NetworkUtil.isNetworkConnected(it) } ?: false
+                        val errorType =
+                            if (isDisconnected) {
+                                PlayerErrorType.NetworkDisconnected
+                            } else {
+                                PlayerErrorType.SourceResolutionFailed
+                            }
+                        val errorMsg = if (isDisconnected) "网络连接已断开，请检查网络设置" else (e.message ?: "未知错误")
                         _uiState.update {
                             it.copy(
-                                playerState = PlayerState.Error(e.message ?: "未知错误"),
+                                playerState =
+                                    PlayerState.Error(
+                                        message = errorMsg,
+                                        type = errorType,
+                                        canDowngradeQuality = canDowngradeQuality(),
+                                    ),
                                 isBuffering = false,
                             )
                         }
                     }
                 }
+        }
+
+        private val bufferingTimeoutMs = 18_000L
+
+        /**
+         * 重试视频播放（用于网络异常恢复、超时或用户点击重试）。
+         *
+         * @param downgradeQuality 是否自动降级至更低画质重试（降低弱网带宽压力）
+         */
+        fun retryPlayback(downgradeQuality: Boolean = false) {
+            val state = _uiState.value
+            val aid = state.aid
+            val cid = state.cid
+            val epid = state.epid
+            if (aid == 0L) return
+
+            logger.info { "retryPlayback: aid=$aid, cid=$cid, downgradeQuality=$downgradeQuality" }
+
+            // 记录发生错误前或当前的时间点，重试成功后恢复位置续播
+            val currentMs =
+                videoPlayer?.currentPosition?.takeIf { it > 0 }
+                    ?: _seekerState.value.currentTime.takeIf { it > 0 }
+                    ?: (state.lastPlayed.toLong() * 1000L)
+
+            if (downgradeQuality) {
+                val currentQn = state.mediaProfileState.qualityId
+                val lowerQn =
+                    state.availableQuality.keys
+                        .filter { it < currentQn }
+                        .maxOrNull()
+                if (lowerQn != null) {
+                    logger.info { "Downgrade quality from $currentQn to $lowerQn" }
+                    _uiState.update {
+                        it.copy(
+                            mediaProfileState = it.mediaProfileState.copy(qualityId = lowerQn),
+                        )
+                    }
+                }
+            }
+
+            // 重置 CDN 候选尝试下标
+            cdnFallbackIndex = 0
+
+            _uiState.update {
+                it.copy(
+                    playerState = PlayerState.Ready,
+                    isBuffering = true,
+                    lastPlayed = (currentMs / 1000).toInt(),
+                )
+            }
+
+            loadVideoJob?.cancel()
+            loadVideoJob =
+                viewModelScope.launch(ioDispatcher) {
+                    try {
+                        resolveUrlsAndPlay(aid, cid, epid ?: 0)
+                        if (currentMs > 0) {
+                            withContext(mainDispatcher) {
+                                videoPlayer?.seekTo(currentMs)
+                            }
+                        }
+                        launch { updateVideoShot() }
+                        launch { updateVideoPages() }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.error(e) { "Retry loading video data error: $e" }
+                        val isDisconnected = appContext?.let { !NetworkUtil.isNetworkConnected(it) } ?: false
+                        val errorType =
+                            if (isDisconnected) {
+                                PlayerErrorType.NetworkDisconnected
+                            } else {
+                                PlayerErrorType.Generic
+                            }
+                        val errorMsg =
+                            if (isDisconnected) {
+                                "网络连接已断开，请检查网络设置"
+                            } else {
+                                (e.message ?: "重试失败")
+                            }
+                        _uiState.update {
+                            it.copy(
+                                playerState =
+                                    PlayerState.Error(
+                                        message = errorMsg,
+                                        type = errorType,
+                                        canDowngradeQuality = canDowngradeQuality(),
+                                    ),
+                                isBuffering = false,
+                            )
+                        }
+                    }
+                }
+        }
+
+        /** 判断当前是否能够降级画质（存在比当前画质更低的候选画质）。 */
+        fun canDowngradeQuality(): Boolean {
+            val currentQn = _uiState.value.mediaProfileState.qualityId
+            return _uiState.value.availableQuality.keys
+                .any { it < currentQn }
+        }
+
+        private fun startBufferingWatchdog() {
+            bufferingWatchdogJob?.cancel()
+            bufferingWatchdogJob =
+                viewModelScope.launch(mainDispatcher) {
+                    delay(bufferingTimeoutMs)
+                    if (_uiState.value.isBuffering && _uiState.value.playerState != PlayerState.Ended) {
+                        logger.warn { "Buffering watchdog timeout after ${bufferingTimeoutMs}ms" }
+                        // 优先尝试切换下一个 CDN 节点
+                        if (Prefs.autoSelectCdn && tryNextCdnFallback()) return@launch
+
+                        val isDisconnected = appContext?.let { !NetworkUtil.isNetworkConnected(it) } ?: false
+                        val errorType =
+                            if (isDisconnected) {
+                                PlayerErrorType.NetworkDisconnected
+                            } else {
+                                PlayerErrorType.Timeout
+                            }
+                        val errorMsg =
+                            if (isDisconnected) {
+                                "网络连接已断开，请检查网络设置"
+                            } else {
+                                "网络缓冲超时，请重试或降低画质"
+                            }
+                        _uiState.update {
+                            it.copy(
+                                playerState =
+                                    PlayerState.Error(
+                                        message = errorMsg,
+                                        type = errorType,
+                                        canDowngradeQuality = canDowngradeQuality(),
+                                    ),
+                                isBuffering = false,
+                            )
+                        }
+                    }
+                }
+        }
+
+        private fun stopBufferingWatchdog() {
+            bufferingWatchdogJob?.cancel()
+            bufferingWatchdogJob = null
         }
 
         /** 更新播放速度。 */
@@ -1243,9 +1424,11 @@ class PlayerViewModel
                     logger.error { "VideoPlayer is not initialized!" }
                     return
                 }
+            _uiState.update { it.copy(currentCdnUrl = mediaUrls.videoUrl) }
             player.playUrl(mediaUrls.videoUrl, mediaUrls.audioUrl)
             player.prepare()
             player.start()
+            startBufferingWatchdog()
         }
 
         private suspend fun updateVideoShot() {
@@ -1447,11 +1630,12 @@ class PlayerViewModel
             val audioUrl = audioCdnCandidates.firstOrNull()
             val position = player.currentPosition
             logger.info { "CDN fallback #$nextIndex -> $videoUrl" }
-            _uiState.update { it.copy(isBuffering = true) }
+            _uiState.update { it.copy(isBuffering = true, currentCdnUrl = videoUrl) }
             player.playUrl(videoUrl, audioUrl)
             player.prepare()
             if (position > 0) player.seekTo(position)
             player.start()
+            startBufferingWatchdog()
             return true
         }
 
