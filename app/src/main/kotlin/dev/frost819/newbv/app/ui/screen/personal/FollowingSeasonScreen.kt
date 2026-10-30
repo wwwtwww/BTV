@@ -157,9 +157,6 @@ fun FollowingSeasonScreen(
                     onClick = {
                         navController.navigate(PgcFeatureRoute(seasonId = item.seasonId.toLong()))
                     },
-                    onGoToDetailPage = {
-                        navController.navigate(PgcFeatureRoute(seasonId = item.seasonId.toLong()))
-                    },
                     onCancelFollowingSeason = {
                         viewModel.cancelFollowingSeason(item.seasonId)
                     },

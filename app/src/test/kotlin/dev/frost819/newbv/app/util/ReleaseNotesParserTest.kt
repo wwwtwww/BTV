@@ -269,7 +269,7 @@ class ReleaseNotesParserTest {
 
         // Then
         assertThat(entries).isNotEmpty()
-        assertThat(entries.first().versionTag).isEqualTo("v0.4.14")
+        assertThat(entries.first().versionTag).isEqualTo("v0.5.0")
         assertThat(entries.last().versionTag).isEqualTo("v0.1.0")
     }
 

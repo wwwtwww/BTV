@@ -215,9 +215,6 @@ private fun PgcGrid(
                 onClick = {
                     navController.navigate(PgcFeatureRoute(seasonId = item.seasonId.toLong()))
                 },
-                onGoToDetailPage = {
-                    navController.navigate(PgcFeatureRoute(seasonId = item.seasonId.toLong()))
-                },
                 modifier = Modifier.focusSaverItem(focusSaver, "pgc_item_$index"),
             )
         }

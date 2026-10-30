@@ -198,7 +198,7 @@ class HttpServerTest {
         // 生产端 CrashHandler 以 HH:mm:ss 命名（含冒号），Windows 文件系统不允许冒号，
         // 故该用例仅在非 Windows 环境运行，保证生产命名格式始终有回归覆盖
         Assumptions.assumeFalse(
-            System.getProperty("os.name").lowercase().contains("windows"),
+            (System.getProperty("os.name") ?: "").lowercase().contains("windows"),
             "Windows 文件系统不支持冒号文件名",
         )
 
@@ -277,23 +277,29 @@ class HttpServerTest {
     private fun httpGet(path: String): Pair<Int, String> {
         val port = server.getPort() ?: return -1 to "server not running"
         val url = URL("http://localhost:$port$path")
-        val conn = url.openConnection() as HttpURLConnection
-        return try {
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
-            val status = conn.responseCode
-            val body =
-                if (status in 200..299) {
-                    conn.inputStream.bufferedReader().use { it.readText() }
-                } else {
-                    conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+        for (attempt in 0..2) {
+            val conn = url.openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                val status = conn.responseCode
+                val body =
+                    if (status in 200..299) {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    } else {
+                        conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    }
+                return status to body
+            } catch (e: Exception) {
+                if (attempt == 2) {
+                    return -1 to (e.message ?: "error")
                 }
-            status to body
-        } catch (e: Exception) {
-            -1 to (e.message ?: "error")
-        } finally {
-            conn.disconnect()
+                Thread.sleep(150)
+            } finally {
+                conn.disconnect()
+            }
         }
+        return -1 to "retry exhausted"
     }
 }
