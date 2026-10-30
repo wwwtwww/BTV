@@ -976,7 +976,20 @@ class PlayerViewModel
             bufferingWatchdogJob =
                 viewModelScope.launch(mainDispatcher) {
                     delay(bufferingTimeoutMs)
-                    if (_uiState.value.isBuffering && _uiState.value.playerState != PlayerState.Ended) {
+
+                    // 双重确认：若底层播放器实际已在正常播放，平滑纠偏状态并退出看门狗，避免假阳性误报
+                    if (videoPlayer?.isPlaying == true) {
+                        logger.info { "Player is actually playing, dismissing buffering watchdog" }
+                        _uiState.update { it.copy(isBuffering = false) }
+                        return@launch
+                    }
+
+                    val currentState = _uiState.value.playerState
+                    // 仅当依然处于缓冲中、且当前未处于结束或已有错误态时，才触发超时处理
+                    if (_uiState.value.isBuffering &&
+                        currentState != PlayerState.Ended &&
+                        currentState !is PlayerState.Error
+                    ) {
                         logger.warn { "Buffering watchdog timeout after ${bufferingTimeoutMs}ms" }
                         // 优先尝试切换下一个 CDN 节点
                         if (Prefs.autoSelectCdn && tryNextCdnFallback()) return@launch

@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +44,7 @@ import dev.frost819.newbv.app.util.NetworkType
 import dev.frost819.newbv.app.util.NetworkUtil
 import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.net.URI
 
@@ -63,15 +63,22 @@ fun NetworkDiagnosticsDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var isChecking by remember { mutableStateOf(true) }
+    var isChecking by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<NetworkDiagnosticReport?>(null) }
+    var checkingJob by remember { mutableStateOf<Job?>(null) }
 
     fun runCheck() {
+        if (isChecking) return // 防重入保护：诊断正在进行中直接忽略重复触发
         isChecking = true
-        scope.launch {
-            report = NetworkUtil.runDiagnostics(context, currentCdnUrl)
-            isChecking = false
-        }
+        checkingJob?.cancel()
+        checkingJob =
+            scope.launch {
+                try {
+                    report = NetworkUtil.runDiagnostics(context, currentCdnUrl)
+                } finally {
+                    isChecking = false
+                }
+            }
     }
 
     LaunchedEffect(Unit) {
@@ -89,7 +96,7 @@ fun NetworkDiagnosticsDialog(
                     .clip(MaterialTheme.shapes.large),
             colors =
                 SurfaceDefaults.colors(
-                    containerColor = Color(0xF0121622),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                 ),
             shape = MaterialTheme.shapes.large,
         ) {
@@ -111,7 +118,7 @@ fun NetworkDiagnosticsDialog(
                         text = "网络连接诊断",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
@@ -129,69 +136,61 @@ fun NetworkDiagnosticsDialog(
                             strokeWidth = 3.dp,
                         )
                         Text(
-                            text = "正在检测网络与 B 站服务连通性...",
+                            text = "正在检测局域网与 CDN 节点延时...",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                } else {
-                    val rep = report
-                    if (rep != null) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            DiagnosticItem(
-                                label = "网络连接",
-                                value = rep.networkType.displayName,
-                                isSuccess = rep.networkType != NetworkType.Disconnected,
-                            )
-                            DiagnosticItem(
-                                label = "本地 IP",
-                                value = rep.localIp ?: "未分配或不可达",
-                                isSuccess = rep.localIp != null,
-                            )
-                            DiagnosticItem(
-                                label = "B 站 API 状态",
-                                value =
-                                    if (rep.apiLatencyMs != null) {
-                                        "连通正常 (${rep.apiLatencyMs}ms)"
-                                    } else {
-                                        "无法连接 (超时或被阻断)"
-                                    },
-                                isSuccess = rep.apiLatencyMs != null,
-                            )
-                            val cdnHost =
-                                remember(currentCdnUrl) {
-                                    currentCdnUrl?.let {
-                                        try {
-                                            URI(it).host
-                                        } catch (_: Exception) {
-                                            null
-                                        }
-                                    }
-                                }
-                            if (cdnHost != null) {
-                                DiagnosticItem(
-                                    label = "视频 CDN 节点",
-                                    value =
-                                        if (rep.cdnLatencyMs != null) {
-                                            "$cdnHost (${rep.cdnLatencyMs}ms)"
-                                        } else {
-                                            "$cdnHost (连接超时)"
-                                        },
-                                    isSuccess = rep.cdnLatencyMs != null,
-                                )
+                } else if (report != null) {
+                    val r = report!!
+                    val cdnHost =
+                        currentCdnUrl?.let {
+                            try {
+                                URI(it).host
+                            } catch (_: Exception) {
+                                null
                             }
-                        }
+                        } ?: "无活跃流地址"
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        DiagnosticItem(
+                            label = "网络连接类型",
+                            value = r.networkType.displayName,
+                            isSuccess = r.networkType != NetworkType.Disconnected,
+                        )
+
+                        DiagnosticItem(
+                            label = "本机局域网 IP",
+                            value = r.localIp ?: "未能获取",
+                            isSuccess = r.localIp != null,
+                        )
+
+                        DiagnosticItem(
+                            label = "B 站 API 服务延迟",
+                            value = r.apiLatencyMs?.let { "${it}ms" } ?: "连接超时 / 不可达",
+                            isSuccess = r.apiLatencyMs != null && r.apiLatencyMs < 1000,
+                        )
+
+                        DiagnosticItem(
+                            label = "视频 CDN 节点 ($cdnHost)",
+                            value =
+                                if (currentCdnUrl == null) {
+                                    "未连接 CDN 流"
+                                } else {
+                                    r.cdnLatencyMs?.let { "${it}ms" } ?: "测速超时 / 节点异常"
+                                },
+                            isSuccess = r.cdnLatencyMs != null && r.cdnLatencyMs < 1500,
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Surface(
                         onClick = { runCheck() },
@@ -201,6 +200,7 @@ fun NetworkDiagnosticsDialog(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 focusedContainerColor = MaterialTheme.colorScheme.primary,
                                 focusedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                             ),
                         shape = ClickableSurfaceDefaults.shape(BVShape.pill),
                         scale = TvFocusDefaults.surfaceScale(),
@@ -262,7 +262,7 @@ private fun DiagnosticItem(
             Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .background(Color.White.copy(alpha = 0.05f))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -270,7 +270,7 @@ private fun DiagnosticItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -280,13 +280,13 @@ private fun DiagnosticItem(
                 imageVector = if (isSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.Warning,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = if (isSuccess) Color(0xFF4CAF50) else Color(0xFFFF5252),
+                tint = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = if (isSuccess) Color.White else Color(0xFFFF8A80),
+                color = if (isSuccess) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
                 fontSize = 15.sp,
             )
         }
