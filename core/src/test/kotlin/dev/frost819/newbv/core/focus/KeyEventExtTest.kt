@@ -93,4 +93,26 @@ class KeyEventExtTest {
         assertThat(eventBack.isMenuKey()).isFalse()
         assertThat(eventDirectionUp.isMenuKey()).isFalse()
     }
+
+    @Test
+    fun `isDpadNav returns true for directions and confirm, false for other keys`() {
+        val up = mockKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_UP)
+        val down = mockKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        val left = mockKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_LEFT)
+        val right = mockKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        val center = mockKeyEvent(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        val enter = mockKeyEvent(android.view.KeyEvent.KEYCODE_ENTER)
+        val back = mockKeyEvent(android.view.KeyEvent.KEYCODE_BACK)
+        val menu = mockKeyEvent(android.view.KeyEvent.KEYCODE_MENU)
+
+        assertThat(up.isDpadNav()).isTrue()
+        assertThat(down.isDpadNav()).isTrue()
+        assertThat(left.isDpadNav()).isTrue()
+        assertThat(right.isDpadNav()).isTrue()
+        assertThat(center.isDpadNav()).isTrue()
+        assertThat(enter.isDpadNav()).isTrue()
+
+        assertThat(back.isDpadNav()).isFalse()
+        assertThat(menu.isDpadNav()).isFalse()
+    }
 }

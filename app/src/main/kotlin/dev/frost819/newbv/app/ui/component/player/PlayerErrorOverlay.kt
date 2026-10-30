@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +40,7 @@ import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.ui.state.player.PlayerErrorType
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVShape
 
 /**
@@ -72,7 +72,7 @@ fun PlayerErrorOverlay(
     val firstFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        firstFocusRequester.requestFocus()
+        firstFocusRequester.safeRequestFocus()
     }
 
     val (titleText, icon) =

@@ -27,6 +27,9 @@ fun KeyEvent.isDpadRight(): Boolean = key == Key.DirectionRight
 /** 按键是否为确认键（D-Pad 中心 / Enter）。 */
 fun KeyEvent.isConfirm(): Boolean = key == Key.DirectionCenter || key == Key.Enter
 
+/** 按键是否为 D-Pad 导航与确认操作按键。 */
+fun KeyEvent.isDpadNav(): Boolean = isDpadUp() || isDpadDown() || isDpadLeft() || isDpadRight() || isConfirm()
+
 /** 按键是否为返回键。 */
 fun KeyEvent.isBack(): Boolean = key == Key.Back
 

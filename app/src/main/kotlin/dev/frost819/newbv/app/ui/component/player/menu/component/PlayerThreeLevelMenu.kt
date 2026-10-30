@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player.menu.component
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import dev.frost819.newbv.app.ui.component.player.ifElse
 import dev.frost819.newbv.app.viewmodel.player.LocalMenuFocusStateData
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
+import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
  * 视频播放器三级设置菜单布局。
@@ -69,7 +69,7 @@ fun <T> PlayerThreeLevelMenu(
 
     val backToMenu: () -> Unit = {
         onFocusStateChange(MenuFocusState.Menu)
-        focusRequester.requestFocus()
+        focusRequester.safeRequestFocus()
     }
 
     Row(

@@ -23,6 +23,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ClickableSurfaceColors
@@ -31,7 +32,6 @@ import androidx.tv.material3.MaterialTheme
 import dev.frost819.newbv.core.interaction.InputMethod
 import dev.frost819.newbv.core.interaction.LocalInteractionTracker
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -110,22 +110,86 @@ fun Modifier.focusedScale(scale: Float = 0.9f): Modifier =
     }
 
 /**
- * 改进的请求焦点方法。
+ * 安全的同步请求焦点扩展。
  *
- * 首次请求失败后等待 100ms 重试一次，处理 Compose 焦点系统时序问题。
+ * 捕获节点尚未挂载或已销毁时的 [IllegalStateException]，杜绝大屏焦点闪退。
+ *
+ * @return 是否成功获得焦点
+ */
+fun FocusRequester.safeRequestFocus(): Boolean =
+    runCatching {
+        requestFocus()
+        true
+    }.getOrDefault(false)
+
+/**
+ * 具有重试机制的安全异步请求焦点扩展。
+ *
+ * 处理 Compose 节点尚未完成 Composition 或处于过渡动画中的时序问题。
+ *
+ * @param scope 协程作用域，在 Main 调度器执行。
+ * @param maxRetries 最大重试次数（默认 3 次）。
+ * @param retryDelayMs 重试间隔毫秒数（默认 60ms）。
+ * @param onSuccess 成功获取焦点后的回调。
+ */
+fun FocusRequester.safeRequestFocus(
+    scope: CoroutineScope,
+    maxRetries: Int = 3,
+    retryDelayMs: Long = 60,
+    onSuccess: (() -> Unit)? = null,
+) {
+    scope.launch {
+        repeat(maxRetries) { attempt ->
+            if (safeRequestFocus()) {
+                onSuccess?.invoke()
+                return@launch
+            }
+            if (attempt < maxRetries - 1) {
+                delay(retryDelayMs)
+            }
+        }
+    }
+}
+
+/**
+ * 改进的请求焦点方法（兼容旧接口）。
+ *
+ * 首次请求失败后重试，内部代理至 [safeRequestFocus]。
  *
  * @param scope 协程作用域，在 Main 调度器执行。
  */
 fun FocusRequester.requestFocus(scope: CoroutineScope) {
-    scope.launch(Dispatchers.Main) {
-        runCatching {
-            requestFocus()
-        }.onFailure {
-            delay(100)
-            runCatching { requestFocus() }
-        }
-    }
+    safeRequestFocus(scope = scope, maxRetries = 2, retryDelayMs = 100)
 }
+
+/**
+ * 电视端焦点丢失兜底修饰符。
+ *
+ * 当此容器及其子节点全部未获得焦点时（例如列表清空、重刷或异步切换发生焦点丢失），
+ * 用户按下遥控器任何 D-Pad 导航按键（上下左右或确认键）时，自动将焦点导向 [fallbackRequester]，
+ * 避免电视端"光标消失、无响应假死"的严重体验缺陷。
+ *
+ * @param fallbackRequester 兜底获焦节点。
+ * @param enabled 是否启用兜底（默认 true）。
+ */
+fun Modifier.dpadFocusFallback(
+    fallbackRequester: FocusRequester,
+    enabled: Boolean = true,
+): Modifier =
+    composed {
+        if (!enabled) return@composed this
+        var hasFocus by remember { mutableStateOf(false) }
+
+        onFocusChanged { hasFocus = it.hasFocus }
+            .onPreviewKeyEvent { event ->
+                if (!hasFocus && event.isKeyDown() && event.isDpadNav()) {
+                    if (fallbackRequester.safeRequestFocus()) {
+                        return@onPreviewKeyEvent true
+                    }
+                }
+                false
+            }
+    }
 
 /**
  * 构建「聚焦反色」的可点击 Surface 配色。

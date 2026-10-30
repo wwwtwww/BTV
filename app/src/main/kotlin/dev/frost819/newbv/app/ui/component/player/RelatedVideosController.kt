@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,6 +32,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.ui.component.videocard.SmallVideoCard
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVTheme
 
 /**
@@ -70,7 +70,7 @@ fun RelatedVideosController(
 
     LaunchedEffect(show, relatedVideos.isNotEmpty()) {
         if (show && relatedVideos.isNotEmpty()) {
-            focusRequester.requestFocus()
+            focusRequester.safeRequestFocus()
         }
     }
 

@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.personal
-
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -50,6 +49,7 @@ import dev.frost819.newbv.app.ui.navigation.VideoPlayerRoute
 import dev.frost819.newbv.app.viewmodel.personal.PersonalUiEffect
 import dev.frost819.newbv.app.viewmodel.personal.PersonalViewModel
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
 import dev.frost819.newbv.data.datastore.Prefs
@@ -177,7 +177,7 @@ fun PersonalContent(
                     .onPreviewKeyEvent { event ->
                         if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
                             viewModel.refresh(selectedTab)
-                            navFocusRequester.requestFocus()
+                            navFocusRequester.safeRequestFocus()
                             return@onPreviewKeyEvent true
                         }
                         false

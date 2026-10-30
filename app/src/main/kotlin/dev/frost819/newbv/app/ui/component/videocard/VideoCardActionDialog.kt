@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.videocard
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +40,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.frost819.newbv.R
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 
@@ -87,7 +87,7 @@ fun VideoCardActionDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         LaunchedEffect(Unit) {
-            firstFocusRequester.requestFocus()
+            firstFocusRequester.safeRequestFocus()
         }
 
         Box(

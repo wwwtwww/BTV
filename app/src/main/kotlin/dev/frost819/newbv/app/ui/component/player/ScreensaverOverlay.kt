@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.core.tween
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -149,7 +149,7 @@ fun ScreensaverOverlay(
 
     // 自动请求焦点以拦截遥控器按键
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        focusRequester.safeRequestFocus()
     }
 
     // 时间与日期格式化

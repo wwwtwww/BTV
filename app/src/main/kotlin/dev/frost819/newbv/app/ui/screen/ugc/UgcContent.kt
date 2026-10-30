@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.ugc
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,6 +41,7 @@ import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.app.util.toWanString
 import dev.frost819.newbv.app.viewmodel.ugc.UgcViewModel
 import dev.frost819.newbv.biliapi.entity.ugc.UgcTypeV2
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.material3.Scaffold as Material3Scaffold
@@ -125,7 +125,7 @@ fun UgcContent(
                     .onPreviewKeyEvent { event ->
                         if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
                             viewModel.refresh()
-                            navFocusRequester.requestFocus()
+                            navFocusRequester.safeRequestFocus()
                             return@onPreviewKeyEvent true
                         }
                         false

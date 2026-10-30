@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -63,6 +62,7 @@ import dev.frost819.newbv.app.ui.state.player.SeekerState
 import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.biliapi.entity.video.VideoShot
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVColors
 import dev.frost819.newbv.core.theme.BVShape
@@ -427,7 +427,7 @@ fun ControllerVideoInfoBottom(
 
     LaunchedEffect(Unit) {
         delay(50)
-        runCatching { seekFocusRequester.requestFocus() }
+        runCatching { seekFocusRequester.safeRequestFocus() }
     }
 
     Column(
@@ -549,7 +549,7 @@ fun ControllerVideoInfoBottom(
 
                             Key.DirectionDown -> {
                                 if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
-                                buttonsFocusRequester.requestFocus()
+                                buttonsFocusRequester.safeRequestFocus()
                                 true
                             }
 
@@ -627,7 +627,7 @@ fun ControllerVideoInfoBottom(
                     .onKeyEvent {
                         if (it.key == Key.DirectionUp) {
                             if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
-                            seekFocusRequester.requestFocus()
+                            seekFocusRequester.safeRequestFocus()
                             return@onKeyEvent true
                         }
                         if (it.key == Key.DirectionDown) {

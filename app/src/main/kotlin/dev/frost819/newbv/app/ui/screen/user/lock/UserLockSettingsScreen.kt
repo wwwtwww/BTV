@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.user.lock
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +31,7 @@ import androidx.tv.material3.Text
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.R
 import dev.frost819.newbv.app.data.AccountRepositoryImpl
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -94,7 +94,7 @@ fun UserLockSettingsScreen(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(inputState) {
-        focusRequester.requestFocus()
+        focusRequester.safeRequestFocus()
     }
 
     BackHandler(true) {

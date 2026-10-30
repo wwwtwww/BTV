@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.user.lock
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +34,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
 import dev.frost819.newbv.app.viewmodel.user.UserSwitchViewModel
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.db.entity.UserEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,14 +107,14 @@ private fun UnlockUserContent(
     LaunchedEffect(userList) {
         scope.launch {
             delay(200)
-            defaultFocusRequester.requestFocus()
+            defaultFocusRequester.safeRequestFocus()
         }
     }
 
     LaunchedEffect(unlockState) {
         scope.launch {
             delay(100)
-            inputFocusRequester.requestFocus()
+            inputFocusRequester.safeRequestFocus()
         }
     }
 
@@ -157,7 +157,7 @@ private fun UnlockUserContent(
                                 inputPassword = inputPassword.drop(1)
                             } else {
                                 unlockState = UnlockState.ChooseUser
-                                defaultFocusRequester.requestFocus()
+                                defaultFocusRequester.safeRequestFocus()
                             }
                             true
                         }

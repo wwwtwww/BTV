@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
  * 焦点恢复器。
@@ -65,20 +66,40 @@ class FocusSaver(
     }
 
     /**
-     * 恢复焦点到之前保存的 key。
+     * 恢复焦点到之前保存的 key，并在无法恢复时回退到 [fallbackRequester]。
      *
-     * 应在 composition 恢复后调用（通常在屏幕顶层调一次）。
-     * 内置 50ms 延迟，确保 LazyRow/LazyColumn 子项完成组合后再请求焦点。
+     * 针对 TV 端的异步列表与跨页面导航进行多轮重试恢复，杜绝"光标消失"。
+     *
+     * @param fallbackRequester 兜底候选获焦节点（如首个卡片或导航栏）。
+     * @param maxRetries 最大重试轮次（默认 3 次）。
+     * @param retryDelayMs 重试间隔毫秒数（默认 60ms）。
      */
     @Composable
-    fun RestoreFocus() {
+    fun RestoreFocus(
+        fallbackRequester: FocusRequester? = null,
+        maxRetries: Int = 3,
+        retryDelayMs: Long = 60,
+    ) {
         LaunchedEffect(savedKey.value) {
             val key = savedKey.value
+            var restored = false
             if (key.isNotEmpty()) {
-                requesters[key]?.let {
-                    kotlinx.coroutines.delay(50)
-                    runCatching { it.requestFocus() }
+                val target = requesters[key]
+                if (target != null) {
+                    repeat(maxRetries) { attempt ->
+                        kotlinx.coroutines.delay(retryDelayMs)
+                        if (target.safeRequestFocus()) {
+                            restored = true
+                            return@LaunchedEffect
+                        }
+                    }
                 }
+            }
+
+            // 若无保存的 key 或目标元素恢复失败（如数据已被删除或重刷），尝试聚焦兜底节点
+            if (!restored && fallbackRequester != null) {
+                kotlinx.coroutines.delay(retryDelayMs)
+                fallbackRequester.safeRequestFocus()
             }
         }
     }

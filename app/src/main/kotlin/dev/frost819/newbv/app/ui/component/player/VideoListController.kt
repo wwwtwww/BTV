@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -69,6 +68,7 @@ import dev.frost819.newbv.biliapi.entity.video.Dimension
 import dev.frost819.newbv.biliapi.entity.video.VideoPage
 import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.core.theme.BVTheme
@@ -820,10 +820,10 @@ private suspend fun LazyListState.scrollToCentered(
 
 private suspend fun requestFocusSafely(focusRequester: FocusRequester) {
     runCatching {
-        focusRequester.requestFocus()
+        focusRequester.safeRequestFocus()
     }.onFailure {
         delay(60)
-        runCatching { focusRequester.requestFocus() }
+        runCatching { focusRequester.safeRequestFocus() }
     }
 }
 

@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.component.player.menu.component
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -12,6 +11,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import dev.frost819.newbv.app.viewmodel.player.LocalMenuFocusStateData
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
+import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
  * 视频/直播播放器二级设置菜单（MenuNav ↔ Items）。
@@ -43,7 +43,7 @@ fun <T> PlayerTwoLevelMenu(
 
     LaunchedEffect(focusState.focusState) {
         if (focusState.focusState == MenuFocusState.Items) {
-            runCatching { itemsFocusRequester.requestFocus() }
+            runCatching { itemsFocusRequester.safeRequestFocus() }
         }
     }
 
@@ -61,7 +61,7 @@ fun <T> PlayerTwoLevelMenu(
             onSelectedChanged = { onItemSelected(items[it]) },
             onFocusBackToParent = {
                 onFocusStateChange(MenuFocusState.MenuNav)
-                navFocusRequester.requestFocus()
+                navFocusRequester.safeRequestFocus()
             },
         )
     }

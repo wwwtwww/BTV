@@ -1,5 +1,4 @@
 package dev.frost819.newbv.app.ui.screen.pgc
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -44,6 +43,7 @@ import dev.frost819.newbv.app.ui.component.videocard.SeasonCardData
 import dev.frost819.newbv.app.ui.navigation.PgcFeatureRoute
 import dev.frost819.newbv.app.viewmodel.pgc.PgcViewModel
 import dev.frost819.newbv.biliapi.entity.pgc.PgcType
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.material3.Scaffold as Material3Scaffold
@@ -118,7 +118,7 @@ fun PgcContent(
                     .onPreviewKeyEvent { event ->
                         if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
                             viewModel.refresh()
-                            navFocusRequester.requestFocus()
+                            navFocusRequester.safeRequestFocus()
                             return@onPreviewKeyEvent true
                         }
                         false
