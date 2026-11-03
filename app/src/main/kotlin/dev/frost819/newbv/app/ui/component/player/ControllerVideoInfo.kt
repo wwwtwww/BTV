@@ -648,8 +648,8 @@ fun ControllerVideoInfoBottom(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            icons.forEach { item ->
-                key(item.description) {
+            icons.forEachIndexed { index, item ->
+                key(index) {
                     Surface(
                         modifier =
                             Modifier
