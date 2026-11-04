@@ -58,10 +58,10 @@ class HomeShelfRowTest {
         // 验证卡片展示
         composeRule.onNodeWithText("精选大屏评测视频").assertIsDisplayed()
 
-        // 验证末尾「查看全部」卡片元素展示
+        // 验证末尾「查看全部」卡片元素展示，且不再出现卡片下方的重复文案
         composeRule.onNodeWithText("查看全部").assertIsDisplayed()
-        composeRule.onNodeWithText("查看更多为你推荐").assertIsDisplayed()
-        composeRule.onNodeWithText("进入单分类瀑布流").assertIsDisplayed()
+        composeRule.onNodeWithText("查看更多为你推荐").assertDoesNotExist()
+        composeRule.onNodeWithText("进入单分类瀑布流").assertDoesNotExist()
 
         // 点击「查看全部」卡片
         composeRule.onNodeWithText("查看全部").performClick()

@@ -41,6 +41,12 @@ import dev.frost819.newbv.core.theme.BVTheme
  * @param isBuffering 是否正在缓冲
  * @param isError 是否发生错误
  * @param errorMessage 错误信息（为 null 时显示"未知错误"）
+ * @param errorType 细分错误分类
+ * @param canDowngradeQuality 是否允许降级画质重试
+ * @param onRetry 重试回调
+ * @param onDowngradeQuality 降级画质回调
+ * @param onOpenDiagnostics 打开网络诊断回调
+ * @param onExit 退出播放器回调
  */
 @Composable
 fun PlayStateTips(
@@ -57,35 +63,41 @@ fun PlayStateTips(
     onExit: (() -> Unit)? = null,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        if (!isPlaying && !isBuffering && !isError) {
-            PauseIcon(
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(24.dp),
-            )
-        }
-        if (isBuffering && !isError) {
-            BufferingTip(
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-        if (isError) {
-            if (onRetry != null || onExit != null) {
-                PlayerErrorOverlay(
+        // 状态互斥优先级：error > buffering > paused。
+        // 使用单一 when 分支显式约束互斥关系，防止缓冲超时报错（isBuffering && isError）时叠加渲染多个覆盖层。
+        when {
+            isError -> {
+                if (onRetry != null || onExit != null) {
+                    PlayerErrorOverlay(
+                        modifier = Modifier.align(Alignment.Center),
+                        errorMessage = errorMessage,
+                        errorType = errorType,
+                        canDowngradeQuality = canDowngradeQuality,
+                        onRetry = onRetry,
+                        onDowngradeQuality = onDowngradeQuality,
+                        onOpenDiagnostics = onOpenDiagnostics,
+                        onExit = onExit,
+                    )
+                } else {
+                    PlayErrorTip(
+                        modifier = Modifier.align(Alignment.Center),
+                        errorMessage = errorMessage,
+                    )
+                }
+            }
+
+            isBuffering -> {
+                BufferingTip(
                     modifier = Modifier.align(Alignment.Center),
-                    errorMessage = errorMessage,
-                    errorType = errorType,
-                    canDowngradeQuality = canDowngradeQuality,
-                    onRetry = onRetry,
-                    onDowngradeQuality = onDowngradeQuality,
-                    onOpenDiagnostics = onOpenDiagnostics,
-                    onExit = onExit,
                 )
-            } else {
-                PlayErrorTip(
-                    modifier = Modifier.align(Alignment.Center),
-                    errorMessage = errorMessage,
+            }
+
+            !isPlaying -> {
+                PauseIcon(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(24.dp),
                 )
             }
         }

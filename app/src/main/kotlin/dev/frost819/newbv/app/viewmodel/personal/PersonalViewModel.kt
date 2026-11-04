@@ -24,8 +24,10 @@ import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -116,8 +118,14 @@ class PersonalViewModel
     ) : ViewModel() {
         private val logger = Loggers.get("PersonalViewModel")
 
-        private val _effect = MutableSharedFlow<PersonalUiEffect>()
-        val effect = _effect.asSharedFlow()
+        private val _effect =
+            MutableSharedFlow<PersonalUiEffect>(
+                extraBufferCapacity = 16,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST,
+            )
+
+        /** 个人页一次性 UI 事件流（如 Toast 提示）。 */
+        val effect: SharedFlow<PersonalUiEffect> = _effect.asSharedFlow()
 
         private fun prefApiType(): BiliApiType =
             when (Prefs.apiType) {
@@ -484,16 +492,22 @@ class PersonalViewModel
         /**
          * 删除单条历史记录。
          *
-         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败则按条目精准回滚至原相对位置并提示错误，
+         * 避免覆盖并发删除或分页加载的结果。
          *
          * @param item 待删除的历史记录条目
          */
         fun deleteHistoryItem(item: HistoryItem) {
-            val previousList = _uiState.value.historyItems
+            var removedEntries: List<OptimisticRemovedEntry<HistoryItem, Pair<Long, HistoryItemType>>> = emptyList()
             _uiState.update { state ->
-                state.copy(
-                    historyItems = state.historyItems.filterNot { it.oid == item.oid && it.type == item.type },
-                )
+                val (remaining, removed) =
+                    removeOptimistically(
+                        list = state.historyItems,
+                        keySelector = { it.oid to it.type },
+                        predicate = { it.oid == item.oid && it.type == item.type },
+                    )
+                removedEntries = removed
+                state.copy(historyItems = remaining)
             }
             viewModelScope.launch {
                 runCatching {
@@ -510,7 +524,16 @@ class PersonalViewModel
                         throw error
                     }
                     logger.error(error) { "Failed to delete history item: oid=${item.oid}" }
-                    _uiState.update { it.copy(historyItems = previousList) }
+                    _uiState.update { state ->
+                        state.copy(
+                            historyItems =
+                                restoreOptimisticallyRemoved(
+                                    currentList = state.historyItems,
+                                    removedEntries = removedEntries,
+                                    keySelector = { it.oid to it.type },
+                                ),
+                        )
+                    }
                     val msg = error.message ?: "未知错误"
                     _effect.emit(PersonalUiEffect.ShowToast("删除失败: $msg"))
                 }
@@ -520,7 +543,7 @@ class PersonalViewModel
         /**
          * 从当前收藏夹中移除视频。
          *
-         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败且仍处于同一收藏夹，则按条目精准回滚并提示错误。
          *
          * @param aid 视频 AV 号
          * @param folderId 收藏夹 ID
@@ -529,11 +552,16 @@ class PersonalViewModel
             aid: Long,
             folderId: Long,
         ) {
-            val previousList = _uiState.value.favoriteItems
+            var removedEntries: List<OptimisticRemovedEntry<FavoriteItem, Long>> = emptyList()
             _uiState.update { state ->
-                state.copy(
-                    favoriteItems = state.favoriteItems.filterNot { it.id == aid },
-                )
+                val (remaining, removed) =
+                    removeOptimistically(
+                        list = state.favoriteItems,
+                        keySelector = { it.id },
+                        predicate = { it.id == aid },
+                    )
+                removedEntries = removed
+                state.copy(favoriteItems = remaining)
             }
             viewModelScope.launch {
                 runCatching {
@@ -548,7 +576,20 @@ class PersonalViewModel
                         throw error
                     }
                     logger.error(error) { "Failed to remove favorite item: aid=$aid, folderId=$folderId" }
-                    _uiState.update { it.copy(favoriteItems = previousList) }
+                    _uiState.update { state ->
+                        if (state.currentFolderId != folderId) {
+                            state
+                        } else {
+                            state.copy(
+                                favoriteItems =
+                                    restoreOptimisticallyRemoved(
+                                        currentList = state.favoriteItems,
+                                        removedEntries = removedEntries,
+                                        keySelector = { it.id },
+                                    ),
+                            )
+                        }
+                    }
                     val msg = error.message ?: "未知错误"
                     _effect.emit(PersonalUiEffect.ShowToast("取消收藏失败: $msg"))
                 }
@@ -558,16 +599,23 @@ class PersonalViewModel
         /**
          * 取消追番或追剧。
          *
-         * 采用乐观更新策略，立即从 UI 移除；若接口失败则回滚列表并提示错误。
+         * 采用乐观更新策略，立即从 UI 移除；若接口失败且筛选条件未切换，则按条目精准回滚并提示错误。
          *
          * @param seasonId 剧集 Season ID
          */
         fun cancelFollowingSeason(seasonId: Int) {
-            val previousList = _uiState.value.followingSeasons
+            var removedEntries: List<OptimisticRemovedEntry<FollowingSeason, Int>> = emptyList()
+            var filterSnapshot: Pair<FollowingSeasonType, FollowingSeasonStatus>? = null
             _uiState.update { state ->
-                state.copy(
-                    followingSeasons = state.followingSeasons.filterNot { it.seasonId == seasonId },
-                )
+                filterSnapshot = state.followingType to state.followingStatus
+                val (remaining, removed) =
+                    removeOptimistically(
+                        list = state.followingSeasons,
+                        keySelector = { it.seasonId },
+                        predicate = { it.seasonId == seasonId },
+                    )
+                removedEntries = removed
+                state.copy(followingSeasons = remaining)
             }
             viewModelScope.launch {
                 runCatching {
@@ -581,7 +629,20 @@ class PersonalViewModel
                         throw error
                     }
                     logger.error(error) { "Failed to cancel following season: seasonId=$seasonId" }
-                    _uiState.update { it.copy(followingSeasons = previousList) }
+                    _uiState.update { state ->
+                        if ((state.followingType to state.followingStatus) != filterSnapshot) {
+                            state
+                        } else {
+                            state.copy(
+                                followingSeasons =
+                                    restoreOptimisticallyRemoved(
+                                        currentList = state.followingSeasons,
+                                        removedEntries = removedEntries,
+                                        keySelector = { it.seasonId },
+                                    ),
+                            )
+                        }
+                    }
                     val msg = error.message ?: "未知错误"
                     _effect.emit(PersonalUiEffect.ShowToast("取消追番失败: $msg"))
                 }
@@ -685,3 +746,70 @@ class PersonalViewModel
             }
         }
     }
+
+/**
+ * 乐观删除条目的回滚锚点记录。
+ *
+ * 记录被移除条目及其移除时刻后续元素的唯一键，以便并发删除失败时仅将该条目恢复到原相对位置，
+ * 避免整表快照覆盖并发成功删除或分页追加的数据。
+ */
+private data class OptimisticRemovedEntry<T, K>(
+    val item: T,
+    val key: K,
+    val fallbackIndex: Int,
+    val trailingKeys: List<K>,
+)
+
+/**
+ * 从列表中移除满足条件的条目，并生成用于失败精准回滚的锚点信息。
+ */
+private fun <T, K> removeOptimistically(
+    list: List<T>,
+    keySelector: (T) -> K,
+    predicate: (T) -> Boolean,
+): Pair<List<T>, List<OptimisticRemovedEntry<T, K>>> {
+    val remaining = ArrayList<T>(list.size)
+    val removed = mutableListOf<OptimisticRemovedEntry<T, K>>()
+    list.forEachIndexed { index, element ->
+        if (predicate(element)) {
+            val trailingKeys = list.subList(index + 1, list.size).map(keySelector)
+            removed.add(
+                OptimisticRemovedEntry(
+                    item = element,
+                    key = keySelector(element),
+                    fallbackIndex = index,
+                    trailingKeys = trailingKeys,
+                ),
+            )
+        } else {
+            remaining.add(element)
+        }
+    }
+    return remaining to removed
+}
+
+/**
+ * 将乐观删除失败的条目按原相对位置插回当前列表，不覆盖期间发生的其他增删变更。
+ */
+private fun <T, K> restoreOptimisticallyRemoved(
+    currentList: List<T>,
+    removedEntries: List<OptimisticRemovedEntry<T, K>>,
+    keySelector: (T) -> K,
+): List<T> {
+    if (removedEntries.isEmpty()) return currentList
+    val mutable = currentList.toMutableList()
+    for (entry in removedEntries) {
+        if (mutable.none { keySelector(it) == entry.key }) {
+            val anchorKeySet = entry.trailingKeys.toSet()
+            val anchorIndex = mutable.indexOfFirst { keySelector(it) in anchorKeySet }
+            val insertIndex =
+                if (anchorIndex >= 0) {
+                    anchorIndex
+                } else {
+                    entry.fallbackIndex.coerceIn(0, mutable.size)
+                }
+            mutable.add(insertIndex, entry.item)
+        }
+    }
+    return mutable
+}

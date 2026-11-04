@@ -2,6 +2,11 @@ package dev.frost819.newbv.app.ui.screen.home
 
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
+import dev.frost819.newbv.core.log.Logger
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
 import org.junit.jupiter.api.Test
 
 /**
@@ -34,11 +39,38 @@ class HomeShelfRowLogicTest {
                 sampleCard(avid = 3L, title = "原始项3"),
             )
 
-        val distinctItems = rawItems.distinctBy { it.avid }
+        val distinctItems = deduplicateShelfItems(rawItems)
 
         assertThat(distinctItems).hasSize(3)
         assertThat(distinctItems.map { it.avid }).containsExactly(1L, 2L, 3L).inOrder()
         assertThat(distinctItems[0].title).isEqualTo("原始项1")
+    }
+
+    @Test
+    fun `logShelfDeduplicationIfNeeded logs debug message only when duplicates were removed`() {
+        val logger = mockk<Logger>(relaxed = true)
+        val messageSlot = slot<() -> String>()
+        every { logger.debug(capture(messageSlot)) } returns Unit
+
+        logShelfDeduplicationIfNeeded(
+            title = "为你推荐",
+            rawCount = 4,
+            distinctCount = 3,
+            logger = logger,
+        )
+
+        verify(exactly = 1) { logger.debug(any()) }
+        assertThat(messageSlot.captured.invoke()).isEqualTo("Shelf '为你推荐': deduplicated 4 -> 3")
+
+        val noOpLogger = mockk<Logger>(relaxed = true)
+        logShelfDeduplicationIfNeeded(
+            title = "为你推荐",
+            rawCount = 3,
+            distinctCount = 3,
+            logger = noOpLogger,
+        )
+
+        verify(exactly = 0) { noOpLogger.debug(any()) }
     }
 
     @Test

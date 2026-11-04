@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.viewmodel.personal
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.lifecycle.viewModelScope
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.app.data.VideoInfoRepository
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
@@ -29,12 +30,17 @@ import dev.frost819.newbv.data.datastore.Prefs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterAll
@@ -966,4 +972,183 @@ class PersonalViewModelTest {
                 )
             }
         }
+
+    @Test
+    fun `effect buffers emissions without suspending viewModelScope when collector is slow`() {
+        runTest(testDispatcher) {
+            Prefs.isLogin = false
+            val vm = createViewModel()
+            val collectorGate = CompletableDeferred<Unit>()
+            val received = mutableListOf<PersonalUiEffect>()
+
+            val collectJob =
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                    vm.effect.collect { item ->
+                        received.add(item)
+                        collectorGate.await()
+                    }
+                }
+
+            // 第 1 条触发收集并使 collector 挂起在 collectorGate；后续 2 条应直接写入缓冲区并结束发射协程
+            vm.playAllToView {}
+            vm.playAllFavorite {}
+            vm.playAllToView {}
+            runCurrent()
+
+            // 若发射协程被零缓冲挂起，取消 viewModelScope 会导致挂起中的事件丢失
+            vm.viewModelScope.cancel()
+            collectorGate.complete(Unit)
+            runCurrent()
+
+            assertThat(received)
+                .containsExactly(
+                    PersonalUiEffect.ShowToast("稍后再看列表为空"),
+                    PersonalUiEffect.ShowToast("当前收藏夹为空"),
+                    PersonalUiEffect.ShowToast("稍后再看列表为空"),
+                ).inOrder()
+            collectJob.cancel()
+        }
+    }
+
+    @Test
+    fun `deleteHistoryItem concurrent rollback restores only failed item without reviving succeeded deletion`() {
+        runTest(testDispatcher) {
+            val item1 = fakeHistoryItem(101L)
+            val item2 = fakeHistoryItem(102L)
+            val item3 = fakeHistoryItem(103L)
+            val firstDeleteGate = CompletableDeferred<Unit>()
+
+            coEvery { historyRepo.getHistories(any(), any()) } returns
+                fakeHistoryData(listOf(item1, item2, item3), cursor = 0L)
+            coEvery { historyRepo.deleteHistory("archive_101") } coAnswers {
+                firstDeleteGate.await()
+                throw RuntimeException("超时失败")
+            }
+            coEvery { historyRepo.deleteHistory("archive_102") } returns Unit
+
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            // 连续删除第 1 条与第 2 条：第 2 条先成功，第 1 条后失败回滚
+            vm.deleteHistoryItem(item1)
+            vm.deleteHistoryItem(item2)
+            runCurrent()
+
+            assertThat(
+                vm.uiState.value.historyItems
+                    .map { it.oid },
+            ).containsExactly(103L)
+
+            firstDeleteGate.complete(Unit)
+            runCurrent()
+
+            // 仅恢复失败的 101L 至原相对位置，不应使已删除成功的 102L 复活
+            assertThat(
+                vm.uiState.value.historyItems
+                    .map { it.oid },
+            ).containsExactly(101L, 103L)
+                .inOrder()
+        }
+    }
+
+    @Test
+    fun `delFavoriteItem concurrent rollback restores only failed item and ignores switched folder`() {
+        runTest(testDispatcher) {
+            val fav1 = fakeFavoriteItem(1L)
+            val fav2 = fakeFavoriteItem(2L)
+            val fav3 = fakeFavoriteItem(3L)
+            val folder1 = fakeFolder(100L)
+            val folder2 = fakeFolder(200L)
+            val firstDelGate = CompletableDeferred<Unit>()
+
+            coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } returns
+                listOf(folder1, folder2)
+            coEvery { favoriteRepo.getFavoriteFolderData(100L, any(), any(), any()) } returns
+                fakeFavoriteFolderData(listOf(fav1, fav2, fav3), hasMore = false)
+            coEvery { favoriteRepo.getFavoriteFolderData(200L, any(), any(), any()) } returns
+                fakeFavoriteFolderData(listOf(fakeFavoriteItem(99L)), hasMore = false)
+            coEvery {
+                favoriteRepo.delVideoFromFavoriteFolder(aid = 1L, delMediaIds = listOf(100L), preferApiType = any())
+            } coAnswers {
+                firstDelGate.await()
+                throw RuntimeException("网络异常")
+            }
+            coEvery {
+                favoriteRepo.delVideoFromFavoriteFolder(aid = 2L, delMediaIds = listOf(100L), preferApiType = any())
+            } returns Unit
+
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            vm.delFavoriteItem(aid = 1L, folderId = 100L)
+            vm.delFavoriteItem(aid = 2L, folderId = 100L)
+            runCurrent()
+
+            firstDelGate.complete(Unit)
+            runCurrent()
+
+            assertThat(
+                vm.uiState.value.favoriteItems
+                    .map { it.id },
+            ).containsExactly(1L, 3L)
+                .inOrder()
+
+            // 验证切换收藏夹后，旧收藏夹的删除失败不会回写污染新收藏夹列表
+            val switchFolderGate = CompletableDeferred<Unit>()
+            coEvery {
+                favoriteRepo.delVideoFromFavoriteFolder(aid = 3L, delMediaIds = listOf(100L), preferApiType = any())
+            } coAnswers {
+                switchFolderGate.await()
+                throw RuntimeException("超时异常")
+            }
+
+            vm.delFavoriteItem(aid = 3L, folderId = 100L)
+            vm.loadFavoriteItems(folderId = 200L, forceRefresh = true)
+            advanceUntilIdle()
+
+            switchFolderGate.complete(Unit)
+            runCurrent()
+
+            assertThat(vm.uiState.value.currentFolderId).isEqualTo(200L)
+            assertThat(
+                vm.uiState.value.favoriteItems
+                    .map { it.id },
+            ).containsExactly(99L)
+        }
+    }
+
+    @Test
+    fun `cancelFollowingSeason concurrent rollback restores only failed season in order`() {
+        runTest(testDispatcher) {
+            val season1 = fakeFollowingSeason(1)
+            val season2 = fakeFollowingSeason(2)
+            val season3 = fakeFollowingSeason(3)
+            val secondCancelGate = CompletableDeferred<Unit>()
+
+            coEvery { seasonRepo.getFollowingSeasons(any(), any(), any(), any(), any()) } returns
+                fakeFollowingSeasonData(listOf(season1, season2, season3), total = 3)
+            coEvery { seasonRepo.delSeasonFollow(seasonId = 1, preferApiType = any()) } returns Unit
+            coEvery { seasonRepo.delSeasonFollow(seasonId = 2, preferApiType = any()) } coAnswers {
+                secondCancelGate.await()
+                throw RuntimeException("取消失败")
+            }
+
+            val vm = createViewModel()
+            advanceUntilIdle()
+
+            // 连续取消 season1（成功）与 season2（后失败）：season2 应插回 season3 之前
+            vm.cancelFollowingSeason(seasonId = 1)
+            vm.cancelFollowingSeason(seasonId = 2)
+            runCurrent()
+
+            secondCancelGate.complete(Unit)
+            runCurrent()
+
+            assertThat(
+                vm.uiState.value.followingSeasons
+                    .map { it.seasonId },
+            ).containsExactly(2, 3)
+                .inOrder()
+        }
+    }
 }

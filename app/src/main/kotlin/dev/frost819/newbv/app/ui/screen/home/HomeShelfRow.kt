@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -44,8 +42,31 @@ import dev.frost819.newbv.app.ui.component.focusSaverItem
 import dev.frost819.newbv.app.ui.component.videocard.SmallVideoCard
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.log.Logger
+import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.flow.distinctUntilChanged
+
+private val shelfLogger = Loggers.get("HomeShelfRow")
+
+/**
+ * 按 [VideoCardData.avid] 对泳道卡片进行保序去重。
+ */
+internal fun deduplicateShelfItems(items: List<VideoCardData>): List<VideoCardData> = items.distinctBy { it.avid }
+
+/**
+ * 当泳道去重前后数量存在差异时输出 Debug 日志，辅助排查服务端重复下发或客户端分页拼接问题。
+ */
+internal fun logShelfDeduplicationIfNeeded(
+    title: String,
+    rawCount: Int,
+    distinctCount: Int,
+    logger: Logger = shelfLogger,
+) {
+    if (distinctCount != rawCount) {
+        logger.debug { "Shelf '$title': deduplicated $rawCount -> $distinctCount" }
+    }
+}
 
 /**
  * YouTube TV 风格横向内容泳道（Horizontal Shelf）。
@@ -109,7 +130,14 @@ fun HomeShelfRow(
         // 推荐流刷新后顺序会变化：先按 avid 去重（防止重复 key 崩溃），
         // key 与焦点记忆均使用 avid 稳定标识（而非 index），
         // 否则刷新会导致整行卡片无法复用、焦点恢复指向“位置”而非“原视频”。
-        val distinctItems = remember(items) { items.distinctBy { it.avid } }
+        val distinctItems = remember(items) { deduplicateShelfItems(items) }
+        LaunchedEffect(items, title) {
+            logShelfDeduplicationIfNeeded(
+                title = title,
+                rawCount = items.size,
+                distinctCount = distinctItems.size,
+            )
+        }
         val listState = rememberLazyListState()
 
         // 行级滑动预加载监听：滑动到距离末尾 4 项时自动触发，记录已触发的列表长度避免重组/重入重复请求
@@ -213,11 +241,11 @@ fun HomeShelfRow(
 /**
  * 泳道末尾的「查看全部」卡片。
  *
- * 与 [SmallVideoCard] 保持等宽 (260dp) 与像素级基线对齐，
- * 提供圆环向右箭头与文案，获焦时带 1.06x 缩放与大屏高亮边框。
+ * 与 [SmallVideoCard] 封面区域保持等宽 (260dp) 与 16:10 比例对齐，
+ * 仅在卡片内提供圆环向右箭头与「查看全部」文案，避免卡片内外文案重复造成大屏视觉噪音。
  *
  * @param modifier 外部修饰符。
- * @param title 泳道标题（如"为你推荐"、"今日热门"）。
+ * @param title 泳道标题（如"为你推荐"、"今日热门"，用于无障碍语义描述）。
  * @param onClick 点击回调（进入单分类瀑布流）。
  */
 @Composable
@@ -226,75 +254,49 @@ fun SeeAllShelfCard(
     title: String,
     onClick: () -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Card(
-            onClick = onClick,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.6f),
-            shape = CardDefaults.shape(BVShape.large),
-            scale = CardDefaults.scale(focusedScale = 1.06f),
-            colors =
-                CardDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            border = TvFocusDefaults.cardBorder(),
+    Card(
+        onClick = onClick,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .aspectRatio(1.6f),
+        shape = CardDefaults.shape(BVShape.large),
+        scale = CardDefaults.scale(focusedScale = 1.06f),
+        colors =
+            CardDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+        border = TvFocusDefaults.cardBorder(),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                Box(
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .clip(BVShape.pill)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(48.dp)
-                                .clip(BVShape.pill)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                            contentDescription = "查看全部",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Text(
-                        text = "查看全部",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = "查看全部$title",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-            }
-        }
-
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        ) {
-            Text(
-                text = "查看更多$title",
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
                 Text(
-                    text = "进入单分类瀑布流",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    maxLines = 1,
+                    text = "查看全部",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }

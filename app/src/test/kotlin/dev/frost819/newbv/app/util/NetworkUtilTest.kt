@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.net.InetSocketAddress
 
 /**
@@ -115,4 +116,21 @@ class NetworkUtilTest {
                 server.stop(0)
             }
         }
+
+    @Test
+    fun `probeLatency returns null for malformed URL`() {
+        runTest {
+            val latency = NetworkUtil.probeLatency(targetUrl = "not-a-valid-url", timeoutMs = 500)
+            assertThat(latency).isNull()
+        }
+    }
+
+    @Test
+    fun `probeLatency propagates IllegalArgumentException when timeoutMs is negative`() {
+        runTest {
+            assertThrows<IllegalArgumentException> {
+                NetworkUtil.probeLatency(targetUrl = "http://127.0.0.1:80/", timeoutMs = -1)
+            }
+        }
+    }
 }

@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -96,7 +95,7 @@ fun PlayerErrorOverlay(
                     .clip(MaterialTheme.shapes.large),
             colors =
                 SurfaceDefaults.colors(
-                    containerColor = Color(0xF2141724),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                 ),
             shape = MaterialTheme.shapes.large,
         ) {
@@ -112,7 +111,7 @@ fun PlayerErrorOverlay(
                         if (errorType ==
                             PlayerErrorType.NetworkDisconnected
                         ) {
-                            Color(0xFFFF5252)
+                            MaterialTheme.colorScheme.error
                         } else {
                             MaterialTheme.colorScheme.primary
                         },
@@ -124,7 +123,7 @@ fun PlayerErrorOverlay(
                     text = titleText,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -132,7 +131,7 @@ fun PlayerErrorOverlay(
                 Text(
                     text = errorMessage ?: "请检查电视网络连接或尝试重新播放",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

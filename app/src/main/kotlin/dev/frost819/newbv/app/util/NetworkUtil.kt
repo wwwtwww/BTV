@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -117,7 +118,9 @@ object NetworkUtil {
                 }
             }
             null
-        } catch (_: Exception) {
+        } catch (_: IOException) {
+            null
+        } catch (_: SecurityException) {
             null
         }
     }
@@ -151,13 +154,12 @@ object NetworkUtil {
                 } else {
                     null
                 }
-            } catch (_: Exception) {
+            } catch (_: IOException) {
+                null
+            } catch (_: SecurityException) {
                 null
             } finally {
-                try {
-                    connection?.disconnect()
-                } catch (_: Exception) {
-                }
+                connection?.disconnect()
             }
         }
 
