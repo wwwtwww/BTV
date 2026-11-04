@@ -1,17 +1,24 @@
 package dev.frost819.newbv.app.ui.screen.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,18 +29,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.ui.component.FocusSaver
 import dev.frost819.newbv.app.ui.component.focusSaverItem
 import dev.frost819.newbv.app.ui.component.videocard.SmallVideoCard
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
+import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -79,13 +89,12 @@ fun HomeShelfRow(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 行头部：标题 + 查看全部
+        // 行头部：标题
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -94,27 +103,6 @@ fun HomeShelfRow(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-
-            if (onSeeAllClick != null) {
-                Surface(
-                    onClick = onSeeAllClick,
-                    shape = ClickableSurfaceDefaults.shape(BVShape.pill),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
-                    colors =
-                        ClickableSurfaceDefaults.colors(
-                            containerColor = Color.Transparent,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            focusedContentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                ) {
-                    Text(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        text = "查看更多 >",
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-            }
         }
 
         // 水平滑动卡片列表
@@ -185,7 +173,23 @@ fun HomeShelfRow(
                 )
             }
 
-            if (!hasMore && distinctItems.isNotEmpty()) {
+            if (onSeeAllClick != null && distinctItems.isNotEmpty()) {
+                item(key = "${shelfKey}_see_all") {
+                    val seeAllModifier =
+                        if (focusSaver != null) {
+                            Modifier
+                                .width(260.dp)
+                                .focusSaverItem(focusSaver, "${shelfKey}_see_all")
+                        } else {
+                            Modifier.width(260.dp)
+                        }
+                    SeeAllShelfCard(
+                        modifier = seeAllModifier,
+                        title = title,
+                        onClick = onSeeAllClick,
+                    )
+                }
+            } else if (!hasMore && distinctItems.isNotEmpty()) {
                 item(key = "${shelfKey}_no_more") {
                     Box(
                         modifier =
@@ -201,6 +205,97 @@ fun HomeShelfRow(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 泳道末尾的「查看全部」卡片。
+ *
+ * 与 [SmallVideoCard] 保持等宽 (260dp) 与像素级基线对齐，
+ * 提供圆环向右箭头与文案，获焦时带 1.06x 缩放与大屏高亮边框。
+ *
+ * @param modifier 外部修饰符。
+ * @param title 泳道标题（如"为你推荐"、"今日热门"）。
+ * @param onClick 点击回调（进入单分类瀑布流）。
+ */
+@Composable
+fun SeeAllShelfCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    onClick: () -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Card(
+            onClick = onClick,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.6f),
+            shape = CardDefaults.shape(BVShape.large),
+            scale = CardDefaults.scale(focusedScale = 1.06f),
+            colors =
+                CardDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            border = TvFocusDefaults.cardBorder(),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .clip(BVShape.pill)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = "查看全部",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Text(
+                        text = "查看全部",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        ) {
+            Text(
+                text = "查看更多$title",
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "进入单分类瀑布流",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                )
             }
         }
     }
