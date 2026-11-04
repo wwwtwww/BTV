@@ -12,6 +12,7 @@
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-TV%201.0.0-green?logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
 [![Media3](https://img.shields.io/badge/Media3-1.4.1-red)](https://developer.android.com/media/media3)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![Docs](https://img.shields.io/badge/Docs-使用指南-brightgreen?logo=readme)](docs/使用指南.md)
 
 **BTV 不支持在中国大陆地区内使用，如有相关使用需求请使用 [云视听小电视](https://app.bilibili.com)**
 
@@ -26,6 +27,8 @@ BTV 是基于 [BV](https://github.com/aaa1115910/bv) 重构的 [哔哩哔哩](ht
 **这不是原版 BV 的 1:1 复刻，而是一次由内而外的架构重构与交互升级。** 在继承原版轻量无广告、画质自由切换等核心体验的基础上，引入了现代 Android 架构规范，大幅增强了大屏交互细节与系统稳定性。
 
 > 💡 原版 BV 历史源码保留在本仓库的 [`bv-feature`](../../tree/bv-feature) 分支。
+> 
+> 📖 **新手上手必读**：请参阅 [**《BTV 完整使用指南》**](docs/使用指南.md)，涵盖遥控器按键映射、卡片快捷操作、全部播放技巧与常见问题解答 (FAQ)。
 
 ---
 
