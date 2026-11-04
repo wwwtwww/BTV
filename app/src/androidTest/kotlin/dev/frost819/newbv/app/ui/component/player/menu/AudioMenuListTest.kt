@@ -43,7 +43,7 @@ class AudioMenuListTest {
             TvMaterialTheme {
                 Box(modifier = Modifier.fillMaxSize().width(300.dp)) {
                     AudioMenuList(
-                        audioList = testAudios,
+                        availableAudio = testAudios,
                         currentAudio = Audio.A192K,
                         onAudioChange = { selectedAudio = it },
                         onFocusStateChange = {},

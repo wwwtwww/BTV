@@ -35,8 +35,6 @@ class NextPlayOverlayTest {
                         visible = false,
                         info =
                             NextPlayOverlayInfo(
-                                aid = 1001L,
-                                cid = 2001L,
                                 title = "下一集标题",
                                 cover = null,
                                 author = "测试UP主",
@@ -64,8 +62,6 @@ class NextPlayOverlayTest {
                         visible = true,
                         info =
                             NextPlayOverlayInfo(
-                                aid = 1001L,
-                                cid = 2001L,
                                 title = "精彩下一集内容",
                                 cover = null,
                                 author = "高能君",
