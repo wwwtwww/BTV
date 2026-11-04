@@ -6,7 +6,7 @@
 
 **哔哩哔哩第三方 Android TV 客户端架构重构版**
 
-[![Release](https://img.shields.io/badge/release-v0.5.1-orange?logo=github)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v0.5.3-orange?logo=github)](CHANGELOG.md)
 [![Android Sdk Require](https://img.shields.io/badge/Android-5.0%2B%20(API%2021%2B)-informational?logo=android)](https://apilevels.com/#:~:text=Jetpack%20Compose%20requires%20a%20minSdk%20of%2021%20or%20higher)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-purple?logo=kotlin)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-TV%201.0.0-green?logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
