@@ -165,13 +165,13 @@ class TimestampTest {
     @Test
     fun `getSrtTime pads single digit millis to three places`() {
         val ts = Timestamp(0, 0, 0, 5)
-        assertThat(ts.getSrtTime()).isEqualTo("00:00:00,500")
+        assertThat(ts.getSrtTime()).isEqualTo("00:00:00,005")
     }
 
     @Test
     fun `getSrtTime pads two digit millis to three places`() {
         val ts = Timestamp(0, 0, 0, 50)
-        assertThat(ts.getSrtTime()).isEqualTo("00:00:00,500")
+        assertThat(ts.getSrtTime()).isEqualTo("00:00:00,050")
     }
 
     @Test
@@ -190,6 +190,13 @@ class TimestampTest {
     @Test
     fun `fromSrtString to getSrtTime roundtrip with zero millis`() {
         val original = "00:00:01,000"
+        val ts = Timestamp.fromSrtString(original)
+        assertThat(ts.getSrtTime()).isEqualTo(original)
+    }
+
+    @Test
+    fun `fromSrtString to getSrtTime roundtrip with single digit millis`() {
+        val original = "00:00:01,005"
         val ts = Timestamp.fromSrtString(original)
         assertThat(ts.getSrtTime()).isEqualTo(original)
     }

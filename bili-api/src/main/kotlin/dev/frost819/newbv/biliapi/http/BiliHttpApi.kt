@@ -200,8 +200,8 @@ object BiliHttpApi {
             // 1. 获取 SPI buvid3
             val spiResponse = client.get("/x/frontend/finger/spi") {}
             val spiData = spiResponse.body<BiliResponse<SpiData>>()
-            if (spiData.code != 0 || spiData.data?.b3.isNullOrBlank()) return@runCatching null
-            buvid3 = spiData.data!!.b3!!
+            val b3 = spiData.data?.b3?.takeIf { it.isNotBlank() } ?: return@runCatching null
+            buvid3 = b3
 
             // 2. 携带 buvid3 请求 www.bilibili.com 获取 b_nut 等设备 cookie
             val biliResponse =
@@ -1814,8 +1814,8 @@ object BiliHttpApi {
                 }.readRawBytes()
                 .toString(Charsets.UTF_8)
         val keywordSuggest = json.decodeFromString<KeywordSuggest>(responseText)
-        val result = json.decodeFromJsonElement<KeywordSuggest.Result>(keywordSuggest.result!!)
-        keywordSuggest.suggests.addAll(result.tag)
+        val result = keywordSuggest.result?.let { json.decodeFromJsonElement<KeywordSuggest.Result>(it) }
+        result?.let { keywordSuggest.suggests.addAll(it.tag) }
         return keywordSuggest
     }
 
@@ -1986,7 +1986,7 @@ object BiliHttpApi {
         }
 
         runCatching {
-            val wbiData = getWebInterfaceNav().data!!.wbiImg
+            val wbiData = getWebInterfaceNav().data?.wbiImg ?: return
             wbiImgKey = wbiData.getImgKey()
             wbiSubKey = wbiData.getSubKey()
             println("Update wbi keys: $wbiImgKey, $wbiSubKey")

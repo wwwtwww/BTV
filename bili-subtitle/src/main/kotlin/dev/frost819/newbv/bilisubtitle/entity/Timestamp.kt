@@ -1,5 +1,7 @@
 package dev.frost819.newbv.bilisubtitle.entity
 
+import java.util.Locale
+
 data class Timestamp(
     val hours: Int,
     val minutes: Int,
@@ -35,13 +37,10 @@ data class Timestamp(
     fun getBccTime(): Float = hours * 60 * 60 + minutes * 60 + seconds + milliSeconds / 1000f
 
     fun getSrtTime(): String {
-        val h = String.format("%02d", hours)
-        val m = String.format("%02d", minutes)
-        val s = String.format("%02d", seconds)
-        var ms = "$milliSeconds"
-        while (ms.length < 3) {
-            ms += "0"
-        }
+        val h = String.format(Locale.US, "%02d", hours)
+        val m = String.format(Locale.US, "%02d", minutes)
+        val s = String.format(Locale.US, "%02d", seconds)
+        val ms = String.format(Locale.US, "%03d", milliSeconds.coerceIn(0, 999))
         return "$h:$m:$s,$ms"
     }
 }

@@ -15,10 +15,12 @@ enum class CodeType(
     ;
 
     companion object {
-        fun fromCodecId(code: Int?) =
-            runCatching {
-                entries.find { it.codecId == code }!!
-            }.getOrDefault(NoCode)
+        fun fromCodecId(code: Int?): CodeType =
+            if (code == null || code == 0) {
+                NoCode
+            } else {
+                entries.find { it.codecId == code } ?: NoCode
+            }
     }
 
     fun toPlayerSharedCodeType() =

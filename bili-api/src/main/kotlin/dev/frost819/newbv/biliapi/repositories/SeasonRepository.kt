@@ -36,7 +36,7 @@ class SeasonRepository(
                         status = status.id,
                         pageNumber = pageNumber,
                         pageSize = pageSize,
-                        mid = authRepository.mid!!,
+                        mid = checkNotNull(authRepository.mid) { "未登录用户无法获取关注剧集" },
                     ).getResponseData()
                     .let { responseData ->
                         FollowingSeasonData(

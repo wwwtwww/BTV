@@ -32,8 +32,9 @@ class HistoryRepository(
             }
 
             ApiType.App -> {
+                val stub = checkNotNull(historyStub) { "gRPC HistoryStub 未初始化" }
                 val reply =
-                    historyStub?.cursorV2(
+                    stub.cursorV2(
                         cursorV2Req {
                             this.cursor =
                                 cursor {
@@ -42,7 +43,7 @@ class HistoryRepository(
                             business = "archive"
                         },
                     )
-                HistoryData.fromHistoryResponse(reply!!)
+                HistoryData.fromHistoryResponse(reply)
             }
         }
 

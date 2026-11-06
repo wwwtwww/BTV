@@ -178,7 +178,7 @@ open class UserRepositoryImpl(
                 BiliHttpApi
                     .addSeasonFollow(
                         seasonId = seasonId,
-                        csrf = authRepository.biliJct!!,
+                        csrf = checkNotNull(authRepository.biliJct) { "用户未登录，缺少 CSRF Token" },
                     ).getResponseData()
                     .toast
 
@@ -200,7 +200,7 @@ open class UserRepositoryImpl(
                 BiliHttpApi
                     .delSeasonFollow(
                         seasonId = seasonId,
-                        csrf = authRepository.biliJct!!,
+                        csrf = checkNotNull(authRepository.biliJct) { "用户未登录，缺少 CSRF Token" },
                     ).getResponseData()
                     .toast
 
