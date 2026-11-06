@@ -124,6 +124,7 @@ fun NetworkDiagnosticsDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                val r = report
                 if (isChecking) {
                     Row(
                         modifier = Modifier.padding(vertical = 32.dp),
@@ -141,8 +142,7 @@ fun NetworkDiagnosticsDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                } else if (report != null) {
-                    val r = report
+                } else if (r != null) {
                     val cdnHost =
                         currentCdnUrl?.let {
                             try {

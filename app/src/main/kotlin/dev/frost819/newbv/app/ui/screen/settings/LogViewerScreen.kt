@@ -210,10 +210,11 @@ fun LogViewerScreen(
                                 .background(Color.White),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (qrImage != null) {
+                        val currentQr = qrImage
+                        if (currentQr != null) {
                             Image(
                                 modifier = Modifier.size(200.dp),
-                                bitmap = qrImage,
+                                bitmap = currentQr,
                                 contentDescription = null,
                             )
                         } else {
