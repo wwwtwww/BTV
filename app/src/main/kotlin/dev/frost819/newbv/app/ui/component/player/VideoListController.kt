@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -83,7 +84,7 @@ import kotlin.math.abs
  *
  * 采用底部轻量悬浮微轨取代传统左侧 300dp 抽屉，占屏高度约 20%~25%，
  * 背景使用半透明黑夜渐变遮罩，不遮挡视频核心主体画面：
- * - 单视频多 P、番剧多集、UGC 合集统一使用 [BVShape.pill] 胶囊样式；
+ * - 单视频多 P、番剧多集、UGC 合集统一使用 [BVShape.small] 标准微圆角矩形卡片；
  * - 呼出时通过 [LazyListState.animateScrollToItem] 将当前播放集平滑居中定位并自动落焦；
  * - 超长集数（默认 > [EPISODE_GROUP_SIZE]）自动渲染顶部区间胶囊分页（1-50、51-100 等）；
  * - 多集 UGC 合集内单集含多 P 时，按需在下方展开紧凑的二级分 P 胶囊轨。
@@ -294,7 +295,7 @@ fun VideoListController(
             visible = show && trackState.items.isNotEmpty(),
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            label = "EpisodeCapsuleTrackVisibility",
+            label = "EpisodeCardTrackVisibility",
         ) {
             Column(
                 modifier =
@@ -342,7 +343,7 @@ fun VideoListController(
                             items = trackState.groups,
                             key = { _, group -> "group_${group.groupIndex}" },
                         ) { index, group ->
-                            GroupRangeCapsule(
+                            GroupRangeButton(
                                 modifier =
                                     if (index == selectedGroupIndex) {
                                         Modifier.focusRequester(groupRowFocusRequester)
@@ -401,7 +402,7 @@ fun VideoListController(
                         items = currentGroupItems,
                         key = { _, item -> item.key },
                     ) { index, item ->
-                        EpisodeCapsule(
+                        EpisodeCard(
                             modifier =
                                 if (index == safeFocusTarget) {
                                     Modifier.focusRequester(primaryRowFocusRequester)
@@ -537,7 +538,7 @@ private fun EpisodeTrackHeader(
 }
 
 @Composable
-private fun GroupRangeCapsule(
+private fun GroupRangeButton(
     modifier: Modifier = Modifier,
     label: String,
     isSelected: Boolean,
@@ -566,7 +567,7 @@ private fun GroupRangeCapsule(
                 .onFocusChanged { if (it.hasFocus) onFocus() }
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.small),
         scale = TvFocusDefaults.surfaceScale(focusedScale = 1.04f),
         border =
             ClickableSurfaceDefaults.border(
@@ -574,7 +575,7 @@ private fun GroupRangeCapsule(
                     if (isSelected) {
                         Border(
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
-                            shape = BVShape.pill,
+                            shape = BVShape.small,
                         )
                     } else {
                         Border.None
@@ -582,7 +583,7 @@ private fun GroupRangeCapsule(
                 focusedBorder =
                     Border(
                         border = BorderStroke(1.5.dp, Color.White),
-                        shape = BVShape.pill,
+                        shape = BVShape.small,
                     ),
             ),
         colors =
@@ -592,7 +593,10 @@ private fun GroupRangeCapsule(
             ),
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 14.dp),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 14.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -606,7 +610,7 @@ private fun GroupRangeCapsule(
 }
 
 @Composable
-private fun EpisodeCapsule(
+private fun EpisodeCard(
     modifier: Modifier = Modifier,
     item: EpisodeCapsuleItem,
     onFocus: () -> Unit,
@@ -629,13 +633,13 @@ private fun EpisodeCapsule(
     Surface(
         modifier =
             modifier
-                .height(40.dp)
-                .widthIn(min = 84.dp, max = 240.dp)
+                .height(36.dp)
+                .widthIn(min = 80.dp, max = 240.dp)
                 .semantics { selected = isCurrent }
                 .onFocusChanged { if (it.hasFocus) onFocus() }
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.small),
         scale = TvFocusDefaults.surfaceScale(focusedScale = 1.05f),
         border =
             ClickableSurfaceDefaults.border(
@@ -643,18 +647,18 @@ private fun EpisodeCapsule(
                     if (isCurrent) {
                         Border(
                             border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.90f)),
-                            shape = BVShape.pill,
+                            shape = BVShape.small,
                         )
                     } else {
                         Border(
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                            shape = BVShape.pill,
+                            shape = BVShape.small,
                         )
                     },
                 focusedBorder =
                     Border(
                         border = BorderStroke(2.dp, Color.White),
-                        shape = BVShape.pill,
+                        shape = BVShape.small,
                     ),
             ),
         colors =
@@ -664,7 +668,10 @@ private fun EpisodeCapsule(
             ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -729,13 +736,13 @@ private fun SubPageCapsule(
     Surface(
         modifier =
             modifier
-                .height(32.dp)
+                .height(30.dp)
                 .widthIn(min = 72.dp, max = 210.dp)
                 .semantics { selected = isCurrent }
                 .onFocusChanged { if (it.hasFocus) onFocus() }
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.small),
         scale = TvFocusDefaults.surfaceScale(focusedScale = 1.04f),
         border =
             ClickableSurfaceDefaults.border(
@@ -743,7 +750,7 @@ private fun SubPageCapsule(
                     if (isCurrent) {
                         Border(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)),
-                            shape = BVShape.pill,
+                            shape = BVShape.small,
                         )
                     } else {
                         Border.None
@@ -751,7 +758,7 @@ private fun SubPageCapsule(
                 focusedBorder =
                     Border(
                         border = BorderStroke(1.5.dp, Color.White),
-                        shape = BVShape.pill,
+                        shape = BVShape.small,
                     ),
             ),
         colors =
@@ -761,7 +768,10 @@ private fun SubPageCapsule(
             ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {

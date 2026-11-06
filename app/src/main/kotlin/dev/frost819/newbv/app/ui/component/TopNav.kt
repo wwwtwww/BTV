@@ -62,15 +62,15 @@ interface TopNavItem {
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun TopNav(
+fun <T : TopNavItem> TopNav(
     modifier: Modifier = Modifier,
-    items: List<TopNavItem>,
+    items: List<T>,
     selectedIndex: Int = 0,
     isLargePadding: Boolean = false,
     horizontalPadding: Dp = 24.dp,
     trailingContent: (@Composable () -> Unit)? = null,
-    onSelectedChanged: (TopNavItem) -> Unit = {},
-    onClick: (TopNavItem) -> Unit = {},
+    onSelectedChanged: (T) -> Unit = {},
+    onClick: (T) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     val isDarkTheme = LocalIsDarkTheme.current

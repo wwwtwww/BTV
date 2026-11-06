@@ -161,10 +161,10 @@ fun PersonalContent(
                     }
                 },
                 onSelectedChanged = { nav ->
-                    selectedTab = (nav as PersonalTabItem).item
+                    selectedTab = nav.item
                 },
                 onClick = { nav ->
-                    val tab = (nav as PersonalTabItem).item
+                    val tab = nav.item
                     viewModel.refresh(tab)
                 },
             )
@@ -232,14 +232,14 @@ fun PersonalContent(
 }
 
 /**
- * 个人页 TopNav 右侧「全部播放」胶囊按钮。
+ * 个人页 TopNav 右侧「全部播放」功能按钮。
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun PersonalPlayAllButton(onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.medium),
         scale = TvFocusDefaults.surfaceScale(),
         colors =
             ClickableSurfaceDefaults.colors(

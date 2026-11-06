@@ -236,7 +236,7 @@ fun SearchHistoryChip(
                 .widthIn(max = 216.dp)
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(BVShape.small),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors =
             focusInvertedColors(
@@ -248,7 +248,7 @@ fun SearchHistoryChip(
                 border =
                     Border(
                         border = BorderStroke(1.dp, borderColor),
-                        shape = BVShape.pill,
+                        shape = BVShape.small,
                     ),
                 focusedBorder = Border.None,
             ),

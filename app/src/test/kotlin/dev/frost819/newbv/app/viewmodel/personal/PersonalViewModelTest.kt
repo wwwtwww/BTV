@@ -411,6 +411,41 @@ class PersonalViewModelTest {
         }
 
     @Test
+    fun `loadFavoriteItems cancels in-flight request when rapidly switching folders`() =
+        runTest(testDispatcher) {
+            val folders = listOf(fakeFolder(1), fakeFolder(2))
+            coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } returns folders
+            val items1 = listOf(fakeFavoriteItem(10))
+            val items2 = listOf(fakeFavoriteItem(20))
+
+            val folder1Deferred = CompletableDeferred<FavoriteFolderData>()
+            coEvery { favoriteRepo.getFavoriteFolderData(1, any(), any(), any()) } coAnswers {
+                folder1Deferred.await()
+            }
+            coEvery { favoriteRepo.getFavoriteFolderData(2, any(), any(), any()) } returns
+                fakeFavoriteFolderData(items2, hasMore = false)
+
+            val vm = createViewModel()
+            runCurrent()
+            assertThat(vm.uiState.value.favoriteLoading).isTrue()
+
+            vm.loadFavoriteItems(2)
+            runCurrent()
+
+            folder1Deferred.complete(fakeFavoriteFolderData(items1, hasMore = false))
+            advanceUntilIdle()
+
+            assertThat(vm.uiState.value.currentFolderId).isEqualTo(2)
+            assertThat(vm.uiState.value.favoriteItems).hasSize(1)
+            assertThat(
+                vm.uiState.value.favoriteItems[0]
+                    .id,
+            ).isEqualTo(20)
+            assertThat(vm.uiState.value.favoriteLoading).isFalse()
+            assertThat(vm.uiState.value.favoriteError).isFalse()
+        }
+
+    @Test
     fun `loadFavoriteFolders sets error on failure`() =
         runTest(testDispatcher) {
             coEvery { favoriteRepo.getAllFavoriteFolderMetadataList(any(), any(), any(), any()) } throws

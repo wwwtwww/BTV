@@ -23,6 +23,7 @@ import dev.frost819.newbv.biliapi.repositories.ToViewRepository
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -140,6 +141,7 @@ class PersonalViewModel
 
         private var historyCursor: Long = 0L
         private var favoritePageNumber: Int = 1
+        private var favoriteLoadJob: Job? = null
         private var followingPageNumber: Int = 1
         private var followingTotal: Int = 0
 
@@ -332,69 +334,74 @@ class PersonalViewModel
             folderId: Long,
             forceRefresh: Boolean = false,
         ) {
-            viewModelScope.launch {
+            val isSwitchingFolder = folderId != _uiState.value.currentFolderId
+            if (isSwitchingFolder || forceRefresh) {
+                // 切换收藏夹或强制刷新：立即取消上一个加载任务，重置分页并清空旧列表，避免并发竞态数据污染或丢弃请求
+                favoriteLoadJob?.cancel()
+                favoritePageNumber = 1
+                _uiState.update {
+                    it.copy(
+                        favoriteItems = emptyList(),
+                        favoriteHasMore = true,
+                        favoriteError = false,
+                        currentFolderId = folderId,
+                    )
+                }
+            } else {
+                // 同一文件夹内追加翻页：若已经在加载中或已无更多数据，则无需重复发起
                 val current = _uiState.value
-                if (current.favoriteLoading) return@launch
-
-                if (forceRefresh || folderId != current.currentFolderId) {
-                    favoritePageNumber = 1
-                    _uiState.update {
-                        it.copy(
-                            favoriteItems = emptyList(),
-                            favoriteHasMore = true,
-                            favoriteError = false,
-                            currentFolderId = folderId,
-                        )
-                    }
-                }
-
-                if (!current.favoriteHasMore && !forceRefresh) return@launch
-
-                _uiState.update { it.copy(favoriteLoading = true, favoriteError = false) }
-
-                runCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data: FavoriteFolderData =
-                            favoriteRepository.getFavoriteFolderData(
-                                mediaId = folderId,
-                                pageNumber = favoritePageNumber,
-                                preferApiType = prefApiType(),
-                            )
-                        favoritePageNumber++
-                        val videoItems =
-                            data.medias.filter {
-                                it.type ==
-                                    dev.frost819.newbv.biliapi.entity.FavoriteItemType.Video
-                            }
-                        _uiState.update {
-                            it.copy(
-                                favoriteItems = it.favoriteItems + videoItems,
-                                favoriteHasMore = data.hasMore,
-                            )
-                        }
-                    }
-                }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
-                    logger.error(error) { "Failed to load favorite items for folder $folderId" }
-                    _uiState.update { it.copy(favoriteError = true) }
-                }
-
-                _uiState.update { it.copy(favoriteLoading = false) }
+                if (current.favoriteLoading || !current.favoriteHasMore) return
             }
+
+            favoriteLoadJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(favoriteLoading = true, favoriteError = false) }
+
+                    runCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val data: FavoriteFolderData =
+                                favoriteRepository.getFavoriteFolderData(
+                                    mediaId = folderId,
+                                    pageNumber = favoritePageNumber,
+                                    preferApiType = prefApiType(),
+                                )
+                            favoritePageNumber++
+                            val videoItems =
+                                data.medias.filter {
+                                    it.type ==
+                                        dev.frost819.newbv.biliapi.entity.FavoriteItemType.Video
+                                }
+                            _uiState.update {
+                                it.copy(
+                                    favoriteItems = it.favoriteItems + videoItems,
+                                    favoriteHasMore = data.hasMore,
+                                )
+                            }
+                        }
+                    }.onFailure { error ->
+                        if (error is CancellationException && error !is TimeoutCancellationException) {
+                            return@launch
+                        }
+                        logger.error(error) { "Failed to load favorite items for folder $folderId" }
+                        _uiState.update { it.copy(favoriteError = true) }
+                    }
+
+                    _uiState.update { it.copy(favoriteLoading = false) }
+                }
         }
 
         /**
          * 刷新收藏夹列表。
          */
         fun refreshFavorite() {
+            favoriteLoadJob?.cancel()
             _uiState.update {
                 it.copy(
                     favoriteFolders = emptyList(),
                     favoriteItems = emptyList(),
                     favoriteHasMore = true,
                     favoriteError = false,
+                    favoriteLoading = false,
                     currentFolderId = -1L,
                 )
             }

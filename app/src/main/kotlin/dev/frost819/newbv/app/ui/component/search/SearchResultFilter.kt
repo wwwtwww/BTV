@@ -163,7 +163,7 @@ fun SearchResultFilter(
                                 } else {
                                     Modifier
                                 }
-                            FilterOptionPill(
+                            FilterOptionButton(
                                 modifier = focusMod,
                                 label = label,
                                 selected = currentOrder == order,
@@ -185,7 +185,7 @@ fun SearchResultFilter(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         durationLabels.forEach { (duration, label) ->
-                            FilterOptionPill(
+                            FilterOptionButton(
                                 label = label,
                                 selected = currentDuration == duration,
                                 onClick = { currentDuration = duration },
@@ -217,7 +217,7 @@ fun SearchResultFilter(
 }
 
 @Composable
-private fun FilterOptionPill(
+private fun FilterOptionButton(
     modifier: Modifier = Modifier,
     label: String,
     selected: Boolean,
@@ -240,7 +240,7 @@ private fun FilterOptionPill(
         if (selected) {
             Border(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
-                shape = BVShape.pill,
+                shape = BVShape.small,
             )
         } else {
             Border.None
@@ -252,7 +252,7 @@ private fun FilterOptionPill(
                 .height(34.dp)
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(BVShape.small),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors =
             focusInvertedColors(
@@ -304,7 +304,7 @@ private fun DialogActionPill(
                 .height(36.dp)
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(BVShape.medium),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors =
             focusInvertedColors(

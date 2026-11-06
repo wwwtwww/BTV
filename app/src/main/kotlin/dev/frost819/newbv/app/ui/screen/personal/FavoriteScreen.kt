@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -24,6 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import dev.frost819.newbv.app.ui.component.FocusSaver
 import dev.frost819.newbv.app.ui.component.ListFooterTip
+import dev.frost819.newbv.app.ui.component.TopNav
+import dev.frost819.newbv.app.ui.component.TopNavItem
 import dev.frost819.newbv.app.ui.component.TvLazyVerticalGrid
 import dev.frost819.newbv.app.ui.component.focusSaverItem
 import dev.frost819.newbv.app.ui.component.videocard.SmallVideoCard
@@ -34,9 +34,7 @@ import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.app.viewmodel.common.CollectWatchLaterEffects
 import dev.frost819.newbv.app.viewmodel.common.WatchLaterViewModel
 import dev.frost819.newbv.app.viewmodel.personal.PersonalViewModel
-import dev.frost819.newbv.core.focus.focusInvertedColors
-import dev.frost819.newbv.core.focus.touchClickable
-import dev.frost819.newbv.core.theme.BVShape
+import dev.frost819.newbv.biliapi.entity.FavoriteFolderMetadata
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -92,53 +90,27 @@ fun FavoriteScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        if (state.favoriteFolders.isNotEmpty()) {
-            androidx.compose.foundation.lazy.LazyRow(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(state.favoriteFolders.size) { index ->
-                    val folder = state.favoriteFolders[index]
-                    androidx.tv.material3.Surface(
-                        onClick = {
-                            viewModel.loadFavoriteItems(folder.id, forceRefresh = true)
-                        },
-                        modifier =
-                            Modifier.touchClickable(onClick = {
-                                viewModel.loadFavoriteItems(folder.id, forceRefresh = true)
-                            }),
-                        shape =
-                            androidx.tv.material3.ClickableSurfaceDefaults.shape(
-                                shape =
-                                    BVShape.pill,
-                            ),
-                        colors =
-                            focusInvertedColors(
-                                containerColor =
-                                    if (state.currentFolderId == folder.id) {
-                                        androidx.tv.material3.MaterialTheme.colorScheme.primary
-                                    } else {
-                                        androidx.tv.material3.MaterialTheme.colorScheme.surface
-                                    },
-                                contentColor =
-                                    if (state.currentFolderId == folder.id) {
-                                        androidx.tv.material3.MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        androidx.tv.material3.MaterialTheme.colorScheme.onSurface
-                                    },
-                            ),
-                    ) {
-                        androidx.tv.material3.Text(
-                            text = "${folder.title} (${folder.mediaCount})",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = androidx.tv.material3.MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                }
+        val folderNavItems =
+            remember(state.favoriteFolders) {
+                state.favoriteFolders.map { FavoriteFolderNavItem(it) }
             }
+        val selectedFolderIndex =
+            remember(state.favoriteFolders, state.currentFolderId) {
+                state.favoriteFolders.indexOfFirst { it.id == state.currentFolderId }.coerceAtLeast(0)
+            }
+
+        if (folderNavItems.isNotEmpty()) {
+            TopNav(
+                items = folderNavItems,
+                selectedIndex = selectedFolderIndex,
+                horizontalPadding = 24.dp,
+                onSelectedChanged = { navItem ->
+                    viewModel.loadFavoriteItems(navItem.folder.id)
+                },
+                onClick = { navItem ->
+                    viewModel.loadFavoriteItems(navItem.folder.id, forceRefresh = true)
+                },
+            )
         }
 
         TvLazyVerticalGrid(
@@ -192,4 +164,10 @@ fun FavoriteScreen(
             }
         }
     }
+}
+
+private data class FavoriteFolderNavItem(
+    val folder: FavoriteFolderMetadata,
+) : TopNavItem {
+    override val displayName: String = "${folder.title} (${folder.mediaCount})"
 }

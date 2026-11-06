@@ -13,7 +13,7 @@ object AppConfiguration {
 
     private const val major = 0
     private const val minor = 5
-    private const val patch = 4
+    private const val patch = 5
     private const val hotFix = 0
 
     @Suppress("KotlinConstantConditions")

@@ -76,8 +76,8 @@ fun HomeFilterChips(
         items = HomeFilterTab.entries,
         selectedIndex = HomeFilterTab.entries.indexOf(selectedTab),
         isLargePadding = false,
-        onSelectedChanged = { onTabSelected(it as HomeFilterTab) },
-        onClick = { onTabReselected(it as HomeFilterTab) },
+        onSelectedChanged = onTabSelected,
+        onClick = onTabReselected,
     )
 }
 

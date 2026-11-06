@@ -30,4 +30,23 @@ class TopNavTest {
             assertThat(tab.displayName.trim()).isNotEmpty()
         }
     }
+
+    @Test
+    fun `generic TopNav preserves subclass item type in callbacks without casting`() {
+        data class CustomNavItem(
+            val id: Int,
+            override val displayName: String,
+        ) : TopNavItem
+
+        val items =
+            listOf(
+                CustomNavItem(1, "Tab 1"),
+                CustomNavItem(2, "Tab 2"),
+            )
+        var selectedItem: CustomNavItem? = null
+        val onSelectedChanged: (CustomNavItem) -> Unit = { selectedItem = it }
+
+        onSelectedChanged(items[1])
+        assertThat(selectedItem?.id).isEqualTo(2)
+    }
 }

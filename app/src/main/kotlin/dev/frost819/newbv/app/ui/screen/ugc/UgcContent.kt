@@ -105,14 +105,12 @@ fun UgcContent(
                 selectedIndex = UgcTabItem.entries.indexOf(selectedTab),
                 isLargePadding = !focusOnContent,
                 onSelectedChanged = { nav ->
-                    val tab = nav as UgcTabItem
-                    if (tab != selectedTab) {
-                        selectedTab = tab
-                        viewModel.switchType(tab.ugcTypeV2)
+                    if (nav != selectedTab) {
+                        selectedTab = nav
+                        viewModel.switchType(nav.ugcTypeV2)
                     }
                 },
-                onClick = { nav ->
-                    val tab = nav as UgcTabItem
+                onClick = {
                     viewModel.refresh()
                 },
             )

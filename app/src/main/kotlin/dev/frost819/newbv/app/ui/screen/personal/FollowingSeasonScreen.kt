@@ -300,7 +300,7 @@ private fun FilterChip(
         shape =
             androidx.tv.material3.ClickableSurfaceDefaults.shape(
                 shape =
-                    BVShape.pill,
+                    BVShape.small,
             ),
         colors =
             focusInvertedColors(

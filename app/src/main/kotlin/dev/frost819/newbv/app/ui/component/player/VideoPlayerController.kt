@@ -24,6 +24,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -454,6 +455,21 @@ fun VideoPlayerController(
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     startControllerAutoHide()
+                    if (event.key == Key.DirectionUp &&
+                        showRelatedVideosController &&
+                        event.type == KeyEventType.KeyDown
+                    ) {
+                        return@onPreviewKeyEvent true
+                    }
+                    val confirmKeys = listOf(Key.DirectionCenter, Key.Enter, Key.Spacebar)
+                    if (event.type == KeyEventType.KeyUp && event.key !in confirmKeys) {
+                        if (event.key == Key.DirectionUp && showRelatedVideosController) {
+                            showRelatedVideosController = false
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+                    false
+                }.onKeyEvent { event ->
                     handleKeyEvent(event)
                 }.playerGestures(
                     totalDuration = { seekerState.value.totalDuration },
@@ -670,6 +686,22 @@ fun VideoPlayerController(
                 onShowInteraction = onShowInteraction,
                 onShowComments = onShowComments,
                 onCycleAspectRatio = onCycleAspectRatio,
+                availableQuality = uiState.availableQuality,
+                currentQualityId = uiState.mediaProfileState.qualityId,
+                onResolutionChange = { qualityId ->
+                    onMediaProfileSettingChange(MediaProfileSettingAction.SetQuality(qualityId))
+                },
+                availableAudio = uiState.availableAudio,
+                currentAudio = uiState.mediaProfileState.audio,
+                onAudioChange = { audio ->
+                    onMediaProfileSettingChange(MediaProfileSettingAction.SetAudio(audio))
+                },
+                playSpeed = uiState.playSpeed,
+                onPlaySpeedChange = onPlaySpeedChange,
+                availableSubtitles = uiState.subtitleList,
+                currentSubtitleId = uiState.subtitleId,
+                onSubtitleChange = onSubtitleChange,
+                onResetAutoHide = ::startControllerAutoHide,
             )
 
             // 底部横向胶囊选集轨

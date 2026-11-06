@@ -40,7 +40,7 @@ fun AudioMenuList(
 }
 
 /** 音轨详细说明与码率。 */
-private val Audio.detailedDisplayName: String
+internal val Audio.detailedDisplayName: String
     get() =
         when (this) {
             Audio.ADolbyAtoms -> "杜比全景声 (Dolby Atmos)"
@@ -48,4 +48,15 @@ private val Audio.detailedDisplayName: String
             Audio.A192K -> "高品质 192K"
             Audio.A132K -> "标准 132K"
             Audio.A64K -> "流畅 64K"
+        }
+
+/** 音轨简短角标。 */
+internal val Audio.shortBadge: String
+    get() =
+        when (this) {
+            Audio.ADolbyAtoms -> "杜比"
+            Audio.AHiRes -> "Hi-Res"
+            Audio.A192K -> "192K"
+            Audio.A132K -> "132K"
+            Audio.A64K -> "64K"
         }

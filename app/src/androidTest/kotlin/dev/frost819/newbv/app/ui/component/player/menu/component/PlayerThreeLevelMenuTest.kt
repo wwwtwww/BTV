@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.tv.material3.Text
@@ -24,7 +29,7 @@ import androidx.tv.material3.MaterialTheme as TvMaterialTheme
  * [PlayerThreeLevelMenu] 的插桩测试。
  *
  * 重点验证子项列表为空时的防空行为（不渲染、不调用值面板），
- * 以及非空时默认选中第一项并渲染。
+ * 非空时默认选中第一项并渲染，以及从值面板返回子项列表时的焦点恢复稳定性。
  */
 @RunWith(AndroidJUnit4::class)
 class PlayerThreeLevelMenuTest {
@@ -85,5 +90,56 @@ class PlayerThreeLevelMenuTest {
         composeRule.onNodeWithText("A").assertIsDisplayed()
         composeRule.onNodeWithText("B").assertIsDisplayed()
         composeRule.onNodeWithText("value-A").assertIsDisplayed()
+    }
+
+    @Test
+    fun backToMenu_restoresPreviouslyFocusedCategoryWithoutResettingToFirst() {
+        // Given
+        var currentFocusState by mutableStateOf(MenuFocusState.Menu)
+        var capturedBackToMenu: (() -> Unit)? = null
+        var currentSelected: String? = null
+
+        composeRule.setContent {
+            TvMaterialTheme {
+                CompositionLocalProvider(
+                    LocalMenuFocusStateData provides MenuFocusStateData(focusState = currentFocusState),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize().width(500.dp)) {
+                        PlayerThreeLevelMenu(
+                            categories = listOf("A", "B", "C"),
+                            categoryLabel = { it },
+                            onFocusStateChange = { currentFocusState = it },
+                        ) { selected, itemModifier, backToMenu ->
+                            currentSelected = selected
+                            capturedBackToMenu = backToMenu
+                            MenuListItem(
+                                modifier = itemModifier,
+                                text = "value-$selected",
+                                selected = true,
+                                onClick = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // When: 聚焦第二项 "B"，再进入值面板，随后调用 backToMenu 返回子项列表
+        composeRule.onNodeWithText("B").requestFocus()
+        composeRule.waitForIdle()
+        assertThat(currentSelected).isEqualTo("B")
+
+        composeRule.runOnIdle { currentFocusState = MenuFocusState.Items }
+        composeRule.onNodeWithText("value-B").requestFocus()
+        composeRule.waitForIdle()
+
+        composeRule.runOnIdle { capturedBackToMenu?.invoke() }
+        composeRule.waitForIdle()
+
+        // Then: 焦点稳定恢复到 "B"，不会被异步聚焦逻辑抢回首项 "A"
+        assertThat(currentFocusState).isEqualTo(MenuFocusState.Menu)
+        assertThat(currentSelected).isEqualTo("B")
+        composeRule.onNodeWithText("B").assertIsFocused()
     }
 }

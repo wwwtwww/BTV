@@ -18,11 +18,23 @@ data class Subtitle(
     val lang: String,
     val langDoc: String,
     val url: String,
-    var type: SubtitleType,
+    val type: SubtitleType,
     val aiType: SubtitleAiType,
-    var aiStatus: SubtitleAiStatus,
+    val aiStatus: SubtitleAiStatus,
 ) {
     companion object {
+        /** 代表“关闭/无字幕”的空字幕项不可变单例实例。 */
+        val Empty =
+            Subtitle(
+                id = -1L,
+                lang = "",
+                langDoc = "关闭",
+                url = "",
+                type = SubtitleType.CC,
+                aiType = SubtitleAiType.Normal,
+                aiStatus = SubtitleAiStatus.None,
+            )
+
         fun fromSubtitleItem(data: dev.frost819.newbv.biliapi.http.entity.video.VideoMoreInfo.SubtitleItem) =
             Subtitle(
                 id = data.id,

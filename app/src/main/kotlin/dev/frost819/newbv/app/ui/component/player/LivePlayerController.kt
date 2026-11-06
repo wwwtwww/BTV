@@ -24,6 +24,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -216,6 +217,12 @@ fun LivePlayerController(
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     startControllerAutoHide()
+                    val confirmKeys = listOf(Key.DirectionCenter, Key.Enter, Key.Spacebar)
+                    if (event.type == KeyEventType.KeyUp && event.key !in confirmKeys) {
+                        return@onPreviewKeyEvent true
+                    }
+                    false
+                }.onKeyEvent { event ->
                     handleKeyEvent(event)
                 }.playerGestures(
                     totalDuration = { 0L },
@@ -323,6 +330,13 @@ fun LivePlayerController(
                     startControllerAutoHide()
                 },
                 onShowSettings = { showMenuController = true },
+                availableQualities = availableQualities,
+                currentQuality = currentQuality,
+                onQualityChange = onQualityChange,
+                availableLines = availableLines,
+                currentLine = currentLine,
+                onLineChange = onLineChange,
+                onResetAutoHide = ::startControllerAutoHide,
             )
 
             LiveMenuController(

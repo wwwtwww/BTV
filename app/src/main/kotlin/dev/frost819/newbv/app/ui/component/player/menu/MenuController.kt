@@ -35,9 +35,6 @@ import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusStateData
 import dev.frost819.newbv.app.viewmodel.player.VideoPlayerMenuNavItem
 import dev.frost819.newbv.biliapi.entity.video.Subtitle
-import dev.frost819.newbv.biliapi.entity.video.SubtitleAiStatus
-import dev.frost819.newbv.biliapi.entity.video.SubtitleAiType
-import dev.frost819.newbv.biliapi.entity.video.SubtitleType
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.Audio
 import dev.frost819.newbv.data.datastore.DanmakuType
@@ -299,17 +296,7 @@ private fun MenuList(
             VideoPlayerMenuNavItem.ClosedCaption -> {
                 val subtitleTracks =
                     buildList {
-                        add(
-                            Subtitle(
-                                id = -1,
-                                lang = "",
-                                langDoc = "关闭",
-                                url = "",
-                                type = SubtitleType.CC,
-                                aiType = SubtitleAiType.Normal,
-                                aiStatus = SubtitleAiStatus.None,
-                            ),
-                        )
+                        add(Subtitle.Empty)
                         addAll(uiState.subtitleList)
                         sortBy { it.id }
                     }

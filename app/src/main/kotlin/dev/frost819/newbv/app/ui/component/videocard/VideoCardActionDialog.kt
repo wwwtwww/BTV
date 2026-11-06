@@ -279,7 +279,7 @@ fun VideoCardActionDialog(
                             }
                         }
 
-                    // 底部：横向胶囊操作按钮（支持横向滚动，防止多动作项在大屏窄屏或长文案时溢出）
+                    // 底部：横向功能操作按钮（支持横向滚动，防止多动作项在大屏窄屏或长文案时溢出）
                     Row(
                         modifier =
                             Modifier
@@ -289,7 +289,7 @@ fun VideoCardActionDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         actions.forEachIndexed { index, dialogAction ->
-                            ActionPillItem(
+                            ActionButtonItem(
                                 icon = painterResource(id = dialogAction.iconRes),
                                 text = dialogAction.text,
                                 focusRequester = if (index == 0) firstFocusRequester else null,
@@ -304,11 +304,11 @@ fun VideoCardActionDialog(
 }
 
 /**
- * 底部操作栏胶囊按钮。
+ * 底部操作栏标准功能按钮。
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun ActionPillItem(
+private fun ActionButtonItem(
     icon: Painter,
     text: String,
     focusRequester: FocusRequester? = null,
@@ -319,7 +319,7 @@ private fun ActionPillItem(
         modifier =
             Modifier
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-        shape = ClickableSurfaceDefaults.shape(shape = BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(shape = BVShape.medium),
         scale = TvFocusDefaults.surfaceScale(),
         colors =
             ClickableSurfaceDefaults.colors(

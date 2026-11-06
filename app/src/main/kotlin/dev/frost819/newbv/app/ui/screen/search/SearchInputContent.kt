@@ -876,10 +876,10 @@ private fun ResultsCanvasSection(
                     isLargePadding = false,
                     horizontalPadding = 8.dp,
                     onSelectedChanged = { item ->
-                        (item as? SearchTypeNavItem)?.let { resultViewModel.switchType(it.type) }
+                        resultViewModel.switchType(item.type)
                     },
                     onClick = { item ->
-                        (item as? SearchTypeNavItem)?.let { resultViewModel.refreshType(it.type) }
+                        resultViewModel.refreshType(item.type)
                     },
                     trailingContent =
                         if (canShowVideoFilter) {
@@ -1105,7 +1105,7 @@ private fun SearchFilterTriggerButton(
         if (isFiltered) {
             Border(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                shape = BVShape.pill,
+                shape = BVShape.medium,
             )
         } else {
             Border.None
@@ -1117,7 +1117,7 @@ private fun SearchFilterTriggerButton(
                 .height(30.dp)
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(BVShape.medium),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors =
             focusInvertedColors(
@@ -1199,7 +1199,7 @@ private fun HeaderActionPill(
                 .height(28.dp)
                 .touchClickable(onClick = onClick),
         onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(BVShape.pill),
+        shape = ClickableSurfaceDefaults.shape(BVShape.medium),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors =
             focusInvertedColors(

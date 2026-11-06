@@ -23,7 +23,6 @@ import java.nio.file.Files
  *
  * 通过 MockK 模拟 [HttpServer] 和 [CrashHandler]，
  * 验证日志类型判断、URL 生成、日志刷新与手动日志创建逻辑。
- * init 块中的协程运行在 Dispatchers.IO 上，测试中使用 Thread.sleep 等待完成。
  */
 class LogViewerViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
@@ -44,8 +43,6 @@ class LogViewerViewModelTest {
         every { crashHandler.listCrashLogs() } returns emptyList()
         val app = mockk<Application>(relaxed = true)
         viewModel = LogViewerViewModel(app, httpServer, crashHandler)
-
-        Thread.sleep(300)
     }
 
     @AfterEach
@@ -53,6 +50,23 @@ class LogViewerViewModelTest {
         Dispatchers.resetMain()
         unmockkAll()
         tempDir.deleteRecursively()
+    }
+
+    /**
+     * 等待指定条件满足的辅助方法，避免重复编写轮询样板代码。
+     */
+    private fun awaitCondition(
+        timeoutMs: Long = 1500,
+        condition: () -> Boolean,
+    ) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) return
+            Thread.sleep(20)
+        }
+        if (!condition()) {
+            throw AssertionError("Condition not met within ${timeoutMs}ms")
+        }
     }
 
     // ── LogViewerUiState ──────────────────────────────────────────────
@@ -142,7 +156,7 @@ class LogViewerViewModelTest {
         every { crashHandler.listCrashLogs() } returns listOf(crashLog)
 
         viewModel.refreshLogs()
-        Thread.sleep(300)
+        awaitCondition { viewModel.uiState.value.logFiles.size == 2 }
 
         val state = viewModel.uiState.value
         assertThat(state.logFiles).hasSize(2)
@@ -152,10 +166,21 @@ class LogViewerViewModelTest {
 
     @Test
     fun `refreshLogs with no logs returns empty list`() {
-        every { crashHandler.listManualLogs() } returns emptyList()
+        val existingLog = File(tempDir, "existing.log")
+        every { crashHandler.listManualLogs() } returns listOf(existingLog)
         every { crashHandler.listCrashLogs() } returns emptyList()
         viewModel.refreshLogs()
-        Thread.sleep(300)
+        awaitCondition {
+            viewModel.uiState.value.logFiles
+                .isNotEmpty()
+        }
+
+        every { crashHandler.listManualLogs() } returns emptyList()
+        viewModel.refreshLogs()
+        awaitCondition {
+            viewModel.uiState.value.logFiles
+                .isEmpty()
+        }
 
         assertThat(viewModel.uiState.value.logFiles).isEmpty()
     }
@@ -171,7 +196,10 @@ class LogViewerViewModelTest {
         every { crashHandler.listManualLogs() } returns listOf(manualLog)
 
         viewModel.createManualLog()
-        Thread.sleep(300)
+        awaitCondition {
+            viewModel.uiState.value.logFiles
+                .isNotEmpty()
+        }
 
         verify { crashHandler.createManualLog() }
         assertThat(viewModel.uiState.value.logFiles).isNotEmpty()

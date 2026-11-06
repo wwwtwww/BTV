@@ -1,8 +1,14 @@
 package dev.frost819.newbv.app.ui.component.player
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -12,16 +18,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +54,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -59,9 +73,14 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
+import dev.frost819.newbv.app.ui.component.player.menu.PlaySpeedItem
+import dev.frost819.newbv.app.ui.component.player.menu.detailedDisplayName
+import dev.frost819.newbv.app.ui.component.player.menu.shortBadge
+import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.state.player.SeekerState
 import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
+import dev.frost819.newbv.biliapi.entity.video.Subtitle
 import dev.frost819.newbv.biliapi.entity.video.VideoShot
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
@@ -112,6 +131,18 @@ import kotlinx.coroutines.delay
  * @param onShowComments 打开评论弹窗回调
  * @param onShowEpisodes 打开底部选集胶囊轨回调
  * @param onCycleAspectRatio 循环切换画面比例回调
+ * @param availableQuality 可用清晰度键值映射 (qn to label)
+ * @param currentQualityId 当前生效的画质代码 qn
+ * @param onResolutionChange 画质切换回调
+ * @param availableAudio 可用音频流列表
+ * @param currentAudio 当前生效的音频流
+ * @param onAudioChange 音轨切换回调
+ * @param playSpeed 当前播放倍速
+ * @param onPlaySpeedChange 播放倍速切换回调
+ * @param availableSubtitles 可用字幕列表
+ * @param currentSubtitleId 当前生效的字幕 ID
+ * @param onSubtitleChange 字幕切换回调
+ * @param onResetAutoHide 重置 OSD 自动隐藏计时器回调
  */
 @Composable
 fun ControllerVideoInfo(
@@ -148,6 +179,18 @@ fun ControllerVideoInfo(
     onShowComments: () -> Unit,
     onShowEpisodes: () -> Unit = {},
     onCycleAspectRatio: () -> Unit = {},
+    availableQuality: Map<Int, String> = emptyMap(),
+    currentQualityId: Int? = null,
+    onResolutionChange: (Int) -> Unit = {},
+    availableAudio: List<Audio> = emptyList(),
+    currentAudio: Audio = Audio.A192K,
+    onAudioChange: (Audio) -> Unit = {},
+    playSpeed: Float = 1f,
+    onPlaySpeedChange: (Float) -> Unit = {},
+    availableSubtitles: List<Subtitle> = emptyList(),
+    currentSubtitleId: Long = -1L,
+    onSubtitleChange: (Subtitle) -> Unit = {},
+    onResetAutoHide: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -175,6 +218,7 @@ fun ControllerVideoInfo(
         ) {
             ControllerVideoInfoBottom(
                 modifier = Modifier.align(Alignment.BottomCenter),
+                show = show,
                 isSeeking = isSeeking,
                 aspectRatio = aspectRatio,
                 onCycleAspectRatio = onCycleAspectRatio,
@@ -201,6 +245,19 @@ fun ControllerVideoInfo(
                 onGoToUpPage = onGoToUpPage,
                 onShowInteraction = onShowInteraction,
                 onShowComments = onShowComments,
+                resolution = resolution,
+                availableQuality = availableQuality,
+                currentQualityId = currentQualityId,
+                onResolutionChange = onResolutionChange,
+                availableAudio = availableAudio,
+                currentAudio = currentAudio,
+                onAudioChange = onAudioChange,
+                playSpeed = playSpeed,
+                onPlaySpeedChange = onPlaySpeedChange,
+                availableSubtitles = availableSubtitles,
+                currentSubtitleId = currentSubtitleId,
+                onSubtitleChange = onSubtitleChange,
+                onResetAutoHide = onResetAutoHide,
             )
         }
     }
@@ -390,10 +447,53 @@ private fun QualityBadge(
  * - [episodesAvailable] 为 `true` 时显示「选集」按钮（含番剧多集、UGC 合集、单视频多 P）；
  * - [relatedAvailable] 为 `true` 时显示「相关推荐」按钮；
  * - 在操作按钮行继续按遥控器「向下」键时，优先呼出底部选集胶囊轨，无选集时呼出相关推荐泳道。
+ *
+ * @param modifier 修饰符
+ * @param show 控制器是否可见
+ * @param isSeeking 是否正在 seek
+ * @param goTime seek 目标时间点（毫秒）
+ * @param seekerState 进度条状态模型
+ * @param videoShot 视频帧缩略图
+ * @param videoShotCache 缩略图缓存池
+ * @param isPgc 是否为番剧/影视
+ * @param episodesAvailable 选集是否可用
+ * @param relatedAvailable 相关推荐是否可用
+ * @param danmakuEnabled 弹幕是否开启
+ * @param isLooping 是否循环播放
+ * @param onDirectionLeft 向左 seek 回调
+ * @param onDirectionRight 向右 seek 回调
+ * @param onSeekGoTime 确认 seek 回调
+ * @param onSeekToPosition 拖拽 seek 回调
+ * @param onPlayPause 播放/暂停切换回调
+ * @param onDanmakuSwitchChange 弹幕开关切换回调
+ * @param onShowSettings 打开高级设置抽屉回调
+ * @param onShowRelatedVideos 打开相关推荐泳道回调
+ * @param onGoToVideoInfo 跳转视频详情页回调
+ * @param onToggleLoop 切换循环播放模式回调
+ * @param onGoToUpPage 跳转 UP 主空间回调
+ * @param onShowInteraction 打开点赞投币三连弹窗回调
+ * @param onShowComments 打开评论弹窗回调
+ * @param onShowEpisodes 打开选集胶囊轨回调
+ * @param aspectRatio 画面填充比例
+ * @param onCycleAspectRatio 画面比例切换回调
+ * @param resolution 当前视频画质
+ * @param availableQuality 可用清晰度键值映射 (qn to label)
+ * @param currentQualityId 当前生效的画质代码 qn
+ * @param onResolutionChange 画质切换回调
+ * @param availableAudio 可用音频流列表
+ * @param currentAudio 当前生效的音频流
+ * @param onAudioChange 音轨切换回调
+ * @param playSpeed 当前播放倍速
+ * @param onPlaySpeedChange 播放倍速切换回调
+ * @param availableSubtitles 可用字幕列表
+ * @param currentSubtitleId 当前生效的字幕 ID
+ * @param onSubtitleChange 字幕切换回调
+ * @param onResetAutoHide 重置 OSD 自动隐藏计时器回调
  */
 @Composable
 fun ControllerVideoInfoBottom(
     modifier: Modifier = Modifier,
+    show: Boolean = true,
     isSeeking: Boolean,
     goTime: Long,
     seekerState: SeekerState,
@@ -420,15 +520,39 @@ fun ControllerVideoInfoBottom(
     onShowEpisodes: () -> Unit = {},
     aspectRatio: VideoAspectRatio = VideoAspectRatio.Default,
     onCycleAspectRatio: () -> Unit = {},
+    resolution: Resolution? = null,
+    availableQuality: Map<Int, String> = emptyMap(),
+    currentQualityId: Int? = null,
+    onResolutionChange: (Int) -> Unit = {},
+    availableAudio: List<Audio> = emptyList(),
+    currentAudio: Audio = Audio.A192K,
+    onAudioChange: (Audio) -> Unit = {},
+    playSpeed: Float = 1f,
+    onPlaySpeedChange: (Float) -> Unit = {},
+    availableSubtitles: List<Subtitle> = emptyList(),
+    currentSubtitleId: Long = -1L,
+    onSubtitleChange: (Subtitle) -> Unit = {},
+    onResetAutoHide: () -> Unit = {},
 ) {
     val seekFocusRequester = remember { FocusRequester() }
-    val buttonsFocusRequester = remember { FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val resolutionFocusRequester = remember { FocusRequester() }
+    val speedFocusRequester = remember { FocusRequester() }
+    val audioFocusRequester = remember { FocusRequester() }
+    val subtitleFocusRequester = remember { FocusRequester() }
 
+    var activeQuickMenu by remember { mutableStateOf<VodQuickMenuType?>(null) }
+    var popoverContainerRootX by remember { mutableFloatStateOf(0f) }
+    val quickMenuAnchorRootX = remember { mutableStateMapOf<VodQuickMenuType, Float>() }
     var isSeekFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        // TV 遥控器输入焦点时序：延迟 50ms（约 2-3 帧垂直同步），
+        // 等待 OSD 展开动画及操作栏节点完全组合并挂载至 Compose Focus 树节点，
+        // 避免未完成挂载时直接 safeRequestFocus 导致请求静默失效（详见 AGENTS.md §8.2.1）。
         delay(50)
-        runCatching { seekFocusRequester.safeRequestFocus() }
+        // 初始呼出焦点直达按钮行第1项，消灭进入设置必须先往下按一次的痛点
+        runCatching { playPauseFocusRequester.safeRequestFocus() }
     }
 
     Column(
@@ -550,7 +674,7 @@ fun ControllerVideoInfoBottom(
 
                             Key.DirectionDown -> {
                                 if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
-                                buttonsFocusRequester.safeRequestFocus()
+                                playPauseFocusRequester.safeRequestFocus()
                                 true
                             }
 
@@ -567,55 +691,395 @@ fun ControllerVideoInfoBottom(
             )
         }
 
-        // 操作按钮行
+        // 快捷设置垂直微卡片浮层（位于进度条与操作按钮行之间，水平对齐触发按钮实际坐标）
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .onGloballyPositioned { coordinates ->
+                        // 记录微卡片水平对齐基准容器的全局 X 坐标。
+                        // 在 OSD 底栏初次展示完成时即刻捕获稳态值，微卡片在后续用户触发挂载时首帧直接读取该值，保证 0 帧延迟精准对齐。
+                        popoverContainerRootX = coordinates.positionInRoot().x
+                    },
+        ) {
+            var lastMenu by remember { mutableStateOf<VodQuickMenuType?>(null) }
+            if (activeQuickMenu != null) {
+                lastMenu = activeQuickMenu
+            }
+            val currentMenu = activeQuickMenu ?: lastMenu
+            val isMenuVisible = activeQuickMenu != null
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isMenuVisible && currentMenu != null,
+                enter = EnterTransition.None,
+                exit = fadeOut(tween(durationMillis = 250)),
+            ) {
+                if (currentMenu != null) {
+                    AnimatedContent(
+                        targetState = currentMenu,
+                        transitionSpec = {
+                            fadeIn(tween(durationMillis = 150)) togetherWith
+                                fadeOut(tween(durationMillis = 150))
+                        },
+                        label = "VodQuickMenuTransition",
+                    ) { menu ->
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(bottom = 6.dp)
+                                    .alignToQuickMenuAnchor(
+                                        anchorRootXProvider = { quickMenuAnchorRootX[menu] },
+                                        containerRootXProvider = { popoverContainerRootX },
+                                    ),
+                        ) {
+                            val navigateLeftAction: (() -> Unit)? =
+                                menu.previous()?.let { prev ->
+                                    {
+                                        activeQuickMenu = prev
+                                        onResetAutoHide()
+                                    }
+                                }
+                            val navigateRightAction: (() -> Unit)? =
+                                menu.next(hasSubtitles = availableSubtitles.isNotEmpty())?.let { next ->
+                                    {
+                                        activeQuickMenu = next
+                                        onResetAutoHide()
+                                    }
+                                }
+                            when (menu) {
+                                VodQuickMenuType.Resolution -> {
+                                    val qualityList =
+                                        remember(availableQuality) {
+                                            availableQuality.keys.sortedDescending()
+                                        }
+                                    val items =
+                                        qualityList.map { code ->
+                                            val res = Resolution.fromCode(code)
+                                            val label = availableQuality[code] ?: res.displayName
+                                            val badge = if (code >= 120) "高画质" else null
+                                            QuickMenuItem(
+                                                id = code,
+                                                label = label,
+                                                badge = badge,
+                                                isSelected = code == currentQualityId,
+                                            )
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "清晰度",
+                                        items = items,
+                                        onSelect = {
+                                            onResolutionChange(it)
+                                            activeQuickMenu = null
+                                            resolutionFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            resolutionFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+
+                                VodQuickMenuType.PlaySpeed -> {
+                                    val items =
+                                        PlaySpeedItem.entries.map {
+                                            QuickMenuItem(
+                                                id = it.speed,
+                                                label = it.displayName,
+                                                isSelected = it.speed == playSpeed,
+                                            )
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "播放倍速",
+                                        items = items,
+                                        onSelect = {
+                                            onPlaySpeedChange(it)
+                                            activeQuickMenu = null
+                                            speedFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            speedFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+
+                                VodQuickMenuType.Audio -> {
+                                    val audioList =
+                                        remember(availableAudio) {
+                                            val list =
+                                                if (availableAudio.isNotEmpty()) {
+                                                    availableAudio
+                                                } else {
+                                                    Audio.entries
+                                                }
+                                            list.sortedByDescending { it.ordinal }
+                                        }
+                                    val items =
+                                        audioList.map {
+                                            QuickMenuItem(
+                                                id = it,
+                                                label = it.detailedDisplayName,
+                                                badge = it.shortBadge,
+                                                isSelected = it == currentAudio,
+                                            )
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "音频音轨",
+                                        items = items,
+                                        onSelect = {
+                                            onAudioChange(it)
+                                            activeQuickMenu = null
+                                            audioFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            audioFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+
+                                VodQuickMenuType.Subtitle -> {
+                                    val items =
+                                        buildList {
+                                            add(
+                                                QuickMenuItem(
+                                                    id = Subtitle.Empty,
+                                                    label = "关闭",
+                                                    isSelected = currentSubtitleId == -1L,
+                                                ),
+                                            )
+                                            availableSubtitles.forEach { sub ->
+                                                add(
+                                                    QuickMenuItem(
+                                                        id = sub,
+                                                        label = sub.langDoc.ifBlank { "未知字幕" },
+                                                        isSelected = sub.id == currentSubtitleId,
+                                                    ),
+                                                )
+                                            }
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "字幕语言",
+                                        items = items,
+                                        onSelect = {
+                                            onSubtitleChange(it)
+                                            activeQuickMenu = null
+                                            subtitleFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            subtitleFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 操作按钮行（单行分段 + 动态状态徽标）
         var focusedDescription by remember { mutableStateOf("") }
-        val icons =
+        val currentRes = resolution ?: currentQualityId?.let { Resolution.fromCode(it) } ?: Resolution.R1080P
+        val resBadge = currentRes.displayName
+        val speedBadge = PlaySpeedItem.fromSpeed(playSpeed).displayName
+        val audioBadge = currentAudio.shortBadge
+        val subtitleBadge = if (currentSubtitleId == -1L) "字幕:关" else "字幕:开"
+
+        val buttons =
             buildList {
-                add(ControllerIcon(R.drawable.play_pause_24px, "播放 / 暂停", onPlayPause))
                 add(
-                    ControllerIcon(
-                        if (danmakuEnabled) R.drawable.danmaku_on_24px else R.drawable.danmaku_off_24px,
-                        if (danmakuEnabled) "弹幕：开启" else "弹幕：关闭",
-                        onDanmakuSwitchChange,
+                    ControllerButton(
+                        id = "play_pause",
+                        icon = R.drawable.play_pause_24px,
+                        description = "播放 / 暂停",
+                        focusRequester = playPauseFocusRequester,
+                        action = onPlayPause,
                     ),
                 )
-                add(ControllerIcon(R.drawable.settings_24px, "清晰度与设置", onShowSettings))
                 add(
-                    ControllerIcon(
+                    ControllerButton(
+                        id = "resolution",
+                        badge = resBadge,
+                        description = "清晰度：${availableQuality[currentQualityId] ?: resBadge} (按 OK 切换)",
+                        focusRequester = resolutionFocusRequester,
+                        quickMenuType = VodQuickMenuType.Resolution,
+                        action = {
+                            activeQuickMenu =
+                                if (activeQuickMenu ==
+                                    VodQuickMenuType.Resolution
+                                ) {
+                                    null
+                                } else {
+                                    VodQuickMenuType.Resolution
+                                }
+                            onResetAutoHide()
+                        },
+                    ),
+                )
+                add(
+                    ControllerButton(
+                        id = "speed",
+                        badge = speedBadge,
+                        description = "播放倍速：$speedBadge (按 OK 切换)",
+                        focusRequester = speedFocusRequester,
+                        quickMenuType = VodQuickMenuType.PlaySpeed,
+                        action = {
+                            activeQuickMenu =
+                                if (activeQuickMenu == VodQuickMenuType.PlaySpeed) null else VodQuickMenuType.PlaySpeed
+                            onResetAutoHide()
+                        },
+                    ),
+                )
+                add(
+                    ControllerButton(
+                        id = "audio",
+                        badge = audioBadge,
+                        description = "音频音轨：${currentAudio.detailedDisplayName} (按 OK 切换)",
+                        focusRequester = audioFocusRequester,
+                        quickMenuType = VodQuickMenuType.Audio,
+                        action = {
+                            activeQuickMenu =
+                                if (activeQuickMenu == VodQuickMenuType.Audio) null else VodQuickMenuType.Audio
+                            onResetAutoHide()
+                        },
+                    ),
+                )
+                if (availableSubtitles.isNotEmpty()) {
+                    add(
+                        ControllerButton(
+                            id = "subtitle",
+                            badge = subtitleBadge,
+                            description =
+                                "字幕语言：${availableSubtitles
+                                    .find {
+                                        it.id == currentSubtitleId
+                                    }?.langDoc ?: "关闭"} (按 OK 切换)",
+                            focusRequester = subtitleFocusRequester,
+                            quickMenuType = VodQuickMenuType.Subtitle,
+                            action = {
+                                activeQuickMenu =
+                                    if (activeQuickMenu ==
+                                        VodQuickMenuType.Subtitle
+                                    ) {
+                                        null
+                                    } else {
+                                        VodQuickMenuType.Subtitle
+                                    }
+                                onResetAutoHide()
+                            },
+                        ),
+                    )
+                }
+                add(
+                    ControllerButton(
+                        id = "danmaku",
+                        icon = if (danmakuEnabled) R.drawable.danmaku_on_24px else R.drawable.danmaku_off_24px,
+                        description = if (danmakuEnabled) "弹幕：开启" else "弹幕：关闭",
+                        action = onDanmakuSwitchChange,
+                    ),
+                )
+                if (episodesAvailable) {
+                    add(
+                        ControllerButton(
+                            id = "episodes",
+                            icon = R.drawable.playlist_play_24px,
+                            description = "选集",
+                            action = onShowEpisodes,
+                        ),
+                    )
+                }
+                if (relatedAvailable) {
+                    add(
+                        ControllerButton(
+                            id = "related",
+                            icon = R.drawable.related_videos_24px,
+                            description = "相关推荐",
+                            action = onShowRelatedVideos,
+                        ),
+                    )
+                }
+                if (!isPgc) {
+                    add(
+                        ControllerButton(
+                            id = "video_info",
+                            icon = R.drawable.info_24px,
+                            description = "视频详情",
+                            action = onGoToVideoInfo,
+                        ),
+                    )
+                    add(
+                        ControllerButton(
+                            id = "up_space",
+                            icon = R.drawable.contact_page_24px,
+                            description = "UP 主空间",
+                            action = onGoToUpPage,
+                        ),
+                    )
+                }
+                add(
+                    ControllerButton(
+                        id = "aspect_ratio",
                         icon = R.drawable.aspect_ratio_24px,
                         description = "画面比例：${aspectRatio.displayName}",
                         action = onCycleAspectRatio,
                     ),
                 )
-                if (episodesAvailable) {
-                    add(ControllerIcon(R.drawable.playlist_play_24px, "选集", onShowEpisodes))
-                }
-                if (relatedAvailable) {
-                    add(ControllerIcon(R.drawable.related_videos_24px, "相关推荐", onShowRelatedVideos))
-                }
-                if (!isPgc) {
-                    add(ControllerIcon(R.drawable.info_24px, "视频详情", onGoToVideoInfo))
-                    add(ControllerIcon(R.drawable.contact_page_24px, "UP 主空间", onGoToUpPage))
-                }
                 add(
-                    ControllerIcon(
-                        if (isLooping) R.drawable.repeat_one_on_24px else R.drawable.repeat_one_24px,
-                        if (isLooping) "循环播放：开启" else "循环播放：关闭",
-                        onToggleLoop,
+                    ControllerButton(
+                        id = "loop",
+                        icon = if (isLooping) R.drawable.repeat_one_on_24px else R.drawable.repeat_one_24px,
+                        description = if (isLooping) "循环播放：开启" else "循环播放：关闭",
+                        action = onToggleLoop,
                     ),
                 )
                 add(
-                    ControllerIcon(
+                    ControllerButton(
+                        id = "interaction",
                         icon = R.drawable.interaction_24px,
                         description = "点赞与互动",
                         action = onShowInteraction,
                     ),
                 )
                 add(
-                    ControllerIcon(
+                    ControllerButton(
+                        id = "comment",
                         icon = R.drawable.comment,
                         description = "评论区",
                         action = onShowComments,
+                    ),
+                )
+                add(
+                    ControllerButton(
+                        id = "settings",
+                        icon = R.drawable.settings_24px,
+                        description = "更多高级设置",
+                        action = {
+                            activeQuickMenu = null
+                            onShowSettings()
+                        },
                     ),
                 )
             }
@@ -624,7 +1088,6 @@ fun ControllerVideoInfoBottom(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .focusRequester(buttonsFocusRequester)
                     .onKeyEvent {
                         if (it.key == Key.DirectionUp) {
                             if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
@@ -645,22 +1108,41 @@ fun ControllerVideoInfoBottom(
                         }
                         false
                     }.padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            icons.forEachIndexed { index, item ->
-                key(index) {
+            buttons.forEach { item ->
+                key(item.id) {
+                    val anchorMod =
+                        if (item.quickMenuType != null) {
+                            Modifier.onGloballyPositioned { coordinates ->
+                                quickMenuAnchorRootX[item.quickMenuType] = coordinates.positionInRoot().x
+                            }
+                        } else {
+                            Modifier
+                        }
+                    val focusMod =
+                        if (item.focusRequester != null) {
+                            Modifier.focusRequester(item.focusRequester)
+                        } else {
+                            Modifier
+                        }
                     Surface(
                         modifier =
-                            Modifier
-                                .size(46.dp)
+                            anchorMod
+                                .height(46.dp)
+                                .defaultMinSize(minWidth = 46.dp)
+                                .then(focusMod)
                                 .onFocusChanged {
                                     if (it.hasFocus) focusedDescription = item.description
                                 }.touchClickable(
                                     onClick = item.action,
                                 ),
                         onClick = item.action,
-                        shape = ClickableSurfaceDefaults.shape(shape = androidx.compose.foundation.shape.CircleShape),
+                        shape =
+                            ClickableSurfaceDefaults.shape(
+                                shape = if (item.badge != null) RoundedCornerShape(23.dp) else CircleShape,
+                            ),
                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.12f),
                         colors =
                             ClickableSurfaceDefaults.colors(
@@ -671,14 +1153,30 @@ fun ControllerVideoInfoBottom(
                             ),
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier =
+                                Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = if (item.badge != null) 12.dp else 11.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                painter = painterResource(id = item.icon),
-                                contentDescription = item.description,
-                                modifier = Modifier.size(24.dp),
-                            )
+                            if (item.badge != null) {
+                                Text(
+                                    text = item.badge,
+                                    style =
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontSize = 12.sp,
+                                            letterSpacing = 0.5.sp,
+                                        ),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                )
+                            } else if (item.icon != null) {
+                                Icon(
+                                    painter = painterResource(id = item.icon),
+                                    contentDescription = item.description,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -707,11 +1205,15 @@ fun ControllerVideoInfoBottom(
 }
 
 /**
- * 操作按钮数据三元组。
+ * 操作按钮数据模型（支持图标或文本角标）。
  */
-private data class ControllerIcon(
-    val icon: Int,
+private data class ControllerButton(
+    val id: String,
+    val icon: Int? = null,
+    val badge: String? = null,
     val description: String,
+    val focusRequester: FocusRequester? = null,
+    val quickMenuType: VodQuickMenuType? = null,
     val action: () -> Unit,
 )
 

@@ -77,4 +77,15 @@ object BVColors {
     /** Hi-Res 无损音质小金标。 */
     val BadgeHiResContent = Color(0xFFFDE047)
     val BadgeHiResBackground = Color(0xFF78350F)
+
+    // --- 播放器轻量快捷悬浮菜单色板 (Quick Menu Popover) ---
+
+    /** 快捷悬浮菜单容器背景色（高透暗夜蓝黑半透明）。 */
+    val PopoverBackground = Color(0xFF141720)
+
+    /** 快捷悬浮菜单小标题/按键提示次级文本色。 */
+    val PopoverTitle = Color(0xFFAAAAAA)
+
+    /** 快捷悬浮菜单未选中文本文案色。 */
+    val PopoverItemUnselected = Color(0xFFCCCCCC)
 }

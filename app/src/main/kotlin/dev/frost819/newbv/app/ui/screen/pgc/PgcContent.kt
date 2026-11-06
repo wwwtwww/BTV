@@ -98,14 +98,12 @@ fun PgcContent(
                 selectedIndex = PgcTabItem.entries.indexOf(selectedTab),
                 isLargePadding = !focusOnContent,
                 onSelectedChanged = { nav ->
-                    val tab = nav as PgcTabItem
-                    if (tab != selectedTab) {
-                        selectedTab = tab
-                        viewModel.switchType(tab.pgcType)
+                    if (nav != selectedTab) {
+                        selectedTab = nav
+                        viewModel.switchType(nav.pgcType)
                     }
                 },
-                onClick = { nav ->
-                    val tab = nav as PgcTabItem
+                onClick = {
                     viewModel.refresh()
                 },
             )

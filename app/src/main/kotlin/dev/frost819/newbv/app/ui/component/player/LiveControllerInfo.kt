@@ -1,22 +1,36 @@
 package dev.frost819.newbv.app.ui.component.player
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -24,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -32,7 +47,10 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -47,6 +65,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
+import dev.frost819.newbv.biliapi.repositories.LivePlayLine
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import kotlinx.coroutines.delay
@@ -57,6 +76,7 @@ import kotlinx.coroutines.delay
  * 包含顶部标题+人气 meta 行+时钟和底部操作按钮两部分。
  * 通过 [AnimatedVisibility] 控制进出场动画。
  *
+ * @param modifier 修饰符
  * @param show 是否显示
  * @param title 直播间标题
  * @param areaName 分区名
@@ -68,6 +88,13 @@ import kotlinx.coroutines.delay
  * @param onRefresh 刷新回调
  * @param onDanmakuSwitchChange 弹幕开关回调
  * @param onShowSettings 打开设置回调
+ * @param availableQualities 可用画质列表
+ * @param currentQuality 当前生效的画质代码（默认 -1）
+ * @param onQualityChange 画质切换回调
+ * @param availableLines 可用播放线路列表
+ * @param currentLine 当前生效的播放线路序号（1-indexed）
+ * @param onLineChange 线路切换回调
+ * @param onResetAutoHide 重置 OSD 自动隐藏计时器回调
  */
 @Composable
 fun LiveControllerInfo(
@@ -83,6 +110,13 @@ fun LiveControllerInfo(
     onRefresh: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
+    availableQualities: List<Pair<Int, String>> = emptyList(),
+    currentQuality: Int = -1,
+    onQualityChange: (Int) -> Unit = {},
+    availableLines: List<LivePlayLine> = emptyList(),
+    currentLine: Int = 1,
+    onLineChange: (Int) -> Unit = {},
+    onResetAutoHide: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -109,12 +143,20 @@ fun LiveControllerInfo(
         ) {
             LiveControllerInfoBottom(
                 modifier = Modifier.align(Alignment.BottomCenter),
+                show = show,
                 isPlaying = isPlaying,
                 danmakuEnabled = danmakuEnabled,
                 onPlayPause = onPlayPause,
                 onRefresh = onRefresh,
                 onDanmakuSwitchChange = onDanmakuSwitchChange,
                 onShowSettings = onShowSettings,
+                availableQualities = availableQualities,
+                currentQuality = currentQuality,
+                onQualityChange = onQualityChange,
+                availableLines = availableLines,
+                currentLine = currentLine,
+                onLineChange = onLineChange,
+                onResetAutoHide = onResetAutoHide,
             )
         }
     }
@@ -214,18 +256,44 @@ private fun LiveControllerInfoTop(
 @Composable
 private fun LiveControllerInfoBottom(
     modifier: Modifier = Modifier,
+    show: Boolean = true,
     isPlaying: Boolean,
     danmakuEnabled: Boolean,
     onPlayPause: () -> Unit,
     onRefresh: () -> Unit,
     onDanmakuSwitchChange: () -> Unit,
     onShowSettings: () -> Unit,
+    availableQualities: List<Pair<Int, String>> = emptyList(),
+    currentQuality: Int = -1,
+    onQualityChange: (Int) -> Unit = {},
+    availableLines: List<LivePlayLine> = emptyList(),
+    currentLine: Int = 1,
+    onLineChange: (Int) -> Unit = {},
+    onResetAutoHide: () -> Unit = {},
 ) {
-    val buttonsFocusRequester = remember { FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val qualityFocusRequester = remember { FocusRequester() }
+    val lineFocusRequester = remember { FocusRequester() }
+
+    var activeQuickMenu by remember { mutableStateOf<LiveQuickMenuType?>(null) }
+    var popoverContainerRootX by remember { mutableFloatStateOf(0f) }
+    val quickMenuAnchorRootX = remember { mutableStateMapOf<LiveQuickMenuType, Float>() }
+    var focusedDescription by remember { mutableStateOf("") }
+
+    val defaultQualityLabel = stringResource(R.string.player_quality_default)
+    val resolvedQuality =
+        remember(availableQualities, currentQuality) {
+            resolveLiveQuality(availableQualities, currentQuality)
+        }
+    val effectiveQuality = resolvedQuality?.first ?: currentQuality
+    val currentQualityLabel = resolvedQuality?.second ?: defaultQualityLabel
 
     LaunchedEffect(Unit) {
+        // TV 遥控器输入焦点时序：延迟 50ms（约 2-3 帧垂直同步），
+        // 等待直播控制器完全展开并挂载至 Compose Focus 树节点，避免直接请求焦点静默失败。
         delay(50)
-        buttonsFocusRequester.safeRequestFocus()
+        // 初始呼出直接聚焦播放控制按钮行
+        runCatching { playPauseFocusRequester.safeRequestFocus() }
     }
 
     Column(
@@ -238,25 +306,210 @@ private fun LiveControllerInfoBottom(
             ),
         verticalArrangement = Arrangement.Bottom,
     ) {
-        val icons =
+        // 快捷微卡片浮层（位于进度条与操作按钮行之间，水平对齐触发按钮实际坐标）
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .onGloballyPositioned { coordinates ->
+                        // 记录微卡片水平对齐基准容器的全局 X 坐标。
+                        // 在 OSD 底栏初次展示完成时即刻捕获稳态值，微卡片在后续用户触发挂载时首帧直接读取该值，保证 0 帧延迟精准对齐。
+                        popoverContainerRootX = coordinates.positionInRoot().x
+                    },
+        ) {
+            var lastMenu by remember { mutableStateOf<LiveQuickMenuType?>(null) }
+            if (activeQuickMenu != null) {
+                lastMenu = activeQuickMenu
+            }
+            val currentMenu = activeQuickMenu ?: lastMenu
+            val isMenuVisible = activeQuickMenu != null
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isMenuVisible && currentMenu != null,
+                enter = EnterTransition.None,
+                exit = fadeOut(tween(durationMillis = 250)),
+            ) {
+                if (currentMenu != null) {
+                    AnimatedContent(
+                        targetState = currentMenu,
+                        transitionSpec = {
+                            fadeIn(tween(durationMillis = 150)) togetherWith
+                                fadeOut(tween(durationMillis = 150))
+                        },
+                        label = "LiveQuickMenuTransition",
+                    ) { menu ->
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(bottom = 6.dp)
+                                    .alignToQuickMenuAnchor(
+                                        anchorRootXProvider = { quickMenuAnchorRootX[menu] },
+                                        containerRootXProvider = { popoverContainerRootX },
+                                    ),
+                        ) {
+                            val navigateLeftAction: (() -> Unit)? =
+                                menu.previous()?.let { prev ->
+                                    {
+                                        activeQuickMenu = prev
+                                        onResetAutoHide()
+                                    }
+                                }
+                            val navigateRightAction: (() -> Unit)? =
+                                menu.next(hasLines = availableLines.isNotEmpty())?.let { next ->
+                                    {
+                                        activeQuickMenu = next
+                                        onResetAutoHide()
+                                    }
+                                }
+                            when (menu) {
+                                LiveQuickMenuType.Quality -> {
+                                    val items =
+                                        availableQualities.map {
+                                            QuickMenuItem(
+                                                id = it.first,
+                                                label = it.second,
+                                                isSelected = it.first == effectiveQuality,
+                                            )
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "画质清晰度",
+                                        items = items,
+                                        onSelect = {
+                                            onQualityChange(it)
+                                            activeQuickMenu = null
+                                            qualityFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            qualityFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+
+                                LiveQuickMenuType.Line -> {
+                                    val items =
+                                        availableLines.indices.map { idx ->
+                                            QuickMenuItem(
+                                                id = idx + 1,
+                                                label = "线路 ${idx + 1}",
+                                                isSelected = (idx + 1) == currentLine,
+                                            )
+                                        }
+                                    PlayerQuickMenuPopover(
+                                        visible = isMenuVisible,
+                                        title = "播放线路",
+                                        items = items,
+                                        onSelect = {
+                                            onLineChange(it)
+                                            activeQuickMenu = null
+                                            lineFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onDismiss = {
+                                            activeQuickMenu = null
+                                            lineFocusRequester.safeRequestFocus()
+                                            onResetAutoHide()
+                                        },
+                                        onNavigateLeft = navigateLeftAction,
+                                        onNavigateRight = navigateRightAction,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 按钮行定义
+        val buttons =
             buildList {
-                add(LiveControllerIcon(R.drawable.play_pause_24px, "播放/暂停", onPlayPause))
-                add(LiveControllerIcon(R.drawable.baseline_refresh_24, "刷新", onRefresh))
                 add(
-                    LiveControllerIcon(
-                        if (danmakuEnabled) R.drawable.danmaku_on_24px else R.drawable.danmaku_off_24px,
-                        "弹幕开关",
-                        onDanmakuSwitchChange,
+                    LiveControllerButton(
+                        id = "play_pause",
+                        icon = R.drawable.play_pause_24px,
+                        description = if (isPlaying) "暂停" else "播放",
+                        focusRequester = playPauseFocusRequester,
+                        action = onPlayPause,
                     ),
                 )
-                add(LiveControllerIcon(R.drawable.settings_24px, "打开设置", onShowSettings))
+                if (availableQualities.isNotEmpty()) {
+                    add(
+                        LiveControllerButton(
+                            id = "quality",
+                            badge = currentQualityLabel,
+                            description = "清晰度：$currentQualityLabel (按 OK 切换)",
+                            focusRequester = qualityFocusRequester,
+                            quickMenuType = LiveQuickMenuType.Quality,
+                            action = {
+                                activeQuickMenu =
+                                    if (activeQuickMenu ==
+                                        LiveQuickMenuType.Quality
+                                    ) {
+                                        null
+                                    } else {
+                                        LiveQuickMenuType.Quality
+                                    }
+                                onResetAutoHide()
+                            },
+                        ),
+                    )
+                }
+                if (availableLines.isNotEmpty()) {
+                    add(
+                        LiveControllerButton(
+                            id = "line",
+                            badge = "线路$currentLine",
+                            description = "播放线路：线路$currentLine (按 OK 切换)",
+                            focusRequester = lineFocusRequester,
+                            quickMenuType = LiveQuickMenuType.Line,
+                            action = {
+                                activeQuickMenu =
+                                    if (activeQuickMenu == LiveQuickMenuType.Line) null else LiveQuickMenuType.Line
+                                onResetAutoHide()
+                            },
+                        ),
+                    )
+                }
+                add(
+                    LiveControllerButton(
+                        id = "danmaku",
+                        icon = if (danmakuEnabled) R.drawable.danmaku_on_24px else R.drawable.danmaku_off_24px,
+                        description = if (danmakuEnabled) "弹幕：开启" else "弹幕：关闭",
+                        action = onDanmakuSwitchChange,
+                    ),
+                )
+                add(
+                    LiveControllerButton(
+                        id = "refresh",
+                        icon = R.drawable.baseline_refresh_24,
+                        description = "刷新直播流",
+                        action = onRefresh,
+                    ),
+                )
+                add(
+                    LiveControllerButton(
+                        id = "settings",
+                        icon = R.drawable.settings_24px,
+                        description = "更多设置",
+                        action = {
+                            activeQuickMenu = null
+                            onShowSettings()
+                        },
+                    ),
+                )
             }
 
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .focusRequester(buttonsFocusRequester)
                     .onKeyEvent {
                         if (it.key == Key.DirectionUp) {
                             if (it.type == KeyEventType.KeyUp) return@onKeyEvent true
@@ -264,33 +517,105 @@ private fun LiveControllerInfoBottom(
                         }
                         false
                     }.padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            icons.forEachIndexed { index, (icon, desc, action) ->
-                key(index) {
+            buttons.forEach { item ->
+                key(item.id) {
+                    val anchorMod =
+                        if (item.quickMenuType != null) {
+                            Modifier.onGloballyPositioned { coordinates ->
+                                quickMenuAnchorRootX[item.quickMenuType] = coordinates.positionInRoot().x
+                            }
+                        } else {
+                            Modifier
+                        }
+                    val focusMod =
+                        if (item.focusRequester != null) {
+                            Modifier.focusRequester(item.focusRequester)
+                        } else {
+                            Modifier
+                        }
                     Surface(
-                        modifier = Modifier.touchClickable(onClick = action),
-                        onClick = action,
-                        shape = ClickableSurfaceDefaults.shape(shape = MaterialTheme.shapes.small),
+                        modifier =
+                            anchorMod
+                                .height(46.dp)
+                                .defaultMinSize(minWidth = 46.dp)
+                                .then(focusMod)
+                                .onFocusChanged {
+                                    if (it.hasFocus) focusedDescription = item.description
+                                }.touchClickable(
+                                    onClick = item.action,
+                                ),
+                        onClick = item.action,
+                        shape =
+                            ClickableSurfaceDefaults.shape(
+                                shape = if (item.badge != null) RoundedCornerShape(23.dp) else CircleShape,
+                            ),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.12f),
+                        colors =
+                            ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                contentColor = Color.White,
+                                focusedContainerColor = Color.White,
+                                focusedContentColor = Color(0xFF0F0F0F),
+                            ),
                     ) {
-                        Icon(
-                            painter = painterResource(id = icon),
-                            contentDescription = desc,
-                            modifier = Modifier.padding(5.dp),
-                        )
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = if (item.badge != null) 12.dp else 11.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (item.badge != null) {
+                                Text(
+                                    text = item.badge,
+                                    style =
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontSize = 12.sp,
+                                            letterSpacing = 0.5.sp,
+                                        ),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                )
+                            } else if (item.icon != null) {
+                                Icon(
+                                    painter = painterResource(id = item.icon),
+                                    contentDescription = item.description,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
+        }
+
+        if (focusedDescription.isNotEmpty()) {
+            Text(
+                modifier = Modifier.padding(start = 28.dp, bottom = 14.dp),
+                text = focusedDescription,
+                style =
+                    MaterialTheme.typography.labelMedium.copy(
+                        shadow = Shadow(color = Color.Black.copy(alpha = 0.8f), blurRadius = 3f),
+                    ),
+                color = Color(0xFFE0E0E0),
+            )
         }
     }
 }
 
 /**
- * 操作按钮数据三元组。
+ * 直播操作按钮模型。
  */
-private data class LiveControllerIcon(
-    val icon: Int,
+private data class LiveControllerButton(
+    val id: String,
+    val icon: Int? = null,
+    val badge: String? = null,
     val description: String,
+    val focusRequester: FocusRequester? = null,
+    val quickMenuType: LiveQuickMenuType? = null,
     val action: () -> Unit,
 )
 
@@ -322,4 +647,24 @@ private fun Clock(
                 }
             },
     )
+}
+
+/**
+ * 解析直播当前生效的画质代码与展示文案。
+ *
+ * 若 [currentQuality] 存在于 [availableQualities] 中，则优先匹配该项；
+ * 若未命中但 [availableQualities] 非空，则自动回退到首项作为当前选中项（避免未初始化或默认值 -1 导致丢失选中指示）；
+ * 若列表为空，则返回 null，由调用侧 @Composable 上下文提供本地化兜底展示文案。
+ *
+ * @param availableQualities 可用画质列表 (qn to label)
+ * @param currentQuality 传入的目标画质代码（默认 -1）
+ * @return 生效的画质代码与展示标签，列表为空时返回 null
+ */
+internal fun resolveLiveQuality(
+    availableQualities: List<Pair<Int, String>>,
+    currentQuality: Int,
+): Pair<Int, String>? {
+    val matched = availableQualities.find { it.first == currentQuality }
+    if (matched != null) return matched
+    return availableQualities.firstOrNull()
 }

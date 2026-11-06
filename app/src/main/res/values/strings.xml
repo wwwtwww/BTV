@@ -45,4 +45,6 @@
     <!-- Common -->
     <string name="loading">加载中…</string>
     <string name="load_failed">加载失败</string>
+    <!-- Player -->
+    <string name="player_quality_default">画质</string>
 </resources>
