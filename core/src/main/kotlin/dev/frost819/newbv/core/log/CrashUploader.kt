@@ -47,6 +47,25 @@ class CrashUploader(
         private const val UPLOAD_TIMEOUT_MS = 5_000
         private const val CRASH_JSON_PREFIX = "logs_crash"
         private const val CRASH_JSON_SUFFIX = ".json"
+
+        /**
+         * 格式化为 ISO 8601 字符串 (如 `2026-11-06T09:37:35+08:00`)。
+         *
+         * 兼容 Android 5.0+ (API 21+)，避免在低于 API 24 平台直接使用 SimpleDateFormat 的 'X' 占位符导致崩溃。
+         *
+         * @param date 待格式化日期，默认为当前时间。
+         * @return ISO 8601 规范的时间字符串。
+         */
+        internal fun formatIso8601(date: Date = Date()): String {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US)
+            val formatted = sdf.format(date)
+            val length = formatted.length
+            return if (length >= 5 && (formatted[length - 5] == '+' || formatted[length - 5] == '-')) {
+                formatted.substring(0, length - 2) + ":" + formatted.substring(length - 2)
+            } else {
+                formatted
+            }
+        }
     }
 
     /**
@@ -135,7 +154,7 @@ class CrashUploader(
         json.put("id", UUID.randomUUID().toString())
         json.put("versionCode", deviceInfo.appVersionCode)
         json.put("versionName", deviceInfo.appVersion)
-        json.put("crashTime", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date()))
+        json.put("crashTime", formatIso8601())
 
         val device = JSONObject()
         device.put("manufacturer", deviceInfo.manufacturer)

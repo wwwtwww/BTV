@@ -2,6 +2,7 @@ package dev.frost819.newbv.core.log
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import java.util.Date
 
 /**
  * [LogFormat] 的单元测试。
@@ -43,5 +44,13 @@ class LogFormatTest {
             )
         assertThat(header).contains("new BV Crash")
         assertThat(header).contains("Recent application logs are included below from Logcat:")
+    }
+
+    @Test
+    fun `formatIso8601 returns standard ISO 8601 with timezone colon`() {
+        val testDate = Date(1700000000000L)
+        val result = CrashUploader.formatIso8601(testDate)
+        val regex = Regex("""^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$""")
+        assertThat(result).matches(regex.pattern)
     }
 }

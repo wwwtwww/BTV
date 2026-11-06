@@ -2,6 +2,7 @@ package dev.frost819.newbv.core.log
 
 import android.content.Context
 import android.os.Build
+import androidx.core.content.pm.PackageInfoCompat
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -238,7 +239,7 @@ class CrashHandler(
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
         return DeviceInfo(
             appVersion = packageInfo.versionName ?: "unknown",
-            appVersionCode = packageInfo.longVersionCode.toInt(),
+            appVersionCode = PackageInfoCompat.getLongVersionCode(packageInfo).toInt(),
             androidVersion = Build.VERSION.RELEASE ?: "unknown",
             androidSdk = Build.VERSION.SDK_INT,
             device = Build.DEVICE ?: "unknown",
@@ -251,7 +252,7 @@ class CrashHandler(
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         writer.apply {
             appendLine("======== Device info ========")
-            appendLine("App Version: ${info.versionName} (${info.longVersionCode})")
+            appendLine("App Version: ${info.versionName} (${PackageInfoCompat.getLongVersionCode(info)})")
             appendLine("Android Version: ${Build.VERSION.RELEASE} (${Build.VERSION.SDK_INT})")
             appendLine("Device: ${Build.DEVICE}")
             appendLine("Model: ${Build.MODEL}")
