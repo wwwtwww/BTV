@@ -1,9 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- 默认信任系统证书，禁止用户导入的根证书在正式包中解密流量 -->
     <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 登录认证与核心 API 严禁使用明文 HTTP -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">bilibili.com</domain>
+        <domain includeSubdomains="true">bilibili.tv</domain>
+        <domain includeSubdomains="true">biliapi.net</domain>
+    </domain-config>
+
+    <!-- 开发调试阶段允许信任用户证书（便于 Charles/mitmproxy 调试） -->
+    <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </base-config>
+    </debug-overrides>
 </network-security-config>

@@ -255,6 +255,10 @@ class AccountRepositoryImpl
                 biliJct = null
                 accessToken = null
             }
+            BiliHttpApi.sessData = ""
+            BiliHttpApi.biliJct = ""
+            BiliHttpApi.mid = null
+            BiliHttpApi.accessToken = ""
             channelRepository.close()
             _uiState.value = AccountUiState()
         }

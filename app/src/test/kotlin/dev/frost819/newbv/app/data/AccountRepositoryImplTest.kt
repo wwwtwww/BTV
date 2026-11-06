@@ -265,6 +265,10 @@ class AccountRepositoryImplTest {
             assertThat(Prefs.isLogin).isFalse()
             assertThat(Prefs.uid).isEqualTo(0L)
             assertThat(Prefs.sessData).isEmpty()
+            assertThat(BiliHttpApi.sessData).isEmpty()
+            assertThat(BiliHttpApi.biliJct).isEmpty()
+            assertThat(BiliHttpApi.mid).isNull()
+            assertThat(BiliHttpApi.accessToken).isEmpty()
             assertThat(authRepository.mid).isNull()
             assertThat(authRepository.sessionData).isNull()
         }
