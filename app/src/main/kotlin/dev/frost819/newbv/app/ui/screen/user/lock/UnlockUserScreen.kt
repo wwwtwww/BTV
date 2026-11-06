@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.user.lock
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -125,6 +126,7 @@ private fun UnlockUserContent(
         modifier =
             modifier
                 .focusRequester(inputFocusRequester)
+                .focusable()
                 .onPreviewKeyEvent { event ->
                     if (unlockState == UnlockState.ChooseUser) return@onPreviewKeyEvent false
                     if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
@@ -155,7 +157,7 @@ private fun UnlockUserContent(
                         }
                         Key.Back -> {
                             if (inputPassword.isNotEmpty()) {
-                                inputPassword = inputPassword.drop(1)
+                                inputPassword = inputPassword.dropLast(1)
                             } else {
                                 unlockState = UnlockState.ChooseUser
                                 defaultFocusRequester.safeRequestFocus()

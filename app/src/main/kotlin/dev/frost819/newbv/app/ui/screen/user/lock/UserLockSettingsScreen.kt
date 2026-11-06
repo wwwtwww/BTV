@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.ui.screen.user.lock
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -24,61 +23,29 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
-import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.R
-import dev.frost819.newbv.app.data.AccountRepositoryImpl
+import dev.frost819.newbv.app.viewmodel.user.LockInputPhase
+import dev.frost819.newbv.app.viewmodel.user.UserLockViewModel
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-/**
- * 用户锁设置 ViewModel。
- *
- * 管理当前用户的锁密码设置流程。
- *
- * @property accountRepository 账户仓库。
- */
-@HiltViewModel
-class UserLockViewModel
-    @Inject
-    constructor(
-        private val accountRepository: AccountRepositoryImpl,
-    ) : ViewModel() {
-        /**
-         * 保存用户锁密码。
-         *
-         * @param uid 用户 UID。
-         * @param lock 密码字符串（空字符串取消锁）。
-         */
-        fun saveLock(
-            uid: Long,
-            lock: String,
-        ) {
-            viewModelScope.launch {
-                accountRepository.updateUserLock(uid, lock)
-            }
-        }
-    }
 
 /**
  * 用户锁设置页面。
  *
- * 三阶段状态机：
- * 1. [InputState.InputOldPassword]（已有锁时）：验证旧密码
- * 2. [InputState.InputNewPassword]：输入新密码
- * 3. [InputState.ConfirmNewPassword]：确认新密码
+ * 遵循三阶段状态机流转：
+ * 1. [LockInputPhase.VerifyOld]（用户已有密码时）：强制验证原密码；
+ * 2. [LockInputPhase.InputNew]：输入新密码（若直接确认则视为清除密码）；
+ * 3. [LockInputPhase.ConfirmNew]：二次确认新密码。
  *
- * 密码为 D-Pad 方向键序列（u/d/l/r），DirectionCenter 确认，Back 删除。
- * 在 InputNewPassword 状态下输入空密码并按确认键可取消用户锁。
+ * 密码为 D-Pad 方向按键序列（u/d/l/r），DirectionCenter 确认，Back 回退上一位。
  *
+ * @param modifier 修饰符。
  * @param viewModel 用户锁 ViewModel。
- * @param onSaved 保存成功回调。
+ * @param onSaved 保存成功退出回调。
  */
 @Composable
 fun UserLockSettingsScreen(
@@ -87,23 +54,23 @@ fun UserLockSettingsScreen(
     onSaved: () -> Unit = {},
 ) {
     val currentUid = Prefs.uid
-    var currentLock by remember { mutableStateOf("") }
-    var inputPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var inputState by remember { mutableStateOf(InputState.InputNewPassword) }
-    var message by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(inputState) {
-        focusRequester.safeRequestFocus()
+    LaunchedEffect(currentUid) {
+        viewModel.init(currentUid)
     }
 
-    BackHandler(true) {
-        if (inputState == InputState.ConfirmNewPassword) {
-            inputState = InputState.InputNewPassword
-            inputPassword = ""
-            newPassword = ""
-        } else if (inputState == InputState.InputOldPassword) {
+    LaunchedEffect(uiState.phase) {
+        if (uiState.phase == LockInputPhase.SaveSuccess) {
+            onSaved()
+        } else {
+            focusRequester.safeRequestFocus()
+        }
+    }
+
+    BackHandler(enabled = true) {
+        if (!viewModel.onBack()) {
             onSaved()
         }
     }
@@ -112,76 +79,37 @@ fun UserLockSettingsScreen(
         modifier =
             modifier
                 .focusRequester(focusRequester)
+                .focusable()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
                     when (event.key) {
                         Key.DirectionUp -> {
-                            inputPassword += "u"
+                            viewModel.appendDirection("u")
                             true
                         }
                         Key.DirectionDown -> {
-                            inputPassword += "d"
+                            viewModel.appendDirection("d")
                             true
                         }
                         Key.DirectionLeft -> {
-                            inputPassword += "l"
+                            viewModel.appendDirection("l")
                             true
                         }
                         Key.DirectionRight -> {
-                            inputPassword += "r"
+                            viewModel.appendDirection("r")
                             true
                         }
                         Key.DirectionCenter -> {
-                            when (inputState) {
-                                InputState.InputOldPassword -> {
-                                    if (inputPassword == currentLock) {
-                                        inputState = InputState.InputNewPassword
-                                        inputPassword = ""
-                                        message = ""
-                                    } else {
-                                        message = "密码错误"
-                                        inputPassword = ""
-                                    }
-                                }
-                                InputState.InputNewPassword -> {
-                                    newPassword = inputPassword
-                                    if (inputPassword.isEmpty()) {
-                                        viewModel.saveLock(currentUid, "")
-                                        onSaved()
-                                    } else {
-                                        inputState = InputState.ConfirmNewPassword
-                                        inputPassword = ""
-                                        message = ""
-                                    }
-                                }
-                                InputState.ConfirmNewPassword -> {
-                                    if (inputPassword == newPassword) {
-                                        viewModel.saveLock(currentUid, inputPassword)
-                                        onSaved()
-                                    } else {
-                                        message = "两次密码不一致"
-                                        inputState = InputState.InputNewPassword
-                                        inputPassword = ""
-                                        newPassword = ""
-                                    }
-                                }
-                            }
+                            viewModel.confirm()
                             true
                         }
                         Key.Back -> {
-                            if (inputPassword.isNotEmpty()) {
-                                inputPassword = inputPassword.drop(1)
+                            if (viewModel.onBack()) {
+                                true
                             } else {
-                                when (inputState) {
-                                    InputState.InputOldPassword -> onSaved()
-                                    InputState.InputNewPassword -> onSaved()
-                                    InputState.ConfirmNewPassword -> {
-                                        inputState = InputState.InputNewPassword
-                                        newPassword = ""
-                                    }
-                                }
+                                onSaved()
+                                true
                             }
-                            true
                         }
                         else -> false
                     }
@@ -198,16 +126,17 @@ fun UserLockSettingsScreen(
             ) {
                 Text(
                     text =
-                        when (inputState) {
-                            InputState.InputOldPassword -> stringResource(R.string.lock_input_old)
-                            InputState.InputNewPassword -> stringResource(R.string.lock_set_new)
-                            InputState.ConfirmNewPassword -> stringResource(R.string.lock_confirm_new)
+                        when (uiState.phase) {
+                            LockInputPhase.VerifyOld -> stringResource(R.string.lock_input_old)
+                            LockInputPhase.InputNew -> stringResource(R.string.lock_set_new)
+                            LockInputPhase.ConfirmNew -> stringResource(R.string.lock_confirm_new)
+                            LockInputPhase.SaveSuccess -> ""
                         },
                     style = MaterialTheme.typography.displaySmall,
                 )
 
                 val displayPassword =
-                    inputPassword
+                    uiState.inputPassword
                         .replace("u", "↑")
                         .replace("d", "↓")
                         .replace("l", "←")
@@ -217,15 +146,15 @@ fun UserLockSettingsScreen(
                     style = MaterialTheme.typography.displayLarge,
                 )
 
-                if (message.isNotEmpty()) {
+                if (uiState.message.isNotEmpty()) {
                     Text(
-                        text = message,
+                        text = uiState.message,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                if (inputState == InputState.InputNewPassword) {
+                if (uiState.phase == LockInputPhase.InputNew) {
                     Text(
                         text = stringResource(R.string.lock_hint_blank_remove),
                         style = MaterialTheme.typography.bodySmall,
@@ -235,10 +164,4 @@ fun UserLockSettingsScreen(
             }
         }
     }
-}
-
-private enum class InputState {
-    InputOldPassword,
-    InputNewPassword,
-    ConfirmNewPassword,
 }
