@@ -44,48 +44,53 @@ fun NavGraphBuilder.videoPlayerScreen(navController: NavController) {
 
         // 初始化播放器状态 + 加载视频资源（顺序执行，避免竞态）
         LaunchedEffect(route.aid) {
-            // 1. 设置播放状态（aid/cid/title 等）
-            playerViewModel.init(
-                aid = route.aid,
-                cid = route.cid,
-                epid = route.epid?.toInt(),
-                title = route.title,
-                lastPlayed = 0,
-                fromSeason = false,
-                subType = 0,
-                seasonId = 0,
-                authorName = "",
-            )
-            // 2. 设置当前视频 aid（过滤 repository 数据，防止叠加打开错位）
-            videoListViewModel.setCurrentAid(route.aid)
-            // 3. 初始化 ExoPlayer（同步，确保 videoPlayer 就绪）
-            playerViewModel.initVideoPlayer(context)
-            // 4. 初始化弹幕播放器
-            danmakuViewModel.init()
-            // 5. 加载视频详情（获取正确 cid、相关视频、历史进度）
-            //    仅当历史 cid 与当前 cid 一致时才应用断点续播
-            playerViewModel.loadVideoDetail(route.aid, route.bvid)
-            // 6. 使用正确的 cid 加载弹幕、字幕（route.cid 可能为 0，需从详情获取）
-            //    弹幕分段加载按历史进度（秒 → 毫秒）定位初始分段
-            val actualCid = playerViewModel.uiState.value.cid
-            danmakuViewModel.loadDanmaku(
-                aid = route.aid,
-                cid = actualCid,
-                initialPositionMs =
-                    playerViewModel.uiState.value.lastPlayed
-                        .toLong() * 1000,
-            )
-            danmakuViewModel.loadDanmakuMask(route.aid, actualCid)
-            subtitleViewModel.loadSubtitleList(route.aid, actualCid)
-            // 7. 获取播放地址并开始播放
-            playerViewModel.loadVideoWithResources()
+            if (!playerViewModel.hasInitializedSession) {
+                // 1. 设置播放状态（aid/cid/title 等）
+                playerViewModel.init(
+                    aid = route.aid,
+                    cid = route.cid,
+                    epid = route.epid?.toInt(),
+                    title = route.title,
+                    lastPlayed = 0,
+                    fromSeason = false,
+                    subType = 0,
+                    seasonId = 0,
+                    authorName = "",
+                )
+                // 2. 设置当前视频 aid（过滤 repository 数据，防止叠加打开错位）
+                videoListViewModel.setCurrentAid(route.aid)
+                // 3. 初始化 ExoPlayer（同步，确保 videoPlayer 就绪）
+                playerViewModel.initVideoPlayer(context)
+                // 4. 初始化弹幕播放器
+                danmakuViewModel.init()
+                // 5. 加载视频详情（获取正确 cid、相关视频、历史进度）
+                //    仅当历史 cid 与当前 cid 一致时才应用断点续播
+                playerViewModel.loadVideoDetail(route.aid, route.bvid)
+                // 6. 使用正确的 cid 加载弹幕、字幕（route.cid 可能为 0，需从详情获取）
+                //    弹幕分段加载按历史进度（秒 → 毫秒）定位初始分段
+                val actualCid = playerViewModel.uiState.value.cid
+                danmakuViewModel.loadDanmaku(
+                    aid = route.aid,
+                    cid = actualCid,
+                    initialPositionMs =
+                        playerViewModel.uiState.value.lastPlayed
+                            .toLong() * 1000,
+                )
+                danmakuViewModel.loadDanmakuMask(route.aid, actualCid)
+                subtitleViewModel.loadSubtitleList(route.aid, actualCid)
+                // 7. 获取播放地址并开始播放
+                playerViewModel.loadVideoWithResources()
+            } else {
+                // 会话已存在（如从 UP 空间/详情页返回），恢复播放并保持当前集数与进度
+                playerViewModel.resumePlayback()
+            }
         }
 
-        // 释放播放器资源
+        // 离开组合时暂停播放并保存当前进度（不销毁播放器，出栈时由 ViewModel.onCleared 彻底释放）
         DisposableEffect(Unit) {
             onDispose {
-                playerViewModel.detachPlayer()
-                danmakuViewModel.release()
+                playerViewModel.pausePlayback()
+                playerViewModel.syncProgressToApplicationScope()
             }
         }
 

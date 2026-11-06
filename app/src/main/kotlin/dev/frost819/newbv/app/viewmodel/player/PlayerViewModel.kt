@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.app.viewmodel.player
+package dev.frost819.newbv.app.viewmodel.player
 
 import android.content.Context
 import androidx.compose.runtime.getValue
@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.app.data.VideoInfoRepository
+import dev.frost819.newbv.app.di.ApplicationScope
 import dev.frost819.newbv.app.di.IoDispatcher
 import dev.frost819.newbv.app.di.MainDispatcher
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
@@ -121,6 +122,7 @@ class PlayerViewModel
         private val cdnSelector: CdnSelector,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
         @MainDispatcher private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+        @ApplicationScope private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher),
     ) : ViewModel() {
         private val logger = Loggers.get("PlayerViewModel")
 
@@ -142,7 +144,9 @@ class PlayerViewModel
         /** 运行时 CDN 回退已尝试到的候选下标。 */
         private var cdnFallbackIndex = 0
 
-        private val detachedWorkScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        /** 标记当前播放器会话是否已完成初次初始化。从详情页/UP空间返回时据此恢复播放而非重新初次初始化。 */
+        var hasInitializedSession: Boolean = false
+            private set
 
         private val _uiState = MutableStateFlow(PlayerUiState())
         val uiState = _uiState.asStateFlow()
@@ -486,7 +490,8 @@ class PlayerViewModel
 
         /** 释放播放器资源，同步进度到 B 站。 */
         fun detachPlayer() {
-            syncProgress(scope = detachedWorkScope, isDetaching = true)
+            hasInitializedSession = false
+            syncProgress(scope = applicationScope, isDetaching = true)
             videoPlayer?.release()
             videoPlayer = null
             stopBufferingWatchdog()
@@ -749,7 +754,26 @@ class PlayerViewModel
             val shouldUpdateDetail = state.aid != newVideo.aid
             val shouldUpdateList = videoInfoRepository.videoList.value.none { it.aid == newVideo.aid }
 
-            syncProgress(viewModelScope)
+            // 切集前上报上一集进度：使用 applicationScope 独立任务，避免与新集周期心跳互相取消
+            val previousState = _uiState.value
+            val currentPlayer = videoPlayer
+            if (currentPlayer != null) {
+                val currentTime = (currentPlayer.currentPosition.coerceAtLeast(0) / 1000).toInt()
+                val totalTime = (currentPlayer.duration.coerceAtLeast(0) / 1000).toInt()
+                val reportTime = if (totalTime > 0 && currentTime >= totalTime) -1 else currentTime
+                videoInfoRepository.updateHistory(reportTime, previousState.cid)
+                if (!Prefs.incognitoMode) {
+                    applicationScope.launch(ioDispatcher) {
+                        try {
+                            withTimeout(PlayerConstants.HEARTBEAT_DETACH_TIMEOUT_MS) {
+                                uploadHistory(previousState, reportTime)
+                            }
+                        } catch (e: Exception) {
+                            logger.warn { "Failed to upload switch episode history: $e" }
+                        }
+                    }
+                }
+            }
 
             // 清空旧视频状态，防止新视频加载失败时残留旧数据
             playData = null
@@ -820,6 +844,11 @@ class PlayerViewModel
             loadVideoWithResources()
         }
 
+        /** 在应用级作用域中同步当前播放进度（用于页面离开组合时保存，不销毁播放器）。 */
+        fun syncProgressToApplicationScope() {
+            syncProgress(scope = applicationScope, updateLocal = true, isDetaching = false)
+        }
+
         /** 发送心跳（进度上报）。 */
         fun trySendHeartbeat() {
             syncProgress(scope = viewModelScope, updateLocal = false)
@@ -838,7 +867,7 @@ class PlayerViewModel
 
             loadVideoJob?.cancel()
             loadVideoJob =
-                viewModelScope.launch(Dispatchers.IO) {
+                viewModelScope.launch(ioDispatcher) {
                     try {
                         resolveUrlsAndPlay(aid, cid, epid ?: 0)
                         launch { updateVideoShot() }
@@ -1484,7 +1513,7 @@ class PlayerViewModel
             if (!Prefs.incognitoMode) {
                 heartbeatJob?.cancel()
                 heartbeatJob =
-                    scope.launch(Dispatchers.IO) {
+                    scope.launch(ioDispatcher) {
                         try {
                             if (isDetaching) {
                                 withTimeout(PlayerConstants.HEARTBEAT_DETACH_TIMEOUT_MS) {
@@ -1823,6 +1852,6 @@ class PlayerViewModel
 
         override fun onCleared() {
             super.onCleared()
-            detachedWorkScope.cancel()
+            detachPlayer()
         }
     }

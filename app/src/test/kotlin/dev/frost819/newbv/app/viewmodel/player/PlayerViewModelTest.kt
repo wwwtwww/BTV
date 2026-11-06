@@ -43,7 +43,9 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +74,7 @@ import dev.frost819.newbv.data.datastore.ApiType as DataApiType
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class PlayerViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var applicationScope: CoroutineScope
 
     private lateinit var videoPlayRepository: VideoPlayRepository
     private lateinit var videoInfoRepository: VideoInfoRepository
@@ -89,6 +92,7 @@ class PlayerViewModelTest {
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        applicationScope = CoroutineScope(SupervisorJob() + testDispatcher)
 
         videoPlayRepository = mockk(relaxed = true)
         videoInfoRepository = mockk(relaxed = true)
@@ -134,11 +138,13 @@ class PlayerViewModelTest {
                 oneClickTripleActionRepository = oneClickTripleActionRepository,
                 cdnSelector = cdnSelector,
                 ioDispatcher = testDispatcher,
+                applicationScope = applicationScope,
             )
     }
 
     @AfterEach
     fun tearDown() {
+        runCatching { applicationScope.cancel() }
         runCatching { viewModel.viewModelScope.cancel() }
         unmockkObject(Prefs)
         Dispatchers.resetMain()
@@ -982,6 +988,103 @@ class PlayerViewModelTest {
             viewModel.detachPlayer()
 
             assertThat(viewModel.videoPlayer).isNull()
+        }
+
+    @Test
+    fun `detachPlayer triggers final heartbeat in applicationScope with timeout`() =
+        runTest(testDispatcher) {
+            every { Prefs.incognitoMode } returns false
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.currentPosition } returns 12_000L
+            every { mockPlayer.duration } returns 60_000L
+            viewModel.init(
+                aid = 12345L,
+                cid = 67890L,
+                epid = null,
+                title = "Test",
+                lastPlayed = 0,
+                fromSeason = false,
+                subType = 0,
+                seasonId = 0,
+                authorName = "UP",
+            )
+
+            viewModel.detachPlayer()
+            advanceUntilIdle()
+
+            coVerify {
+                videoPlayRepository.sendHeartbeat(
+                    aid = 12345L,
+                    cid = 67890L,
+                    time = 12,
+                    preferApiType = any(),
+                )
+            }
+            assertThat(viewModel.hasInitializedSession).isFalse()
+        }
+
+    @Test
+    fun `session initialization state toggles correctly`() =
+        runTest(testDispatcher) {
+            assertThat(viewModel.hasInitializedSession).isFalse()
+
+            viewModel.init(
+                aid = 100L,
+                cid = 200L,
+                epid = null,
+                title = "Title",
+                lastPlayed = 0,
+                fromSeason = false,
+                subType = 0,
+                seasonId = 0,
+                authorName = "UP",
+            )
+
+            assertThat(viewModel.hasInitializedSession).isTrue()
+
+            viewModel.detachPlayer()
+
+            assertThat(viewModel.hasInitializedSession).isFalse()
+        }
+
+    @Test
+    fun `playNewVideo uploads previous episode progress in applicationScope without cancellation`() =
+        runTest(testDispatcher) {
+            every { Prefs.incognitoMode } returns false
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.currentPosition } returns 30_000L
+            every { mockPlayer.duration } returns 120_000L
+
+            viewModel.init(
+                aid = 100L,
+                cid = 200L,
+                epid = null,
+                title = "Ep 1",
+                lastPlayed = 0,
+                fromSeason = false,
+                subType = 0,
+                seasonId = 0,
+                authorName = "UP",
+            )
+
+            viewModel.playNewVideo(
+                VideoListItem(
+                    aid = 100L,
+                    cid = 201L,
+                    title = "Ep 2",
+                ),
+            )
+            viewModel.trySendHeartbeat()
+            advanceUntilIdle()
+
+            coVerify {
+                videoPlayRepository.sendHeartbeat(
+                    aid = 100L,
+                    cid = 200L,
+                    time = 30,
+                    preferApiType = any(),
+                )
+            }
         }
 
     // ── trySendHeartbeat test ─────────────────────────────────

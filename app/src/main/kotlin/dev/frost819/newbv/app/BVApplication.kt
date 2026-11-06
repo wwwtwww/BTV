@@ -9,6 +9,7 @@ import coil3.disk.DiskCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import dagger.hilt.android.HiltAndroidApp
+import dev.frost819.newbv.app.di.ApplicationScope
 import dev.frost819.newbv.app.network.HttpServer
 import dev.frost819.newbv.app.util.CacheManager
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
@@ -19,8 +20,6 @@ import dev.frost819.newbv.core.log.CrashUploader
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
@@ -58,6 +57,10 @@ class BVApplication : Application() {
     @Inject
     lateinit var channelRepository: ChannelRepository
 
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
+
     override fun onCreate() {
         super.onCreate()
 
@@ -85,13 +88,13 @@ class BVApplication : Application() {
             accessToken = accessToken,
         )
         if (accessToken.isNotBlank() && Prefs.buvid.isNotBlank()) {
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            applicationScope.launch {
                 channelRepository.initDefaultChannel(accessToken, Prefs.buvid)
             }
         }
 
         if (!Prefs.buvid3FromSpi) {
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            applicationScope.launch {
                 val spiResult = BiliHttpApi.fetchBuvid3FromSpi()
                 if (spiResult != null) {
                     Prefs.buvid3 = spiResult.buvid3
@@ -111,7 +114,7 @@ class BVApplication : Application() {
         // 根据用户设置启用崩溃上传，并尝试上传上次崩溃未发送的日志
         crashUploader.enabled = Prefs.crashReportEnabled
         if (crashUploader.canUpload()) {
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            applicationScope.launch {
                 crashUploader.uploadPendingCrashLogs()
             }
         }
@@ -147,7 +150,7 @@ class BVApplication : Application() {
         }
 
         // 启动时检查缓存阈值，超限自动 LRU 清理（检查时机 = App 启动 + 缓存写入后）
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+        applicationScope.launch {
             CacheManager(this@BVApplication).checkCache()
         }
     }
