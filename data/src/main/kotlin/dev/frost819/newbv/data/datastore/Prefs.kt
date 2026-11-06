@@ -429,32 +429,32 @@ object Prefs {
 
     // ===== Flow 属性（用于 Compose collectAsState 实时观察） =====
 
-    /** 主题模式 Flow（实时响应设置变更）。 */
-    val themeModeFlow: StateFlow<ThemeMode>
-        get() =
-            (delegateMap[PrefKeys.themeMode] as? PrefDelegate<ThemeMode, Int>)
-                ?.flow
-                ?.map { ThemeMode.fromOrdinal(it as? Int ?: 0) }
-                ?.stateIn(scope, SharingStarted.Eagerly, ThemeMode.Dark)
-                ?: MutableStateFlow(ThemeMode.Dark)
+    /** 主题模式 Flow（实时响应设置变更）。单例复用，防止重复订阅造成协程泄漏。 */
+    val themeModeFlow: StateFlow<ThemeMode> by lazy {
+        (delegateMap[PrefKeys.themeMode] as? PrefDelegate<ThemeMode, Int>)
+            ?.flow
+            ?.map { ThemeMode.fromOrdinal(it as? Int ?: 0) }
+            ?.stateIn(scope, SharingStarted.Eagerly, themeMode)
+            ?: MutableStateFlow(themeMode)
+    }
 
-    /** 首页沉浸式 Hero 看板模式 Flow（实时响应设置变更）。 */
-    val homeHeroModeFlow: StateFlow<HomeHeroMode>
-        get() =
-            (delegateMap[PrefKeys.homeHeroMode] as? PrefDelegate<HomeHeroMode, Int>)
-                ?.flow
-                ?.map { HomeHeroMode.fromOrdinal(it as? Int ?: 0) }
-                ?.stateIn(scope, SharingStarted.Eagerly, HomeHeroMode.Auto)
-                ?: MutableStateFlow(HomeHeroMode.Auto)
+    /** 首页沉浸式 Hero 看板模式 Flow（实时响应设置变更）。单例复用，防止重复订阅造成协程泄漏。 */
+    val homeHeroModeFlow: StateFlow<HomeHeroMode> by lazy {
+        (delegateMap[PrefKeys.homeHeroMode] as? PrefDelegate<HomeHeroMode, Int>)
+            ?.flow
+            ?.map { HomeHeroMode.fromOrdinal(it as? Int ?: 0) }
+            ?.stateIn(scope, SharingStarted.Eagerly, homeHeroMode)
+            ?: MutableStateFlow(homeHeroMode)
+    }
 
-    /** Density Flow（实时响应设置变更）。 */
-    val densityFlow: StateFlow<Float>
-        get() =
-            (delegateMap[PrefKeys.density] as? PrefDelegate<Float, Float>)
-                ?.flow
-                ?.map { it as? Float ?: 2f }
-                ?.stateIn(scope, SharingStarted.Eagerly, 2f)
-                ?: MutableStateFlow(2f)
+    /** Density Flow（实时响应设置变更）。单例复用，防止重复订阅造成协程泄漏。 */
+    val densityFlow: StateFlow<Float> by lazy {
+        (delegateMap[PrefKeys.density] as? PrefDelegate<Float, Float>)
+            ?.flow
+            ?.map { it as? Float ?: 2f }
+            ?.stateIn(scope, SharingStarted.Eagerly, density)
+            ?: MutableStateFlow(density)
+    }
 
     // ===== 初始化 =====
 

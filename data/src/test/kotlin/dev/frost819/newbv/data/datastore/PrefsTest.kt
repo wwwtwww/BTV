@@ -387,6 +387,21 @@ class PrefsTest {
         assertThat(flow).isNull()
     }
 
+    @Test
+    fun `themeModeFlow and homeHeroModeFlow and densityFlow are singleton instances`() {
+        val themeFlow1 = Prefs.themeModeFlow
+        val themeFlow2 = Prefs.themeModeFlow
+        assertThat(themeFlow1).isSameInstanceAs(themeFlow2)
+
+        val heroFlow1 = Prefs.homeHeroModeFlow
+        val heroFlow2 = Prefs.homeHeroModeFlow
+        assertThat(heroFlow1).isSameInstanceAs(heroFlow2)
+
+        val densityFlow1 = Prefs.densityFlow
+        val densityFlow2 = Prefs.densityFlow
+        assertThat(densityFlow1).isSameInstanceAs(densityFlow2)
+    }
+
     // ===== 枚举安全解析测试 =====
 
     @Test
