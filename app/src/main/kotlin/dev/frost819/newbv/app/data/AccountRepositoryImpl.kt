@@ -4,6 +4,7 @@ import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.entity.user.MyInfoData
 import dev.frost819.newbv.biliapi.repositories.AuthRepository
 import dev.frost819.newbv.biliapi.repositories.ChannelRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.db.dao.UserDao
 import dev.frost819.newbv.data.db.entity.UserEntity
@@ -200,7 +201,7 @@ class AccountRepositoryImpl
          */
         suspend fun refreshUserInfo() {
             if (!Prefs.isLogin) return
-            runCatching {
+            runSuspendCatching {
                 val response: MyInfoData = BiliHttpApi.getUserSelfInfo().getResponseData()
                 val user = userDao.findUserByUid(Prefs.uid) ?: return
                 user.username = response.name

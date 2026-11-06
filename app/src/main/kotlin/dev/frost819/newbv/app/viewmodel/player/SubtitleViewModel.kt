@@ -8,6 +8,7 @@ import dev.frost819.newbv.app.ui.state.player.SubtitleState
 import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.entity.video.Subtitle
 import dev.frost819.newbv.biliapi.repositories.VideoPlayRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.bilisubtitle.SubtitleParser
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
@@ -15,6 +16,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -59,6 +61,9 @@ class SubtitleViewModel
             MutableStateFlow<List<dev.frost819.newbv.bilisubtitle.entity.SubtitleItem>>(emptyList())
         val subtitleData = _subtitleData.asStateFlow()
 
+        private var loadJob: Job? = null
+        private var selectJob: Job? = null
+
         /**
          * 加载字幕列表。
          *
@@ -69,17 +74,19 @@ class SubtitleViewModel
             aid: Long,
             cid: Long,
         ) {
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching {
-                    val apiType = if (Prefs.apiType == DataApiType.App) ApiType.App else ApiType.Web
-                    videoPlayRepository.getSubtitle(aid = aid, cid = cid, preferApiType = apiType)
-                }.onSuccess { list ->
-                    _subtitleList.update { list }
-                    logger.info { "Update subtitle size: ${list.size}" }
-                }.onFailure { e ->
-                    logger.warn { "Update subtitle failed: $e" }
+            loadJob?.cancel()
+            loadJob =
+                viewModelScope.launch(Dispatchers.IO) {
+                    runSuspendCatching {
+                        val apiType = if (Prefs.apiType == DataApiType.App) ApiType.App else ApiType.Web
+                        videoPlayRepository.getSubtitle(aid = aid, cid = cid, preferApiType = apiType)
+                    }.onSuccess { list ->
+                        _subtitleList.update { list }
+                        logger.info { "Update subtitle size: ${list.size}" }
+                    }.onFailure { e ->
+                        logger.warn { "Update subtitle failed: $e" }
+                    }
                 }
-            }
         }
 
         /**
@@ -88,6 +95,10 @@ class SubtitleViewModel
          * 调用后应接着 [loadSubtitleList] 加载新视频的字幕。
          */
         fun clearSubtitle() {
+            loadJob?.cancel()
+            loadJob = null
+            selectJob?.cancel()
+            selectJob = null
             _subtitleList.update { emptyList() }
             _subtitleId.update { -1L }
             _subtitleData.update { emptyList() }
@@ -99,24 +110,27 @@ class SubtitleViewModel
          * @param id 字幕 ID，-1 表示关闭字幕
          */
         fun selectSubtitle(id: Long) {
+            selectJob?.cancel()
             if (id == -1L) {
+                selectJob = null
                 _subtitleId.update { -1L }
                 _subtitleData.update { emptyList() }
                 return
             }
 
-            viewModelScope.launch(Dispatchers.IO) {
-                runCatching {
-                    val subtitle = _subtitleList.value.find { it.id == id } ?: return@runCatching
-                    logger.info { "Subtitle url: ${subtitle.url}" }
-                    val responseText = httpClient.get(subtitle.url).bodyAsText()
-                    val data = SubtitleParser.fromBccString(responseText)
-                    _subtitleId.update { id }
-                    _subtitleData.update { data }
-                }.onFailure { e ->
-                    logger.warn { "Load subtitle failed: $e" }
+            selectJob =
+                viewModelScope.launch(Dispatchers.IO) {
+                    runSuspendCatching {
+                        val subtitle = _subtitleList.value.find { it.id == id } ?: return@runSuspendCatching
+                        logger.info { "Subtitle url: ${subtitle.url}" }
+                        val responseText = httpClient.get(subtitle.url).bodyAsText()
+                        val data = SubtitleParser.fromBccString(responseText)
+                        _subtitleId.update { id }
+                        _subtitleData.update { data }
+                    }.onFailure { e ->
+                        logger.warn { "Load subtitle failed: $e" }
+                    }
                 }
-            }
         }
 
         /** 切换字幕开关。 */
@@ -149,5 +163,11 @@ class SubtitleViewModel
                 is SubtitleSettingAction.SetOpacity -> Prefs.defaultSubtitleBackgroundOpacity = action.opacity
                 is SubtitleSettingAction.SetBottomPadding -> Prefs.defaultSubtitleBottomPadding = action.dp
             }
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            loadJob?.cancel()
+            selectJob?.cancel()
         }
     }

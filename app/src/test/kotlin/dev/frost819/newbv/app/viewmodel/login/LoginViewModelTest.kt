@@ -340,4 +340,40 @@ class LoginViewModelTest {
             assertThat(viewModel.uiState.value.state).isAtLeast(QrLoginState.RequestingQRCode)
             viewModel.cancelPolling()
         }
+
+    @Test
+    fun `cancelPolling cancels polling without entering Error state`() =
+        runTest(testDispatcher) {
+            coEvery { loginRepository.requestAppQrLogin() } returns fakeQrData
+            coEvery { loginRepository.checkAppQrLoginState(any()) } returns
+                QrLoginResult(
+                    state = QrLoginState.WaitingForScan,
+                )
+
+            viewModel.requestAppQrCode()
+            advanceTimeBy(1000)
+            assertThat(viewModel.uiState.value.state).isEqualTo(QrLoginState.WaitingForScan)
+
+            viewModel.cancelPolling()
+            advanceTimeBy(5000)
+
+            assertThat(viewModel.uiState.value.state).isEqualTo(QrLoginState.WaitingForScan)
+            assertThat(viewModel.uiState.value.errorMessage).isEmpty()
+        }
+
+    @Test
+    fun `polling transitions to Expired when max poll attempts reached`() =
+        runTest(testDispatcher) {
+            coEvery { loginRepository.requestAppQrLogin() } returns fakeQrData
+            coEvery { loginRepository.checkAppQrLoginState(any()) } returns
+                QrLoginResult(
+                    state = QrLoginState.WaitingForScan,
+                )
+
+            viewModel.requestAppQrCode()
+            advanceTimeBy(181_000)
+
+            assertThat(viewModel.uiState.value.state).isEqualTo(QrLoginState.Expired)
+            viewModel.cancelPolling()
+        }
 }

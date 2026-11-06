@@ -5,6 +5,7 @@ import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.entity.video.RelatedVideo
 import dev.frost819.newbv.biliapi.entity.video.VideoDetail
 import dev.frost819.newbv.biliapi.repositories.VideoDetailRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,7 +98,7 @@ class VideoInfoRepository
             preferApiType: ApiType,
             bvid: String = "",
         ) {
-            runCatching {
+            runSuspendCatching {
                 val detail = videoDetailRepository.getVideoDetail(aid = aid, preferApiType = preferApiType, bvid = bvid)
                 _videoDetail.update { detail }
                 _relatedVideos.update { detail.relatedVideos }
@@ -134,7 +135,7 @@ class VideoInfoRepository
             cid: Long,
             preferApiType: ApiType,
         ): String? =
-            runCatching {
+            runSuspendCatching {
                 videoDetailRepository.getOnlineTotalText(
                     aid = aid,
                     cid = cid,
@@ -163,7 +164,7 @@ class VideoInfoRepository
         suspend fun updateUgcPages(preferApiType: ApiType) {
             _videoList.update { oldList ->
                 oldList.map { item ->
-                    runCatching {
+                    runSuspendCatching {
                         val pages = videoDetailRepository.getUgcPages(aid = item.aid, preferApiType = preferApiType)
                         if (pages.size > 1) item.copy(ugcPages = pages) else item
                     }.getOrElse { item }

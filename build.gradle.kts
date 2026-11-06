@@ -13,6 +13,17 @@ plugins {
 }
 
 subprojects {
+    plugins.withId("java") {
+        configure<JavaPluginExtension> {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
     apply(plugin = "io.gitlab.arturbosch.detekt")
     apply(plugin = "jacoco")
@@ -224,6 +235,17 @@ val jacocoAggregatedReport = tasks.register<JacocoReport>("jacocoAggregatedRepor
 
 // 确保聚合报告在所有测试任务完成后运行
 subprojects {
+    plugins.withId("java") {
+        configure<JavaPluginExtension> {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+    }
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
     tasks.matching { it.name in listOf("test", "testDebugUnitTest") }
         .configureEach {
             jacocoAggregatedReport.get().mustRunAfter(this)

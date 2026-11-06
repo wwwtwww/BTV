@@ -11,6 +11,7 @@ import dev.frost819.newbv.biliapi.entity.video.season.Episode
 import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
 import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.biliapi.repositories.VideoDetailRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
@@ -132,7 +133,7 @@ class SeasonDetailViewModel
                     it.copy(loading = true, error = false, errorTip = "")
                 }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val detail =
                             videoDetailRepository.getPgcVideoDetail(
@@ -174,7 +175,7 @@ class SeasonDetailViewModel
             val isFollowing = _uiState.value.isFollowing
             val preferApiType = prefApiType()
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     if (isFollowing) {
                         userRepository.delSeasonFollow(
                             seasonId = currentDetail.seasonId,
@@ -250,7 +251,7 @@ class SeasonDetailViewModel
                     it.copy(loading = true, error = false, errorTip = "")
                 }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val detail =
                             videoDetailRepository.getPgcVideoDetail(

@@ -1,4 +1,4 @@
-package dev.frost819.newbv.app.viewmodel.personal
+﻿package dev.frost819.newbv.app.viewmodel.personal
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -20,6 +20,7 @@ import dev.frost819.newbv.biliapi.repositories.FavoriteRepository
 import dev.frost819.newbv.biliapi.repositories.HistoryRepository
 import dev.frost819.newbv.biliapi.repositories.SeasonRepository
 import dev.frost819.newbv.biliapi.repositories.ToViewRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
@@ -168,7 +169,7 @@ class PersonalViewModel
 
                 _uiState.update { it.copy(toViewLoading = true, toViewError = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val data =
                             toViewRepository.getToView(
@@ -200,7 +201,7 @@ class PersonalViewModel
             viewed: Boolean = false,
         ) {
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     toViewRepository.delToView(
                         aid = aid,
                         viewed = viewed,
@@ -244,7 +245,7 @@ class PersonalViewModel
 
                 _uiState.update { it.copy(historyLoading = true, historyError = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val data =
                             historyRepository.getHistories(
@@ -297,7 +298,7 @@ class PersonalViewModel
 
                 _uiState.update { it.copy(favoriteLoading = true, favoriteError = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val mid = Prefs.uid
                         val folders =
@@ -357,7 +358,7 @@ class PersonalViewModel
                 viewModelScope.launch {
                     _uiState.update { it.copy(favoriteLoading = true, favoriteError = false) }
 
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(LOAD_TIMEOUT_MS) {
                             val data: FavoriteFolderData =
                                 favoriteRepository.getFavoriteFolderData(
@@ -424,7 +425,7 @@ class PersonalViewModel
 
                 _uiState.update { it.copy(followingLoading = true, followingError = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val data =
                             seasonRepository.getFollowingSeasons(
@@ -517,7 +518,7 @@ class PersonalViewModel
                 state.copy(historyItems = remaining)
             }
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     val business =
                         when (item.type) {
                             HistoryItemType.Pgc -> "pgc"
@@ -571,7 +572,7 @@ class PersonalViewModel
                 state.copy(favoriteItems = remaining)
             }
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     favoriteRepository.delVideoFromFavoriteFolder(
                         aid = aid,
                         delMediaIds = listOf(folderId),
@@ -625,7 +626,7 @@ class PersonalViewModel
                 state.copy(followingSeasons = remaining)
             }
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     seasonRepository.delSeasonFollow(
                         seasonId = seasonId,
                         preferApiType = prefApiType(),

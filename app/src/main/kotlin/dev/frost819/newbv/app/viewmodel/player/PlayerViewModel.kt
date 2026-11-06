@@ -1,4 +1,4 @@
-package dev.frost819.newbv.app.viewmodel.player
+﻿package dev.frost819.newbv.app.viewmodel.player
 
 import android.content.Context
 import androidx.compose.runtime.getValue

@@ -1,4 +1,4 @@
-package dev.frost819.newbv.app.viewmodel.search
+﻿package dev.frost819.newbv.app.viewmodel.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +7,7 @@ import dev.frost819.newbv.app.ui.state.search.SearchInputUiState
 import dev.frost819.newbv.app.ui.state.search.SearchPaneStage
 import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.repositories.SearchRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.repository.SearchHistoryRepository
@@ -161,7 +162,7 @@ class SearchInputViewModel
             _uiState.update { it.copy(isLoadingHotwords = true, hotwordsError = false) }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         searchRepository.getSearchHotwords(
                             limit = 50,
@@ -188,7 +189,7 @@ class SearchInputViewModel
 
             suggestJob =
                 viewModelScope.launch {
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(LOAD_TIMEOUT_MS) {
                             searchRepository.getSearchSuggest(
                                 keyword = keyword,
@@ -219,7 +220,7 @@ class SearchInputViewModel
         ) {
             suggestJob =
                 viewModelScope.launch {
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(LOAD_TIMEOUT_MS) {
                             searchRepository.getSearchSuggest(
                                 keyword = keyword,
@@ -252,7 +253,7 @@ class SearchInputViewModel
 
         private fun loadHistories() {
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     searchHistoryRepository.getHistories(20)
                 }.onSuccess { histories ->
                     _uiState.update { it.copy(histories = histories) }

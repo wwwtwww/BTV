@@ -1,4 +1,4 @@
-package dev.frost819.newbv.app.viewmodel.detail
+﻿package dev.frost819.newbv.app.viewmodel.detail
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -15,6 +15,7 @@ import dev.frost819.newbv.biliapi.repositories.LikeRepository
 import dev.frost819.newbv.biliapi.repositories.OneClickTripleActionRepository
 import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.biliapi.repositories.VideoDetailRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.CancellationException
@@ -200,7 +201,7 @@ class VideoDetailViewModel
                     it.copy(loading = true, error = false, errorTip = "")
                 }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val detail =
                             videoDetailRepository.getVideoDetail(
@@ -246,7 +247,7 @@ class VideoDetailViewModel
          * 获取用户收藏夹列表及视频已收藏状态。
          */
         private suspend fun fetchFavoriteFolders() {
-            runCatching {
+            runSuspendCatching {
                 favoriteRepository.getAllFavoriteFolderMetadataList(
                     mid = Prefs.uid,
                     rid = aid,
@@ -269,7 +270,7 @@ class VideoDetailViewModel
          * 获取当前用户是否已关注 UP 主。
          */
         private suspend fun fetchFollowingStatus(upMid: Long) {
-            runCatching {
+            runSuspendCatching {
                 userRepository.checkIsFollowing(mid = upMid)
             }.onSuccess { isFollowing ->
                 _uiState.update { it.copy(isFollowing = isFollowing ?: false) }
@@ -286,7 +287,7 @@ class VideoDetailViewModel
             val isFollowing = _uiState.value.isFollowing
             val preferApiType = prefApiType()
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     if (isFollowing) {
                         userRepository.unfollowUser(mid = currentDetail.author.mid, preferApiType = preferApiType)
                     } else {
@@ -313,7 +314,7 @@ class VideoDetailViewModel
         fun toggleLike(like: Boolean) {
             val currentDetail = _uiState.value.detail ?: return
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     likeRepository.updateVideoLiked(
                         aid = currentDetail.aid,
                         bvid = currentDetail.bvid,
@@ -343,7 +344,7 @@ class VideoDetailViewModel
                 }
             logger.info { "Sending coin: aid=${currentDetail.aid}, bvid=${currentDetail.bvid}" }
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     coinRepository.sendVideoCoin(
                         aid = currentDetail.aid,
                         bvid = currentDetail.bvid,
@@ -370,7 +371,7 @@ class VideoDetailViewModel
             val currentDetail = _uiState.value.detail ?: return
             val currentFolders = _uiState.value.favoriteFolders
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     favoriteRepository.updateVideoToFavoriteFolder(
                         aid = currentDetail.aid,
                         addMediaIds = folderIds,
@@ -431,7 +432,7 @@ class VideoDetailViewModel
         fun oneClickTripleAction() {
             val currentDetail = _uiState.value.detail ?: return
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     oneClickTripleActionRepository.sendVideoOneClickTripleAction(
                         aid = currentDetail.aid,
                         bvid = currentDetail.bvid,

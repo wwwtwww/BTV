@@ -7,6 +7,7 @@ import dev.frost819.newbv.app.data.AccountRepositoryImpl
 import dev.frost819.newbv.biliapi.entity.login.QrLoginState
 import dev.frost819.newbv.biliapi.entity.login.WebCookies
 import dev.frost819.newbv.biliapi.repositories.LoginRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -51,10 +53,18 @@ class LoginViewModel
         private val loginRepository: LoginRepository,
         private val accountRepository: AccountRepositoryImpl,
     ) : ViewModel() {
+        companion object {
+            /** 最大轮询尝试次数（180 秒 = 3 分钟后超时过期）。 */
+            const val MAX_POLL_ATTEMPTS = 180
+        }
+
         private val logger = Loggers.get("LoginViewModel")
 
         private val _uiState = MutableStateFlow(QrLoginUiState())
         val uiState: StateFlow<QrLoginUiState> = _uiState.asStateFlow()
+
+        /** 二维码请求 Job，重新请求或退出时取消。 */
+        private var qrRequestJob: Job? = null
 
         /** 轮询协程 Job，用于取消轮询。 */
         private var pollingJob: Job? = null
@@ -67,26 +77,27 @@ class LoginViewModel
         fun requestAppQrCode() {
             cancelPolling()
             _uiState.update { it.copy(state = QrLoginState.RequestingQRCode, errorMessage = "") }
-            viewModelScope.launch {
-                runCatching {
-                    val qrData = loginRepository.requestAppQrLogin()
-                    _uiState.update {
-                        it.copy(
-                            state = QrLoginState.WaitingForScan,
-                            qrUrl = qrData.url,
-                        )
-                    }
-                    startPolling(qrData.key, isAppQr = true)
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to request app QR code" }
-                    _uiState.update {
-                        it.copy(
-                            state = QrLoginState.Error,
-                            errorMessage = error.message ?: "请求二维码失败",
-                        )
+            qrRequestJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        val qrData = loginRepository.requestAppQrLogin()
+                        _uiState.update {
+                            it.copy(
+                                state = QrLoginState.WaitingForScan,
+                                qrUrl = qrData.url,
+                            )
+                        }
+                        startPolling(qrData.key, isAppQr = true)
+                    }.onFailure { error ->
+                        logger.error(error) { "Failed to request app QR code" }
+                        _uiState.update {
+                            it.copy(
+                                state = QrLoginState.Error,
+                                errorMessage = error.message ?: "请求二维码失败",
+                            )
+                        }
                     }
                 }
-            }
         }
 
         /**
@@ -97,33 +108,34 @@ class LoginViewModel
         fun requestWebQrCode() {
             cancelPolling()
             _uiState.update { it.copy(state = QrLoginState.RequestingQRCode, errorMessage = "") }
-            viewModelScope.launch {
-                runCatching {
-                    val qrData = loginRepository.requestWebQrLogin()
-                    _uiState.update {
-                        it.copy(
-                            state = QrLoginState.WaitingForScan,
-                            qrUrl = qrData.url,
-                        )
-                    }
-                    startPolling(qrData.key, isAppQr = false)
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to request web QR code" }
-                    _uiState.update {
-                        it.copy(
-                            state = QrLoginState.Error,
-                            errorMessage = error.message ?: "请求二维码失败",
-                        )
+            qrRequestJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        val qrData = loginRepository.requestWebQrLogin()
+                        _uiState.update {
+                            it.copy(
+                                state = QrLoginState.WaitingForScan,
+                                qrUrl = qrData.url,
+                            )
+                        }
+                        startPolling(qrData.key, isAppQr = false)
+                    }.onFailure { error ->
+                        logger.error(error) { "Failed to request web QR code" }
+                        _uiState.update {
+                            it.copy(
+                                state = QrLoginState.Error,
+                                errorMessage = error.message ?: "请求二维码失败",
+                            )
+                        }
                     }
                 }
-            }
         }
 
         /**
          * 启动轮询检查扫码状态。
          *
          * 每 1 秒轮询一次，根据返回状态更新 UI。
-         * Success 时自动取消轮询并保存登录凭证。
+         * 达到 [MAX_POLL_ATTEMPTS] 次或 Success / Expired 时自动退出轮询。
          *
          * @param key 二维码 key（WebQR 为 qrcodeKey，AppQR 为 authCode）。
          * @param isAppQr 是否为 TV QR（App 接口）。
@@ -134,9 +146,11 @@ class LoginViewModel
         ) {
             pollingJob =
                 viewModelScope.launch {
-                    while (true) {
+                    var attempts = 0
+                    while (isActive && attempts < MAX_POLL_ATTEMPTS) {
                         delay(1000)
-                        runCatching {
+                        attempts++
+                        runSuspendCatching {
                             if (isAppQr) {
                                 loginRepository.checkAppQrLoginState(key)
                             } else {
@@ -153,11 +167,13 @@ class LoginViewModel
                                 QrLoginState.Expired -> {
                                     _uiState.update { it.copy(state = QrLoginState.Expired) }
                                     cancelPolling()
+                                    return@launch
                                 }
 
                                 QrLoginState.Success -> {
                                     handleLoginSuccess(result.cookies, result.accessToken, result.refreshToken)
                                     cancelPolling()
+                                    return@launch
                                 }
 
                                 else -> {
@@ -173,7 +189,12 @@ class LoginViewModel
                                 )
                             }
                             cancelPolling()
+                            return@launch
                         }
+                    }
+
+                    if (attempts >= MAX_POLL_ATTEMPTS) {
+                        _uiState.update { it.copy(state = QrLoginState.Expired) }
                     }
                 }
         }
@@ -218,11 +239,13 @@ class LoginViewModel
         }
 
         /**
-         * 取消轮询。
+         * 取消轮询及进行中的二维码请求。
          *
          * 在页面退出或重新请求二维码时调用。
          */
         fun cancelPolling() {
+            qrRequestJob?.cancel()
+            qrRequestJob = null
             pollingJob?.cancel()
             pollingJob = null
         }
