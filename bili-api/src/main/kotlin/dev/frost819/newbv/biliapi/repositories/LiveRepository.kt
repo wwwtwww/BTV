@@ -11,6 +11,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.RoomInfoData
 import dev.frost819.newbv.biliapi.http.entity.live.RoomInitData
 import dev.frost819.newbv.biliapi.http.entity.live.RoomPlayInfoV2Data
 import dev.frost819.newbv.biliapi.util.BiliLogger
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 
 /**
  * 直播数据仓库。
@@ -95,13 +96,13 @@ class LiveRepository {
         roomId: Int,
         qn: Int = 0,
     ): LivePlayInfo =
-        runCatching {
+        runSuspendCatching {
             val playInfo = BiliLiveHttpApi.getRoomPlayInfoV2(roomId, qn).getResponseData()
             resolvePlayInfo(playInfo)
         }.onFailure {
             logger.warn { "getLivePlayInfo failed: ${it.message}, trying fallback" }
         }.getOrElse {
-            runCatching {
+            runSuspendCatching {
                 val simpleUrl = BiliLiveHttpApi.getLiveStreamUrl(roomId, qn).getResponseData()
                 val url = simpleUrl.durl.firstOrNull()?.url
                 LivePlayInfo(

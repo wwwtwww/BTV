@@ -12,6 +12,7 @@ import dev.frost819.newbv.biliapi.entity.search.Hotword
 import dev.frost819.newbv.biliapi.grpc.utils.handleGrpcException
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.util.smartDate
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 
 class SearchRepository(
     private val authRepository: AuthRepository,
@@ -81,7 +82,7 @@ class SearchRepository(
 
             ApiType.App -> {
                 val reply =
-                    runCatching {
+                    runSuspendCatching {
                         searchResultStub?.searchAll(
                             searchAllRequest {
                                 this.keyword = keyword
@@ -151,7 +152,7 @@ class SearchRepository(
 
             ApiType.App -> {
                 val searchTypeReply =
-                    runCatching {
+                    runSuspendCatching {
                         val searchTypeRequest =
                             searchByTypeRequest {
                                 this.keyword = keyword

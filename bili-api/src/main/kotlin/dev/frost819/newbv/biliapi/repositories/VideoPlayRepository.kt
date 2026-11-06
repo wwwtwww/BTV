@@ -1,4 +1,4 @@
-package dev.frost819.newbv.biliapi.repositories
+﻿package dev.frost819.newbv.biliapi.repositories
 
 import bilibili.app.playerunite.v1.PlayerGrpcKt
 import bilibili.app.playerunite.v1.playViewUniteReq
@@ -20,6 +20,7 @@ import dev.frost819.newbv.biliapi.entity.video.VideoShot
 import dev.frost819.newbv.biliapi.grpc.utils.handleGrpcException
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.entity.danmaku.DanmakuData
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -79,7 +80,7 @@ class VideoPlayRepository(
                             .map { codecType ->
                                 async {
                                     val playUniteReply =
-                                        runCatching {
+                                        runSuspendCatching {
                                             playerStub?.playViewUnite(
                                                 playViewUniteReq {
                                                     vod =
@@ -357,7 +358,7 @@ class VideoPlayRepository(
 
                 ApiType.App -> {
                     val dmViewReply =
-                        runCatching {
+                        runSuspendCatching {
                             danmakuStub?.dmView(
                                 dmViewReq {
                                     pid = aid

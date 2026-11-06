@@ -10,6 +10,7 @@ import dev.frost819.newbv.biliapi.entity.rank.PopularVideoData
 import dev.frost819.newbv.biliapi.entity.rank.PopularVideoPage
 import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 
 /**
  * 推荐与热门视频数据仓库接口。
@@ -54,7 +55,7 @@ open class RecommendVideoRepositoryImpl(
 ) : RecommendVideoRepository {
     private val popularStub
         get() =
-            runCatching {
+            runSuspendCatching {
                 PopularGrpcKt.PopularCoroutineStub(channelRepository.requireDefaultChannel())
             }.getOrNull()
 
@@ -175,7 +176,7 @@ open class RecommendVideoRepositoryImpl(
         aid: Long,
         bvid: String,
     ): VideoBriefMeta? =
-        runCatching {
+        runSuspendCatching {
             val info =
                 BiliHttpApi
                     .getVideoInfo(

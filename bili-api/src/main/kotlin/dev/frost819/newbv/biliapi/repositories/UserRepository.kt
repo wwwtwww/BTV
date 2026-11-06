@@ -15,6 +15,7 @@ import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.entity.user.FollowAction
 import dev.frost819.newbv.biliapi.http.entity.user.FollowActionSource
 import dev.frost819.newbv.biliapi.http.entity.user.RelationType
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -135,7 +136,7 @@ open class UserRepositoryImpl(
 
     override suspend fun checkIsFollowing(mid: Long): Boolean? {
         if (authRepository.sessionData == null && authRepository.accessToken == null) return null
-        return runCatching {
+        return runSuspendCatching {
             val response = BiliHttpApi.getRelations(mid = mid).getResponseData()
             listOf(
                 RelationType.Followed,
@@ -152,7 +153,7 @@ open class UserRepositoryImpl(
         preferApiType: ApiType,
     ): Int {
         if (authRepository.sessionData == null && authRepository.accessToken == null) return 0
-        return runCatching {
+        return runSuspendCatching {
             val response =
                 when (preferApiType) {
                     ApiType.Web ->

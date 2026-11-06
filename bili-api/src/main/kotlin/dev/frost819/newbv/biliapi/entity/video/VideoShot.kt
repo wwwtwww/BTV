@@ -1,6 +1,7 @@
 package dev.frost819.newbv.biliapi.entity.video
 
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,7 +24,7 @@ data class VideoShot(
                     videoShot.image
                         .map { imageUrl ->
                             async {
-                                runCatching {
+                                runSuspendCatching {
                                     BiliHttpApi.download(imageUrl)
                                 }.getOrNull()
                             }
@@ -34,7 +35,7 @@ data class VideoShot(
                 }
 
                 val timeBinary =
-                    runCatching {
+                    runSuspendCatching {
                         BiliHttpApi.download(
                             videoShot.pvData ?: throw IllegalStateException("pvData is null"),
                         )

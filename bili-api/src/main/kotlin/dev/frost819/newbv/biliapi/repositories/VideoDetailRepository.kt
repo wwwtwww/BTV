@@ -1,4 +1,4 @@
-package dev.frost819.newbv.biliapi.repositories
+﻿package dev.frost819.newbv.biliapi.repositories
 
 import bilibili.app.view.v1.ViewGrpcKt
 import bilibili.app.view.v1.viewReq
@@ -9,6 +9,7 @@ import dev.frost819.newbv.biliapi.entity.video.season.SeasonDetail
 import dev.frost819.newbv.biliapi.grpc.utils.handleGrpcException
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.util.BiliAppConf
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -23,7 +24,7 @@ class VideoDetailRepository(
 ) {
     private val viewStub
         get() =
-            runCatching {
+            runSuspendCatching {
                 ViewGrpcKt.ViewCoroutineStub(channelRepository.requireDefaultChannel())
             }.getOrNull()
 
@@ -49,7 +50,7 @@ class VideoDetailRepository(
                     // check liked, favoured, coined status...
                     val isFavoured =
                         async {
-                            runCatching {
+                            runSuspendCatching {
                                 favoriteRepository.checkVideoFavoured(
                                     aid = aid,
                                     preferApiType = ApiType.Web,
@@ -60,7 +61,7 @@ class VideoDetailRepository(
 
                     val isLiked =
                         async {
-                            runCatching {
+                            runSuspendCatching {
                                 likeRepository.checkVideoLiked(
                                     aid = aid,
                                     preferApiType = ApiType.Web,
@@ -71,7 +72,7 @@ class VideoDetailRepository(
 
                     val isCoined =
                         async {
-                            runCatching {
+                            runSuspendCatching {
                                 coinRepository.checkVideoCoined(
                                     aid = aid,
                                     preferApiType = ApiType.Web,
@@ -82,7 +83,7 @@ class VideoDetailRepository(
 
                     val historyAndPlayerIcon =
                         async {
-                            runCatching {
+                            runSuspendCatching {
                                 val videoModeInfo =
                                     BiliHttpApi
                                         .getVideoMoreInfo(
@@ -117,7 +118,7 @@ class VideoDetailRepository(
 
             ApiType.App -> {
                 val viewReply =
-                    runCatching {
+                    runSuspendCatching {
                         viewStub?.view(
                             viewReq {
                                 this.aid = aid.toLong()
@@ -145,7 +146,7 @@ class VideoDetailRepository(
 
                 ApiType.App -> {
                     val viewReply =
-                        runCatching {
+                        runSuspendCatching {
                             viewStub?.view(
                                 viewReq {
                                     this.aid = aid
@@ -229,7 +230,7 @@ class VideoDetailRepository(
                 val firstEp = webSeasonData.episodes.firstOrNull() ?: return seasonDetail
 
                 val playerIcon =
-                    runCatching {
+                    runSuspendCatching {
                         val videoModeInfo =
                             BiliHttpApi
                                 .getVideoMoreInfo(
