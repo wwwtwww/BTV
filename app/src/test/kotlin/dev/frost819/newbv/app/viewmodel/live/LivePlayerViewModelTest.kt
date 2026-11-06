@@ -146,6 +146,44 @@ class LivePlayerViewModelTest {
             coVerify(exactly = 0) { liveRepository.getLivePlayInfo(any(), any()) }
         }
 
+    @Test
+    fun `initVideoPlayer releases previous player instance before recreating`() {
+        val mockContext = mockk<android.content.Context>(relaxed = true)
+        val secondMockPlayer = mockk<dev.frost819.newbv.player.impl.exo.ExoMediaPlayer>(relaxed = true)
+        io.mockk.every { exoPlayerFactory.create(any(), any()) } returns secondMockPlayer
+
+        viewModel.initVideoPlayer(mockContext)
+
+        verify { mockPlayer.release() }
+        assertThat(viewModel.videoPlayer).isSameInstanceAs(secondMockPlayer)
+    }
+
+    @Test
+    fun `handleVideoDecodeUnsupported falls back to lower quality if available`() =
+        runTest(testDispatcher) {
+            updateUiState {
+                it.copy(
+                    realRoomId = 123,
+                    currentQuality = 10000,
+                    availableQualities = listOf(10000 to "原画", 400 to "蓝光"),
+                )
+            }
+            coEvery { liveRepository.getLivePlayInfo(123, 400) } returns
+                LivePlayInfo(
+                    currentQn = 400,
+                    qualities = listOf(10000 to "原画", 400 to "蓝光"),
+                    lines = listOf(LivePlayLine(1, "url-400")),
+                )
+
+            val method = LivePlayerViewModel::class.java.getDeclaredMethod("handleVideoDecodeUnsupported")
+            method.isAccessible = true
+            method.invoke(viewModel)
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.currentQuality).isEqualTo(400)
+            verify { mockPlayer.playUrl("url-400") }
+        }
+
     // ── Helpers ──────────────────────────────────────────────
 
     private fun setVideoPlayer(player: AbstractVideoPlayer?) {

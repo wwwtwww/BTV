@@ -129,6 +129,8 @@ class LivePlayerViewModel
          * 在 [loadLive] 时传入。
          */
         fun initVideoPlayer(context: Context) {
+            videoPlayer?.release()
+            videoPlayer = null
             val options =
                 VideoPlayerOptions(
                     userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
@@ -147,6 +149,11 @@ class LivePlayerViewModel
                                 errorMessage = error.message,
                             )
                         }
+                    }
+
+                    override fun onVideoDecodeUnsupported() {
+                        logger.warn { "Video decode unsupported for current stream, attempting fallback" }
+                        handleVideoDecodeUnsupported()
                     }
 
                     override fun onReady() {
@@ -475,10 +482,51 @@ class LivePlayerViewModel
             }
 
         /**
-         * 释放播放器资源。
+         * 当前视频流解码不支持时的自动降级或容错处理。
          *
-         * 弹幕播放器由 [DanmakuViewModel] 管理释放，此处不释放。
+         * 优先尝试降级到可用画质列表中更低的画质，若无更低画质则尝试切换其它线路，
+         * 均不可行时更新 UI 为错误状态并提示用户。
          */
+        private fun handleVideoDecodeUnsupported() {
+            val currentState = _uiState.value
+            val currentQn = currentState.currentQuality
+            val lowerQuality =
+                currentState.availableQualities
+                    .filter { it.first < currentQn }
+                    .maxByOrNull { it.first }
+
+            if (lowerQuality != null) {
+                logger.info {
+                    "Fallback live quality from $currentQn to ${lowerQuality.first} (${lowerQuality.second})"
+                }
+                changeQuality(lowerQuality.first)
+            } else {
+                val nextLineOrder =
+                    if (currentState.availableLines.isNotEmpty()) {
+                        val currentOrder = currentState.currentLine
+                        val nextLine =
+                            currentState.availableLines.firstOrNull { it.order > currentOrder }
+                                ?: currentState.availableLines.first()
+                        if (nextLine.order != currentOrder) nextLine.order else null
+                    } else {
+                        null
+                    }
+
+                if (nextLineOrder != null) {
+                    logger.info { "Fallback live line to order $nextLineOrder" }
+                    changeLine(nextLineOrder)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            playerState = LivePlayerState.Error,
+                            isBuffering = false,
+                            errorMessage = "当前设备硬件无法解码此直播流，请尝试在设置中开启软解或切换画质",
+                        )
+                    }
+                }
+            }
+        }
+
         fun detachPlayer() {
             wsJob?.cancel()
             stopDebugInfoUpdater()

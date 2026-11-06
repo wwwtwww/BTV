@@ -74,20 +74,25 @@ class ExoMediaPlayer(
     private var behindLiveWindowLastRecoverAtMs = 0L
 
     private val httpDataSourceFactory =
-        OkHttpDataSource.Factory(OkHttpUtil.generateCustomSslOkHttpClient(context)).apply {
+        OkHttpDataSource.Factory(OkHttpUtil.generateCustomSslOkHttpClient(context.applicationContext)).apply {
             options.userAgent?.let { setUserAgent(it) }
             options.referer?.let { setDefaultRequestProperties(mapOf("referer" to it)) }
         }
 
-    private val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+    private val dataSourceFactory = DefaultDataSource.Factory(context.applicationContext, httpDataSourceFactory)
 
     init {
         initPlayer()
     }
 
     override fun initPlayer() {
+        mPlayer?.let { oldPlayer ->
+            oldPlayer.removeListener(this)
+            oldPlayer.release()
+            mPlayer = null
+        }
         val renderersFactory =
-            DefaultRenderersFactory(context).apply {
+            DefaultRenderersFactory(context.applicationContext).apply {
                 setExtensionRendererMode(
                     when (options.enableFfmpegAudioRenderer) {
                         true -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
@@ -116,7 +121,7 @@ class ExoMediaPlayer(
             }
         mPlayer =
             ExoPlayer
-                .Builder(context)
+                .Builder(context.applicationContext)
                 .setRenderersFactory(renderersFactory)
                 .setSeekForwardIncrementMs(1000 * 10)
                 .setSeekBackIncrementMs(1000 * 5)
@@ -226,7 +231,13 @@ class ExoMediaPlayer(
     }
 
     override fun release() {
-        mPlayer?.release()
+        mPlayer?.let { player ->
+            player.removeListener(this)
+            player.release()
+            mPlayer = null
+        }
+        mMediaSource = null
+        mPlayerEventListener = null
     }
 
     override val currentPosition: Long
@@ -348,6 +359,7 @@ class ExoMediaPlayer(
 
         // 最小间隔检查（防紧密循环）
         if (nowMs - behindLiveWindowLastRecoverAtMs < BEHIND_LIVE_WINDOW_RECOVER_MIN_INTERVAL_MS) {
+            mPlayerEventListener?.onError(error)
             return
         }
 
