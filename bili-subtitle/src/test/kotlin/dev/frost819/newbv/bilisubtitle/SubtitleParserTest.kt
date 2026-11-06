@@ -92,6 +92,24 @@ class SubtitleParserTest {
     }
 
     @Test
+    fun `parse bcc with unknown keys does not crash`() {
+        val bccJson =
+            """
+            {
+                "unknown_field": 123,
+                "body": [
+                    {"from": 0.0, "to": 1.0, "content": "ok"}
+                ]
+            }
+            """.trimIndent()
+
+        val result = SubtitleParser.fromBccString(bccJson)
+
+        assertThat(result).hasSize(1)
+        assertThat(result[0].content).isEqualTo("ok")
+    }
+
+    @Test
     fun `parse bcc from resource file`() {
         val fileContent = this::class.java.getResource("/example.bcc")?.readText()!!
         val result = SubtitleParser.fromBccString(fileContent)
@@ -148,11 +166,25 @@ class SubtitleParserTest {
     }
 
     @Test
-    fun `parse srt with empty string throws IndexOutOfBounds`() {
-        // Empty string → lines = [""], parser tries to read time line at index 1 → exception
-        org.junit.jupiter.api.assertThrows<IndexOutOfBoundsException> {
-            SubtitleParser.fromSrtString("")
-        }
+    fun `parse srt with empty string returns empty list`() {
+        val result = SubtitleParser.fromSrtString("")
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `parse srt with multiline content joins correctly`() {
+        val srt =
+            """
+            1
+            00:00:01,000 --> 00:00:02,000
+            Line 1
+            Line 2
+            """.trimIndent()
+
+        val result = SubtitleParser.fromSrtString(srt)
+
+        assertThat(result).hasSize(1)
+        assertThat(result[0].content).isEqualTo("Line 1\nLine 2")
     }
 
     @Test

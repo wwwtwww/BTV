@@ -1,4 +1,4 @@
-package dev.frost819.newbv.player.entity
+﻿package dev.frost819.newbv.player.entity
 
 import dev.frost819.newbv.biliapi.entity.CodeType
 
@@ -35,10 +35,8 @@ enum class VideoCodec(
             }.getOrNull()
 
         /** 根据 B 站 API 返回的 codecId 匹配编码 */
-        fun fromCodecId(codecId: Int) =
-            runCatching {
-                entries.find { it.codecId == codecId }!!
-            }.getOrDefault(AVC)
+        fun fromCodecId(codecId: Int): VideoCodec =
+            if (codecId == 0) AVC else entries.find { it.codecId != 0 && it.codecId == codecId } ?: AVC
     }
 
     /** 转换为 bili-api 的 CodeType */

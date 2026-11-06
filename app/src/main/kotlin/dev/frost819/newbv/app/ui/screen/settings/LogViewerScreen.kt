@@ -213,7 +213,7 @@ fun LogViewerScreen(
                         if (qrImage != null) {
                             Image(
                                 modifier = Modifier.size(200.dp),
-                                bitmap = qrImage!!,
+                                bitmap = qrImage,
                                 contentDescription = null,
                             )
                         } else {

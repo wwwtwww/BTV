@@ -142,7 +142,7 @@ fun NetworkDiagnosticsDialog(
                         )
                     }
                 } else if (report != null) {
-                    val r = report!!
+                    val r = report
                     val cdnHost =
                         currentCdnUrl?.let {
                             try {
