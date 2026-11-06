@@ -1,10 +1,11 @@
-package dev.frost819.newbv.biliapi.grpc.utils
+﻿package dev.frost819.newbv.biliapi.grpc.utils
 
 import bilibili.rpc.Status
 import com.google.protobuf.Message
 import io.grpc.Metadata
 import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
+import kotlinx.coroutines.CancellationException
 import io.grpc.Status as GrpcStatus
 import io.grpc.Status.Code as GrpcStatusCode
 
@@ -15,31 +16,23 @@ import io.grpc.Status.Code as GrpcStatusCode
 
 /*
 @Suppress("UNCHECKED_CAST")
-fun Status.getTypeClass(): Class<Message> {
-    val protoClassName = this.detailsList.first().typeUrl.split("/").last()
-    val splitProtoClassNames = protoClassName.split(".")
-    val nameClass = splitProtoClassNames
-        .subList(0, splitProtoClassNames.size - 1)
-        .joinToString(".") +
-            ".${splitProtoClassNames.last()}OuterClass$${splitProtoClassNames.last()}"
-    return Class.forName(nameClass) as Class<Message>
+fun Status.getTypeClass(): Class<Message>? {
+    val firstDetail = this.detailsList.firstOrNull() ?: return null
+    val nameClass = firstDetail.typeUrl.split("/").last()
+    return runCatching { Class.forName(nameClass) as? Class<Message> }.getOrNull()
 }
 */
 
 @Suppress("UNCHECKED_CAST")
-fun Status.getTypeClass(): Class<Message> {
-    val nameClass =
-        this.detailsList
-            .first()
-            .typeUrl
-            .split("/")
-            .last()
-    return Class.forName(nameClass) as Class<Message>
+fun Status.getTypeClass(): Class<Message>? {
+    val firstDetail = this.detailsList.firstOrNull() ?: return null
+    val nameClass = firstDetail.typeUrl.split("/").last()
+    return runCatching { Class.forName(nameClass) as? Class<Message> }.getOrNull()
 }
 
-fun Status.getDetail(): Any {
-    val clazz = this.getTypeClass()
-    return this.detailsList.first().unpack(clazz)
+fun Status.getDetail(): Any? {
+    val clazz = this.getTypeClass() ?: return null
+    return this.detailsList.firstOrNull()?.unpack(clazz)
 }
 
 /**
@@ -124,6 +117,7 @@ private data class BiliDetail(
  * @throws BiliGrpcException 分类后的异常。
  */
 fun handleGrpcException(error: Throwable): Nothing {
+    if (error is CancellationException) throw error
     if (error is BiliGrpcException) throw error
     val status = GrpcStatus.fromThrowable(error)
     val biliDetail = grpcStatusDetail(error)
