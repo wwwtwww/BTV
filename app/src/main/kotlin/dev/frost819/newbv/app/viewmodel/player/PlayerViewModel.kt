@@ -324,6 +324,8 @@ class PlayerViewModel
                 )
             }
 
+            // 标记会话已完成初次初始化：从详情页/UP空间返回时据此恢复播放而非重新初始化
+            hasInitializedSession = true
             startClockUpdater()
             // 同时观看人数观察者：监听 cid 变化即时拉取，就绪后周期刷新
             startOnlineWatchingObserver()
