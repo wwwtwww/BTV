@@ -97,7 +97,8 @@ class CrashHandler(
                 appendLine("======== Logs ========")
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
-                    appendLine(line)
+                    val safeLine = line ?: ""
+                    appendLine(LogSanitizer.sanitize(safeLine))
                 }
                 flush()
                 close()
@@ -200,7 +201,7 @@ class CrashHandler(
     ) {
         OutputStreamWriter(FileOutputStream(file, true)).use { writer ->
             writer.appendLine("======== Logcat ========")
-            writer.append(logcatText)
+            writer.append(LogSanitizer.sanitize(logcatText))
             writer.flush()
         }
     }
@@ -225,11 +226,23 @@ class CrashHandler(
             )
             writer.appendLine("======== Exception ========")
             writer.appendLine("Thread: ${thread.name}")
-            writer.appendLine("Exception: ${throwable.javaClass.name}: ${throwable.message}")
-            throwable.stackTrace.forEach { writer.appendLine("    at $it") }
+            writer.appendLine(
+                LogSanitizer.sanitize(
+                    "Exception: ${throwable.javaClass.name}: ${throwable.message}",
+                ),
+            )
+            throwable.stackTrace.forEach {
+                writer.appendLine(LogSanitizer.sanitize("    at $it"))
+            }
             throwable.cause?.let { cause ->
-                writer.appendLine("Caused by: ${cause.javaClass.name}: ${cause.message}")
-                cause.stackTrace.forEach { writer.appendLine("    at $it") }
+                writer.appendLine(
+                    LogSanitizer.sanitize(
+                        "Caused by: ${cause.javaClass.name}: ${cause.message}",
+                    ),
+                )
+                cause.stackTrace.forEach {
+                    writer.appendLine(LogSanitizer.sanitize("    at $it"))
+                }
             }
             writer.appendLine("================================")
         }

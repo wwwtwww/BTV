@@ -2,6 +2,7 @@ package dev.frost819.newbv.biliapi.http.plugins
 
 import dev.frost819.newbv.biliapi.http.util.BiliAppConf
 import dev.frost819.newbv.biliapi.http.util.BiliWebConf
+import dev.frost819.newbv.biliapi.http.util.UrlSanitizer
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.api.ClientPlugin
 import io.ktor.client.plugins.api.createClientPlugin
@@ -52,7 +53,13 @@ val BiliUserAgent: ClientPlugin<BiliUserAgentConfig> =
                 } else {
                     webUserAgent
                 }
-            LOGGER.trace("Adding User-Agent header: agent \"${userAgent}\" for ${request.url}")
+            val sanitizedUrl =
+                UrlSanitizer.sanitize(
+                    request.url.toString(),
+                )
+            LOGGER.trace(
+                "Adding User-Agent header: agent \"$userAgent\" for $sanitizedUrl",
+            )
             request.header(HttpHeaders.UserAgent, userAgent)
         }
     }

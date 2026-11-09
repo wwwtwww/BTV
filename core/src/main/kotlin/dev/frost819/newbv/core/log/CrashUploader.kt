@@ -181,10 +181,10 @@ class CrashUploader(
                 stackTrace.append("    at $it\n")
             }
         }
-        exception.put("stackTrace", stackTrace.toString().trimEnd())
+        exception.put("stackTrace", LogSanitizer.sanitize(stackTrace.toString().trimEnd()))
         json.put("exception", exception)
 
-        json.put("logcat", logcatText)
+        json.put("logcat", LogSanitizer.sanitize(logcatText))
 
         return json.toString()
     }
@@ -200,7 +200,7 @@ class CrashUploader(
 
         val timestamp = SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.getDefault()).format(Date())
         val jsonFile = File(logDir, "${CrashHandler.CRASH_LOG_PREFIX}_$timestamp$CRASH_JSON_SUFFIX")
-        jsonFile.writeText(json)
+        jsonFile.writeText(LogSanitizer.sanitize(json))
         return jsonFile
     }
 
