@@ -45,7 +45,7 @@ import java.util.Locale
  * @param options 播放器配置
  */
 @OptIn(UnstableApi::class)
-class ExoMediaPlayer(
+open class ExoMediaPlayer(
     private val context: Context,
     private val options: VideoPlayerOptions,
 ) : AbstractVideoPlayer(),
@@ -73,13 +73,31 @@ class ExoMediaPlayer(
     private var behindLiveWindowRecoverCount = 0
     private var behindLiveWindowLastRecoverAtMs = 0L
 
-    private val httpDataSourceFactory =
+    /**
+     * 创建 HTTP 数据源工厂。
+     *
+     * 使用 [OkHttpUtil] 生成带自定义 SSL 配置的 [OkHttpClient]，
+     * 并设置 User-Agent 和 Referer 请求头。
+     *
+     * 子类可覆写以替换为测试用工厂。
+     */
+    protected open fun createHttpDataSourceFactory(): OkHttpDataSource.Factory =
         OkHttpDataSource.Factory(OkHttpUtil.generateCustomSslOkHttpClient(context.applicationContext)).apply {
             options.userAgent?.let { setUserAgent(it) }
             options.referer?.let { setDefaultRequestProperties(mapOf("referer" to it)) }
         }
 
-    private val dataSourceFactory = DefaultDataSource.Factory(context.applicationContext, httpDataSourceFactory)
+    /**
+     * 创建默认数据源工厂。
+     *
+     * 子类可覆写以替换为测试用工厂。
+     */
+    protected open fun createDataSourceFactory(httpFactory: OkHttpDataSource.Factory): DefaultDataSource.Factory =
+        DefaultDataSource.Factory(context.applicationContext, httpFactory)
+
+    private val httpDataSourceFactory by lazy { createHttpDataSourceFactory() }
+
+    private val dataSourceFactory by lazy { createDataSourceFactory(httpDataSourceFactory) }
 
     init {
         initPlayer()
@@ -220,7 +238,9 @@ class ExoMediaPlayer(
     }
 
     override fun reset() {
-        TODO("Not yet implemented")
+        mPlayer?.stop()
+        mPlayer?.clearMediaItems()
+        mMediaSource = null
     }
 
     override val isPlaying: Boolean
