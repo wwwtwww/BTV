@@ -147,6 +147,8 @@ fun VideoPlayerScreen(
     // 切换视频事件：协调弹幕/字幕/蒙版重载
     LaunchedEffect(Unit) {
         playerViewModel.videoSwitchEvent.collect { event ->
+            // 同步当前 aid 到 VideoListViewModel，驱动相关视频响应式过滤
+            videoListViewModel.setCurrentAid(event.aid)
             danmakuViewModel.clearDanmaku()
             // 切集瞬间历史进度尚未异步加载，通常从第 1 段开始；
             // 断点续播 seek 后由下方进度同步驱动目标段加载

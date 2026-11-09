@@ -67,6 +67,7 @@ import dev.frost819.newbv.app.util.OtaUpdateInstaller
 import dev.frost819.newbv.app.util.ReleaseNoteBlock
 import dev.frost819.newbv.app.util.ReleaseNoteEntry
 import dev.frost819.newbv.app.util.ReleaseNotesParser
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.isDpadDown
 import dev.frost819.newbv.core.focus.isDpadUp
 import dev.frost819.newbv.core.focus.isKeyDown
@@ -77,7 +78,6 @@ import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -426,12 +426,12 @@ fun UpdateDialog(
         installErrorDetail = null
         settingsFallbackHint = null
         scope.launch {
-            runCatching {
+            runSuspendCatching {
                 withTimeout(CHECK_UPDATE_TIMEOUT_MS) {
                     withContext(Dispatchers.IO) {
                         val bundled = ReleaseNotesParser.readBundledChangelog(context)
                         val releases =
-                            runCatching { GithubApi.getReleases(pageSize = 20) }
+                            runSuspendCatching { GithubApi.getReleases(pageSize = 20) }
                                 .getOrNull()
                                 ?.takeIf { it.isNotEmpty() }
                                 ?: listOf(GithubApi.getLatestBuild())
@@ -468,9 +468,6 @@ fun UpdateDialog(
                     updateStatus = UpdateStatus.Ready
                 }
             }.onFailure { error ->
-                if (error is CancellationException && error !is TimeoutCancellationException) {
-                    throw error
-                }
                 logger.error(error) { "Failed to check latest release" }
                 updateStatus = UpdateStatus.CheckError
             }
@@ -487,7 +484,7 @@ fun UpdateDialog(
 
         downloadJob =
             scope.launch {
-                runCatching {
+                runSuspendCatching {
                     val release = latestRelease ?: error("未获取到可用更新信息")
                     val apkAsset = release.findApkAsset() ?: error("未找到可用的安装包资产 (APK)")
 
@@ -535,7 +532,6 @@ fun UpdateDialog(
                         triggerApkInstall(apkFile, false)
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException) throw error
                     logger.error(error) { "Failed to download update" }
                     installErrorDetail = error.message
                     updateStatus = UpdateStatus.DownloadError

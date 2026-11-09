@@ -11,11 +11,10 @@ import dev.frost819.newbv.biliapi.repositories.SearchFilterDuration
 import dev.frost819.newbv.biliapi.repositories.SearchFilterOrderType
 import dev.frost819.newbv.biliapi.repositories.SearchRepository
 import dev.frost819.newbv.biliapi.repositories.SearchType
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -142,7 +141,7 @@ class SearchResultViewModel
             searchJobs[type]?.cancel()
             val job =
                 viewModelScope.launch {
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(LOAD_TIMEOUT_MS) {
                             searchRepository.searchType(
                                 keyword = keyword,
@@ -187,9 +186,6 @@ class SearchResultViewModel
                             "Loaded search result: type=$type, new=${newItems.size}, total=${result.items.size + newItems.size}"
                         }
                     }.onFailure { e ->
-                        if (e is CancellationException && e !is TimeoutCancellationException) {
-                            throw e
-                        }
                         logger.warn { "Failed to load search result: type=$type, $e" }
                         updateResult(type) { it.copy(isLoading = false, error = true) }
                     }

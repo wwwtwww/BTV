@@ -45,7 +45,7 @@ data class VideoShot(
                     }.getOrNull()
 
                 val times = mutableListOf<UShort>()
-                runCatching {
+                runSuspendCatching {
                     DataInputStream(ByteArrayInputStream(timeBinary)).use {
                         // if has next
                         while (it.available() > 0) {

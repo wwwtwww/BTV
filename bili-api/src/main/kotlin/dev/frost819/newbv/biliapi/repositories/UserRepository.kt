@@ -279,7 +279,7 @@ open class UserRepositoryImpl(
                 // App 通道未就绪时给出明确异常，而不是在 !! 处抛 NPE，
                 // 便于上层统一处理为错误状态并提供重试
                 val stub = dynamicStub ?: throw IllegalStateException("App gRPC channel is not initialized")
-                runCatching {
+                runSuspendCatching {
                     stub.dynVideo(
                         dynVideoReq {
                             this.page = page

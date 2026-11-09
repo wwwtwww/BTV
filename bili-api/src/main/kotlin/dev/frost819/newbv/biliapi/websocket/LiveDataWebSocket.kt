@@ -12,6 +12,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.WatchedChangeEvent
 import dev.frost819.newbv.biliapi.http.util.brotliDecompress
 import dev.frost819.newbv.biliapi.http.util.zlibDecompress
 import dev.frost819.newbv.biliapi.util.BiliLogger
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.awaitClose
@@ -293,7 +294,7 @@ object LiveDataWebSocket {
                         // 如果 auth 从未成功（token 可能过期），下次重连重新获取 token
                         if (needRefreshToken) {
                             logger.info { "Re-fetching danmu info (token may have expired)" }
-                            runCatching { fetchDanmuInfo() }
+                            runSuspendCatching { fetchDanmuInfo() }
                                 .onFailure { logger.warn(it) { "Failed to re-fetch danmu info" } }
                         }
 

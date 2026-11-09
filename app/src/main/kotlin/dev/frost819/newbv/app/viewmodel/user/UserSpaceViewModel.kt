@@ -7,10 +7,9 @@ import dev.frost819.newbv.biliapi.entity.user.SpaceVideo
 import dev.frost819.newbv.biliapi.entity.user.SpaceVideoOrder
 import dev.frost819.newbv.biliapi.entity.user.SpaceVideoPage
 import dev.frost819.newbv.biliapi.repositories.UserRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,7 +105,7 @@ class UserSpaceViewModel
             _uiState.update { it.copy(loading = true, error = false) }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         userRepository.getSpaceVideos(
                             mid = mid,
@@ -125,9 +124,6 @@ class UserSpaceViewModel
                     }
                     videoPage = data.page
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load space videos" }
                     _uiState.update { it.copy(loading = false, error = true) }
                 }

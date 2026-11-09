@@ -14,12 +14,11 @@ import dev.frost819.newbv.biliapi.entity.ugc.UgcItem
 import dev.frost819.newbv.biliapi.entity.user.DynamicVideo
 import dev.frost819.newbv.biliapi.repositories.RecommendVideoRepository
 import dev.frost819.newbv.biliapi.repositories.UserRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -207,14 +206,11 @@ class HomeViewModel
             bvid: String,
         ) {
             val fetched =
-                runCatching {
+                runSuspendCatching {
                     withTimeout(HERO_META_TIMEOUT_MS) {
                         recommendVideoRepository.getVideoBriefMeta(aid = aid, bvid = bvid)
                     }
                 }.getOrElse { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.debug { "Hero brief meta fetch skipped for aid=$aid: ${error.message}" }
                     null
                 } ?: return
@@ -272,7 +268,7 @@ class HomeViewModel
                     try {
                         while (loadCount < maxLoadCount && isActive) {
                             var fetchedData: RecommendData? = null
-                            runCatching {
+                            runSuspendCatching {
                                 withTimeout(LOAD_TIMEOUT_MS) {
                                     recommendVideoRepository.getRecommendVideos(
                                         page = recommendNextPage,
@@ -282,9 +278,6 @@ class HomeViewModel
                             }.onSuccess { data ->
                                 fetchedData = data
                             }.onFailure { error ->
-                                if (error is CancellationException && error !is TimeoutCancellationException) {
-                                    throw error
-                                }
                                 logger.error(error) { "Failed to load recommend videos" }
                                 failed = true
                             }
@@ -376,7 +369,7 @@ class HomeViewModel
             popularLoadJob =
                 viewModelScope.launch {
                     try {
-                        runCatching {
+                        runSuspendCatching {
                             withTimeout(LOAD_TIMEOUT_MS) {
                                 val data =
                                     recommendVideoRepository.getPopularVideos(
@@ -398,9 +391,6 @@ class HomeViewModel
                                 }
                             }
                         }.onFailure { error ->
-                            if (error is CancellationException && error !is TimeoutCancellationException) {
-                                throw error
-                            }
                             logger.error(error) { "Failed to load popular videos" }
                             _uiState.update { it.copy(popularError = true) }
                         }
@@ -451,7 +441,7 @@ class HomeViewModel
                 viewModelScope.launch {
                     val nextPage = dynamicCurrentPage + 1
                     try {
-                        runCatching {
+                        runSuspendCatching {
                             withTimeout(LOAD_TIMEOUT_MS) {
                                 val data =
                                     userRepository.getDynamicVideos(
@@ -471,9 +461,6 @@ class HomeViewModel
                                 }
                             }
                         }.onFailure { error ->
-                            if (error is CancellationException && error !is TimeoutCancellationException) {
-                                throw error
-                            }
                             logger.error(error) { "Failed to load dynamic videos" }
                             _uiState.update { it.copy(dynamicError = true) }
                         }

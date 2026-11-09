@@ -8,7 +8,7 @@ import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.biliapi.entity.video.RelatedVideo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,7 +30,7 @@ class VideoListViewModel
         private val _videoListState = MutableStateFlow(VideoListState())
         val videoListState = _videoListState.asStateFlow()
 
-        private var currentAid = 0L
+        private val _currentAid = MutableStateFlow(0L)
 
         /**
          * 设置当前播放视频 AV 号，用于过滤 repository 的数据。
@@ -40,7 +40,7 @@ class VideoListViewModel
          * @param aid 当前视频 AV 号
          */
         fun setCurrentAid(aid: Long) {
-            currentAid = aid
+            _currentAid.value = aid
         }
 
         init {
@@ -52,12 +52,16 @@ class VideoListViewModel
                     }
             }
             viewModelScope.launch {
-                videoInfoRepository.relatedVideos
-                    .filter { videoInfoRepository.videoDetail.value?.aid == currentAid }
-                    .collect { list ->
-                        if (currentAid == 0L) return@collect
-                        _videoListState.update { it.copy(relatedVideos = list) }
-                    }
+                combine(
+                    videoInfoRepository.relatedVideos,
+                    _currentAid,
+                ) { relatedVideos, currentAid ->
+                    relatedVideos to currentAid
+                }.collect { (list, aid) ->
+                    if (aid == 0L) return@collect
+                    val filtered = if (videoInfoRepository.videoDetail.value?.aid == aid) list else emptyList()
+                    _videoListState.update { it.copy(relatedVideos = filtered) }
+                }
             }
         }
 

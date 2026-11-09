@@ -49,6 +49,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVColors
@@ -314,7 +315,7 @@ fun <T : Any> PlayerQuickMenuPopover(
             .filter { it.any { info -> info.index == selectedIndex } }
             .first()
         if (selectedIndex in itemFocusRequesters.indices) {
-            runCatching { itemFocusRequesters[selectedIndex].safeRequestFocus() }
+            runSuspendCatching { itemFocusRequesters[selectedIndex].safeRequestFocus() }
         }
     }
 

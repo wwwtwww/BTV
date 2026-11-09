@@ -19,6 +19,7 @@ import dev.frost819.newbv.biliapi.entity.danmaku.DanmakuMask
 import dev.frost819.newbv.biliapi.entity.danmaku.DanmakuMeta
 import dev.frost819.newbv.biliapi.http.entity.danmaku.DanmakuData
 import dev.frost819.newbv.biliapi.repositories.VideoPlayRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.danmaku.config.DanmakuState
 import dev.frost819.newbv.data.datastore.Prefs
@@ -141,8 +142,9 @@ class DanmakuViewModel
         /** 分段加载监听 Job，[loadDanmaku] 拿到元数据后启动。 */
         private var segmentWatchJob: Job? = null
 
-        /** 初始化弹幕播放器。 */
+        /** 初始化弹幕播放器（先释放旧实例，避免重复 init 造成资源泄漏）。 */
         fun init() {
+            danmakuPlayer?.release()
             danmakuPlayer = DanmakuPlayer(SimpleRenderer())
             initDanmakuConfig()
         }
@@ -210,12 +212,11 @@ class DanmakuViewModel
             viewModelScope.launch {
                 // 元数据决定分段大小与总数；失败仅记日志，回退默认分段大小继续加载
                 val meta =
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(SEGMENT_FETCH_TIMEOUT_MS) {
                             videoPlayRepository.getDanmakuMeta(aid = aid, cid = cid)
                         }
                     }.getOrElse { e ->
-                        if (e is CancellationException && e !is TimeoutCancellationException) throw e
                         logger.warn { "Load danmaku meta failed, fallback to default segment size: $e" }
                         DanmakuMeta.DEFAULT
                     }
@@ -600,5 +601,15 @@ class DanmakuViewModel
 
             /** 重试退避基数（毫秒），按指数递增：1s、2s。 */
             private const val RETRY_BACKOFF_BASE_MS = 1_000L
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            danmakuPlayer?.release()
+            danmakuPlayer = null
+            maskFetchJob?.cancel()
+            maskFetchJob = null
+            segmentWatchJob?.cancel()
+            segmentWatchJob = null
         }
     }

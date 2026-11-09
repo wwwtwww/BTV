@@ -43,6 +43,7 @@ import dev.frost819.newbv.biliapi.repositories.FavoriteRepository
 import dev.frost819.newbv.biliapi.repositories.LikeRepository
 import dev.frost819.newbv.biliapi.repositories.OneClickTripleActionRepository
 import dev.frost819.newbv.biliapi.repositories.VideoPlayRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Audio
 import dev.frost819.newbv.data.datastore.Prefs
@@ -59,7 +60,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -75,6 +75,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.util.Calendar
 import javax.inject.Inject
 import dev.frost819.newbv.data.datastore.ApiType as DataApiType
@@ -181,6 +182,9 @@ class PlayerViewModel
         private var onlineWatchJob: Job? = null
         private var bufferingWatchdogJob: Job? = null
         private var appContext: Context? = null
+
+        /** 标记是否已在本次播放会话中跳转到历史进度，避免暂停恢复时重复跳转。 */
+        private var hasSeekToHistoryPosition = false
 
         /**
          * 切换视频事件。
@@ -434,7 +438,7 @@ class PlayerViewModel
          * @param state 当前 UI 状态（提供 aid/cid）
          */
         private suspend fun fetchOnlineWatching(state: PlayerUiState) {
-            runCatching {
+            runSuspendCatching {
                 withTimeout(PLAYER_ACTION_TIMEOUT_MS) {
                     videoInfoRepository.getOnlineWatchingText(
                         aid = state.aid,
@@ -445,7 +449,6 @@ class PlayerViewModel
             }.onSuccess { text ->
                 if (text != null) _uiState.update { it.copy(onlineWatching = text) }
             }.onFailure { error ->
-                if (error is CancellationException && error !is TimeoutCancellationException) throw error
                 logger.error(error) { "Failed to fetch online watching count" }
             }
         }
@@ -491,6 +494,7 @@ class PlayerViewModel
         /** 释放播放器资源，同步进度到 B 站。 */
         fun detachPlayer() {
             hasInitializedSession = false
+            cancelPlaybackScopedJobs()
             syncProgress(scope = applicationScope, isDetaching = true)
             videoPlayer?.release()
             videoPlayer = null
@@ -529,14 +533,13 @@ class PlayerViewModel
                     ?.takeIf { it.aid == aid }
                     ?.liked ?: false
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(PLAYER_ACTION_TIMEOUT_MS) {
                         likeRepository.updateVideoLiked(aid = aid, like = !current, preferApiType = getApiType())
                     }
                 }.onSuccess {
                     videoInfoRepository.updateVideoActionState(aid = aid, liked = !current)
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) throw error
                     logger.error(error) { "Failed to toggle video like: aid=$aid" }
                     _uiEffect.emit(PlayerUiEffect.ShowToast("点赞失败: ${error.message ?: "未知错误"}"))
                 }
@@ -547,14 +550,13 @@ class PlayerViewModel
         fun sendVideoCoin() {
             val aid = _uiState.value.aid.takeIf { it > 0L } ?: return
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(PLAYER_ACTION_TIMEOUT_MS) {
                         coinRepository.sendVideoCoin(aid = aid, preferApiType = getApiType())
                     }
                 }.onSuccess {
                     videoInfoRepository.updateVideoActionState(aid = aid, coined = true)
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) throw error
                     logger.error(error) { "Failed to send video coin: aid=$aid" }
                     _uiEffect.emit(PlayerUiEffect.ShowToast("投币失败: ${error.message ?: "未知错误"}"))
                 }
@@ -569,7 +571,7 @@ class PlayerViewModel
                     ?.takeIf { it.aid == aid }
                     ?.favorited ?: false
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(PLAYER_ACTION_TIMEOUT_MS) {
                         val folders =
                             favoriteRepository.getAllFavoriteFolderMetadataList(
@@ -598,7 +600,6 @@ class PlayerViewModel
                 }.onSuccess {
                     videoInfoRepository.updateVideoActionState(aid = aid, favorited = !current)
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) throw error
                     logger.error(error) { "Failed to toggle video favorite: aid=$aid" }
                     _uiEffect.emit(PlayerUiEffect.ShowToast("收藏失败: ${error.message ?: "未知错误"}"))
                 }
@@ -610,7 +611,7 @@ class PlayerViewModel
             val aid = _uiState.value.aid.takeIf { it > 0L } ?: return
             val bvid = videoInfoRepository.videoDetail.value?.bvid
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(PLAYER_ACTION_TIMEOUT_MS) {
                         oneClickTripleActionRepository.sendVideoOneClickTripleAction(
                             aid = aid,
@@ -629,7 +630,6 @@ class PlayerViewModel
                     }
                     _uiEffect.emit(PlayerUiEffect.ShowToast("一键三连"))
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) throw error
                     logger.error(error) { "Failed to send one-click triple action: aid=$aid" }
                     _uiEffect.emit(PlayerUiEffect.ShowToast("一键三连失败: ${error.message ?: "未知错误"}"))
                 }
@@ -749,6 +749,8 @@ class PlayerViewModel
          */
         fun playNewVideo(newVideo: VideoListItem) {
             videoPlayer?.pause()
+            hasSeekToHistoryPosition = false
+            cancelPlaybackScopedJobs()
 
             val state = _uiState.value
             val shouldUpdateDetail = state.aid != newVideo.aid
@@ -819,21 +821,49 @@ class PlayerViewModel
             // 通知 UI 层重载弹幕/字幕（非阻塞，避免卡住 playNewVideo）
             viewModelScope.launch { _videoSwitchEvent.emit(VideoSwitchEvent(newVideo.aid, newVideo.cid)) }
 
-            // 异步加载详情 + 历史进度（不阻塞 playVideoWithResources）
+            // 加载详情：cid==0 时同步等待补齐（loadVideoWithResources 依赖 cid），否则异步
             if (shouldUpdateDetail) {
-                viewModelScope.launch(ioDispatcher) {
-                    runCatching {
-                        videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
-                        // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
-                        val sharedState = videoInfoRepository.videoSharedState.value
-                        val historyCid = sharedState?.lastPlayedCid ?: 0L
-                        val historyTime = sharedState?.lastPlayedTime ?: 0
-                        if (historyCid == newVideo.cid && historyTime > 0) {
-                            _uiState.update { it.copy(lastPlayed = historyTime) }
+                if (newVideo.cid == 0L) {
+                    // cid 缺失时必须先拿到详情补齐，再发起资源加载
+                    viewModelScope.launch(ioDispatcher) {
+                        try {
+                            withTimeout(5_000L) {
+                                videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                            }
+                            val detail = videoInfoRepository.videoDetail.value
+                            if (detail != null && _uiState.value.cid == 0L) {
+                                _uiState.update { it.copy(cid = detail.cid) }
+                            }
+                            // 详情返回后应用历史进度（仅一次性）
+                            val sharedState = videoInfoRepository.videoSharedState.value
+                            val historyCid = sharedState?.lastPlayedCid ?: 0L
+                            val historyTime = sharedState?.lastPlayedTime ?: 0
+                            val resolvedCid = _uiState.value.cid
+                            if (historyCid == resolvedCid && historyTime > 0 && !hasSeekToHistoryPosition) {
+                                _uiState.update { it.copy(lastPlayed = historyTime) }
+                                hasSeekToHistoryPosition = true
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            logger.warn { "fetchVideoDetail timeout for aid=${newVideo.aid}" }
+                        } catch (e: Exception) {
+                            logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                         }
-                    }.onFailure { e ->
-                        if (e is CancellationException && e !is TimeoutCancellationException) throw e
-                        logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
+                    }
+                } else {
+                    viewModelScope.launch(ioDispatcher) {
+                        runSuspendCatching {
+                            videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                            // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
+                            val sharedState = videoInfoRepository.videoSharedState.value
+                            val historyCid = sharedState?.lastPlayedCid ?: 0L
+                            val historyTime = sharedState?.lastPlayedTime ?: 0
+                            if (historyCid == newVideo.cid && historyTime > 0 && !hasSeekToHistoryPosition) {
+                                _uiState.update { it.copy(lastPlayed = historyTime) }
+                                hasSeekToHistoryPosition = true
+                            }
+                        }.onFailure { e ->
+                            logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
+                        }
                     }
                 }
             }
@@ -945,7 +975,6 @@ class PlayerViewModel
                 it.copy(
                     playerState = PlayerState.Ready,
                     isBuffering = true,
-                    lastPlayed = (currentMs / 1000).toInt(),
                 )
             }
 
@@ -1475,7 +1504,7 @@ class PlayerViewModel
 
         private suspend fun updateVideoShot() {
             val state = _uiState.value
-            runCatching {
+            runSuspendCatching {
                 val shot =
                     videoPlayRepository.getVideoShot(
                         aid = state.aid,
@@ -1817,6 +1846,14 @@ class PlayerViewModel
                         ),
                     )
             }
+        }
+
+        /** 统一取消播放相关的倒计时和提示任务。 */
+        private fun cancelPlaybackScopedJobs() {
+            backToStartCountdownJob?.cancel()
+            playNextCountdownJob?.cancel()
+            shortcutTipJob?.cancel()
+            previewTipCountdownJob?.cancel()
         }
 
         /** 将 DataApiType 映射为 bili-api 的 ApiType。 */

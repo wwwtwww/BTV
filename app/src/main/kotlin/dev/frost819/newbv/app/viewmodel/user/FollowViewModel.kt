@@ -6,10 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.entity.user.FollowedUser
 import dev.frost819.newbv.biliapi.repositories.UserRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,7 +63,7 @@ class FollowViewModel
 
         private fun load(mid: Long) {
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         userRepository.getFollowedUsers(mid, preferApiType = prefApiType())
                     }
@@ -77,9 +76,6 @@ class FollowViewModel
                         )
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load followed users" }
                     _uiState.update { it.copy(loading = false, error = true) }
                 }

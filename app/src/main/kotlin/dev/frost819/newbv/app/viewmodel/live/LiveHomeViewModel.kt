@@ -9,6 +9,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.FollowLiveRoom
 import dev.frost819.newbv.biliapi.http.entity.live.LiveAreaParent
 import dev.frost819.newbv.biliapi.http.entity.live.LiveRoomItem
 import dev.frost819.newbv.biliapi.repositories.LiveRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,7 +57,7 @@ class LiveHomeViewModel
             }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val response = liveRepository.getFollowLive()
                         response.rooms.filter { it.liveStatus == 1 }.map { it.toCardData() }
@@ -70,9 +71,6 @@ class LiveHomeViewModel
                         )
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     _uiState.update {
                         it.copy(
                             followLoading = false,
@@ -92,7 +90,7 @@ class LiveHomeViewModel
             _uiState.update { it.copy(areaLoading = true, areaError = false) }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         liveRepository.getLiveAreaList()
                     }
@@ -105,9 +103,6 @@ class LiveHomeViewModel
                         )
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     _uiState.update {
                         it.copy(
                             areaLoading = false,
@@ -132,7 +127,7 @@ class LiveHomeViewModel
             }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val response = liveRepository.getLiveRecommend()
                         response.list.map { it.toCardData() }
@@ -147,9 +142,6 @@ class LiveHomeViewModel
                         )
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     _uiState.update {
                         it.copy(
                             recommendLoading = false,

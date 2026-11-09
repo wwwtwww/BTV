@@ -66,6 +66,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.R
 import dev.frost819.newbv.biliapi.repositories.LivePlayLine
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import kotlinx.coroutines.delay
@@ -293,7 +294,7 @@ private fun LiveControllerInfoBottom(
         // 等待直播控制器完全展开并挂载至 Compose Focus 树节点，避免直接请求焦点静默失败。
         delay(50)
         // 初始呼出直接聚焦播放控制按钮行
-        runCatching { playPauseFocusRequester.safeRequestFocus() }
+        runSuspendCatching { playPauseFocusRequester.safeRequestFocus() }
     }
 
     Column(

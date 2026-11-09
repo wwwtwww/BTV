@@ -82,6 +82,7 @@ import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.biliapi.entity.video.Subtitle
 import dev.frost819.newbv.biliapi.entity.video.VideoShot
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVColors
@@ -552,7 +553,7 @@ fun ControllerVideoInfoBottom(
         // 避免未完成挂载时直接 safeRequestFocus 导致请求静默失效（详见 AGENTS.md §8.2.1）。
         delay(50)
         // 初始呼出焦点直达按钮行第1项，消灭进入设置必须先往下按一次的痛点
-        runCatching { playPauseFocusRequester.safeRequestFocus() }
+        runSuspendCatching { playPauseFocusRequester.safeRequestFocus() }
     }
 
     Column(

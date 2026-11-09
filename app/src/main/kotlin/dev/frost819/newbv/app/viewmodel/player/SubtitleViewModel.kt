@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import dev.frost819.newbv.data.datastore.ApiType as DataApiType
 
@@ -79,7 +80,9 @@ class SubtitleViewModel
                 viewModelScope.launch(Dispatchers.IO) {
                     runSuspendCatching {
                         val apiType = if (Prefs.apiType == DataApiType.App) ApiType.App else ApiType.Web
-                        videoPlayRepository.getSubtitle(aid = aid, cid = cid, preferApiType = apiType)
+                        withTimeout(SUBTITLE_LOAD_TIMEOUT_MS) {
+                            videoPlayRepository.getSubtitle(aid = aid, cid = cid, preferApiType = apiType)
+                        }
                     }.onSuccess { list ->
                         _subtitleList.update { list }
                         logger.info { "Update subtitle size: ${list.size}" }
@@ -123,10 +126,12 @@ class SubtitleViewModel
                     runSuspendCatching {
                         val subtitle = _subtitleList.value.find { it.id == id } ?: return@runSuspendCatching
                         logger.info { "Subtitle url: ${subtitle.url}" }
-                        val responseText = httpClient.get(subtitle.url).bodyAsText()
-                        val data = SubtitleParser.fromBccString(responseText)
-                        _subtitleId.update { id }
-                        _subtitleData.update { data }
+                        withTimeout(SUBTITLE_LOAD_TIMEOUT_MS) {
+                            val responseText = httpClient.get(subtitle.url).bodyAsText()
+                            val data = SubtitleParser.fromBccString(responseText)
+                            _subtitleId.update { id }
+                            _subtitleData.update { data }
+                        }
                     }.onFailure { e ->
                         logger.warn { "Load subtitle failed: $e" }
                     }
@@ -169,5 +174,10 @@ class SubtitleViewModel
             super.onCleared()
             loadJob?.cancel()
             selectJob?.cancel()
+        }
+
+        private companion object {
+            /** 字幕加载超时（毫秒）。 */
+            const val SUBTITLE_LOAD_TIMEOUT_MS = 30_000L
         }
     }

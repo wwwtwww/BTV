@@ -8,9 +8,8 @@ import dev.frost819.newbv.biliapi.entity.pgc.PgcFeedData
 import dev.frost819.newbv.biliapi.entity.pgc.PgcItem
 import dev.frost819.newbv.biliapi.entity.pgc.PgcType
 import dev.frost819.newbv.biliapi.repositories.PgcRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,7 +93,7 @@ class PgcViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(carouselLoading = true) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val carouselData = pgcRepository.getCarousel(currentType)
                         _uiState.update {
@@ -102,9 +101,6 @@ class PgcViewModel
                         }
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load PGC carousel: $currentType" }
                 }
 
@@ -124,7 +120,7 @@ class PgcViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(loading = true, error = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val data: PgcFeedData =
                             pgcRepository.getFeed(
@@ -140,9 +136,6 @@ class PgcViewModel
                         }
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load PGC feed: $currentType" }
                     _uiState.update { it.copy(error = true) }
                 }

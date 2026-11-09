@@ -75,6 +75,7 @@ import dev.frost819.newbv.biliapi.http.plugins.BiliUserAgent
 import dev.frost819.newbv.biliapi.http.util.BiliAppConf
 import dev.frost819.newbv.biliapi.http.util.encApiSign
 import dev.frost819.newbv.biliapi.http.util.injectCookies
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -196,11 +197,11 @@ object BiliHttpApi {
      * @return [SpiResult] 包含 buvid3 和设备 cookie 字符串，失败时返回 null。
      */
     suspend fun fetchBuvid3FromSpi(): SpiResult? =
-        runCatching {
+        runSuspendCatching {
             // 1. 获取 SPI buvid3
             val spiResponse = client.get("/x/frontend/finger/spi") {}
             val spiData = spiResponse.body<BiliResponse<SpiData>>()
-            val b3 = spiData.data?.b3?.takeIf { it.isNotBlank() } ?: return@runCatching null
+            val b3 = spiData.data?.b3?.takeIf { it.isNotBlank() } ?: return@runSuspendCatching null
             buvid3 = b3
 
             // 2. 携带 buvid3 请求 www.bilibili.com 获取 b_nut 等设备 cookie
@@ -1166,7 +1167,7 @@ object BiliHttpApi {
                     bvid?.let { parameter("bvid", it) }
                     accessKey?.let { parameter("access_key", it) }
                 }.body<BiliResponse<Int>>()
-        return runCatching {
+        return runSuspendCatching {
             response.getResponseData() == 1
         }.getOrDefault(false)
     }
@@ -1229,7 +1230,7 @@ object BiliHttpApi {
                     bvid?.let { parameter("bvid", it) }
                     accessKey?.let { parameter("access_key", it) }
                 }.body<BiliResponse<CheckSentCoin>>()
-        return runCatching {
+        return runSuspendCatching {
             response.getResponseData().multiply != 0
         }.getOrDefault(false)
     }
@@ -1317,7 +1318,7 @@ object BiliHttpApi {
                     parameter("aid", avid)
                     accessKey?.let { parameter("access_key", it) }
                 }.body<BiliResponse<CheckVideoFavoured>>()
-        return runCatching {
+        return runSuspendCatching {
             response.getResponseData().favoured
         }.getOrDefault(false)
     }
@@ -1875,7 +1876,7 @@ object BiliHttpApi {
         val dataJson =
             dataScriptTagContent.split("__INITIAL_STATE__=", ";(function()")[1]
         val initinalData =
-            runCatching {
+            runSuspendCatching {
                 json.decodeFromString<PgcWebInitialStateData>(dataJson)
             }.onFailure {
                 println("parse initial state data failed: ${it.stackTraceToString()}")
@@ -1985,7 +1986,7 @@ object BiliHttpApi {
             return
         }
 
-        runCatching {
+        runSuspendCatching {
             val wbiData = getWebInterfaceNav().data?.wbiImg ?: return
             wbiImgKey = wbiData.getImgKey()
             wbiSubKey = wbiData.getSubKey()

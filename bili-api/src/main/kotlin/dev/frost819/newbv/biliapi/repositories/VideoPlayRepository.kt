@@ -98,7 +98,7 @@ class VideoPlayRepository(
                                             ) ?: throw IllegalStateException("Player stub is not initialized")
                                         }.onFailure {
                                             // dont throw
-                                            runCatching { handleGrpcException(it) }
+                                            runSuspendCatching { handleGrpcException(it) }
                                                 .onFailure {
                                                     println(
                                                         "get play data failed: " +
@@ -175,12 +175,12 @@ class VideoPlayRepository(
                                     }
                                 async {
                                     val playReply =
-                                        runCatching {
+                                        runSuspendCatching {
                                             pgcPlayUrlStub?.playView(req)
                                                 ?: throw IllegalStateException("Pgc play url stub is not initialized")
                                         }.onFailure {
                                             // dont throw
-                                            runCatching { handleGrpcException(it) }
+                                            runSuspendCatching { handleGrpcException(it) }
                                                 .onFailure {
                                                     println(
                                                         "get pgc play data failed: " +
@@ -226,7 +226,7 @@ class VideoPlayRepository(
 
             ApiType.App -> {
                 val dmViewReply =
-                    runCatching {
+                    runSuspendCatching {
                         danmakuStub?.dmView(
                             dmViewReq {
                                 pid = aid
@@ -325,7 +325,7 @@ class VideoPlayRepository(
             ApiType.App ->
                 withContext(Dispatchers.IO) {
                     val reply =
-                        runCatching {
+                        runSuspendCatching {
                             danmakuStub?.dmSegMobile(
                                 dmSegMobileReq {
                                     pid = aid

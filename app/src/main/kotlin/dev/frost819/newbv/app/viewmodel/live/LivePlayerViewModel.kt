@@ -16,6 +16,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.OnlineRankCountEvent
 import dev.frost819.newbv.biliapi.repositories.LivePlayInfo
 import dev.frost819.newbv.biliapi.repositories.LivePlayLine
 import dev.frost819.newbv.biliapi.repositories.LiveRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.biliapi.websocket.LiveDataWebSocket
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
@@ -218,7 +219,7 @@ class LivePlayerViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(playerState = LivePlayerState.Loading) }
 
-                runCatching {
+                runSuspendCatching {
                     val roomInit = liveRepository.getRoomInit(roomId.toInt())
                     val realRoomId = roomInit.roomId
                     _uiState.update { it.copy(realRoomId = realRoomId, liveStatus = roomInit.liveStatus) }
@@ -265,7 +266,6 @@ class LivePlayerViewModel
 
                     connectDanmaku(realRoomId)
                 }.onFailure { error ->
-                    if (error is CancellationException) throw error
                     logger.error(error) { "Failed to load live" }
                     _uiState.update {
                         it.copy(
@@ -293,7 +293,7 @@ class LivePlayerViewModel
                 }
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     dev.frost819.newbv.biliapi.http.BiliLiveHttpApi
                         .getLiveDanmuHistory(realRoomId)
                         .data
@@ -435,7 +435,7 @@ class LivePlayerViewModel
             if (realRoomId == 0) return
 
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     val playInfo = liveRepository.getLivePlayInfo(realRoomId, qn)
                     val line =
                         resolveLine(playInfo, _uiState.value.currentLine)
@@ -452,7 +452,6 @@ class LivePlayerViewModel
                     videoPlayer?.prepare()
                     videoPlayer?.start()
                 }.onFailure { error ->
-                    if (error is CancellationException) throw error
                     logger.error(error) { "Failed to reload live stream" }
                     _uiState.update {
                         it.copy(

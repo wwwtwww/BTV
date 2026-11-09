@@ -68,6 +68,7 @@ import androidx.tv.material3.Text
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.biliapi.entity.video.Dimension
 import dev.frost819.newbv.biliapi.entity.video.VideoPage
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.TvFocusDefaults
 import dev.frost819.newbv.core.focus.focusInvertedColors
 import dev.frost819.newbv.core.focus.safeRequestFocus
@@ -824,7 +825,7 @@ private suspend fun LazyListState.scrollToCentered(
     val viewportPx = layoutInfo.viewportSize.width.takeIf { it > 0 } ?: fallbackViewportPx
     val itemPx = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }?.size ?: fallbackItemPx
     val centerScrollOffset = -((viewportPx - itemPx) / 2).coerceAtLeast(0)
-    runCatching {
+    runSuspendCatching {
         animateScrollToItem(index = targetIndex, scrollOffset = centerScrollOffset)
     }
 }

@@ -8,9 +8,8 @@ import dev.frost819.newbv.biliapi.entity.ugc.UgcTypeV2
 import dev.frost819.newbv.biliapi.entity.ugc.region.UgcFeedData
 import dev.frost819.newbv.biliapi.entity.ugc.region.UgcFeedPage
 import dev.frost819.newbv.biliapi.repositories.UgcRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,7 +91,7 @@ class UgcViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(loading = true, error = false) }
 
-                runCatching {
+                runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val data: UgcFeedData =
                             ugcRepository.getRegionFeedRcmd(
@@ -108,9 +107,6 @@ class UgcViewModel
                         }
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load UGC region: $currentType" }
                     _uiState.update { it.copy(error = true) }
                 }

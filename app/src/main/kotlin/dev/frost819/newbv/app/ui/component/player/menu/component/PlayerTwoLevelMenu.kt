@@ -12,6 +12,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import dev.frost819.newbv.app.viewmodel.player.LocalMenuFocusStateData
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
@@ -44,7 +45,7 @@ fun <T> PlayerTwoLevelMenu(
 
     LaunchedEffect(focusState.focusState) {
         if (focusState.focusState == MenuFocusState.Items) {
-            runCatching { itemsFocusRequester.safeRequestFocus() }
+            runSuspendCatching { itemsFocusRequester.safeRequestFocus() }
         }
     }
 
