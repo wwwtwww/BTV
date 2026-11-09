@@ -55,4 +55,15 @@ interface AccountRepository {
 
     /** 退出登录，清空 Prefs 中的登录态。 */
     suspend fun logout()
+
+    /**
+     * 更新用户锁密码。
+     *
+     * @param uid 用户 UID。
+     * @param lock 锁密码字符串（空字符串表示取消锁）。
+     */
+    suspend fun updateUserLock(
+        uid: Long,
+        lock: String,
+    )
 }

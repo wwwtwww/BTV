@@ -3,7 +3,7 @@ package dev.frost819.newbv.app.viewmodel.user
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.frost819.newbv.app.data.AccountRepositoryImpl
+import dev.frost819.newbv.data.repository.AccountRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,7 +62,7 @@ data class UserLockUiState(
 class UserLockViewModel
     @Inject
     constructor(
-        private val accountRepository: AccountRepositoryImpl,
+        private val accountRepository: AccountRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(UserLockUiState())
         val uiState: StateFlow<UserLockUiState> = _uiState.asStateFlow()

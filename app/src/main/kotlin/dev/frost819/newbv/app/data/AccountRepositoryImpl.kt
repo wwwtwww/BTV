@@ -270,7 +270,7 @@ class AccountRepositoryImpl
          * @param uid 用户 UID。
          * @param lock 锁密码字符串（空字符串表示取消锁）。
          */
-        suspend fun updateUserLock(
+        override suspend fun updateUserLock(
             uid: Long,
             lock: String,
         ) {
