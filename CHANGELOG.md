@@ -6,6 +6,29 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.5.6] - 2026-11-09
+
+> 安全热修复版本：落地审计修复计划 Batch 1 剩余任务，重点加固凭证泄露防护与播放器生命周期管理。
+
+### 🔒 安全加固
+- **日志与崩溃报告敏感信息脱敏体系落地 [FIX-01]**：
+  - 新增 `LogSanitizer`（core）与 `UrlSanitizer`（bili-api）工具类，支持 Cookie、URL 查询参数、JSON 三种格式的敏感字段自动脱敏；
+  - `CrashHandler` 写入磁盘的日志、Logcat、异常堆栈全部经脱敏后落盘；`CrashUploader` 上报 JSON 中的 stackTrace、logcat 及整体内容同步脱敏；
+  - `BiliUserAgent` 插件日志中的请求 URL 经 `UrlSanitizer` 过滤 access_key / SESSDATA 等敏感参数后再输出。
+- **网络安全配置收紧 [FIX-01]**：
+  - `network_security_config.xml` 默认禁止明文流量，仅对 B 站 CDN 域名（bilivideo.com / bilivideo.cn / hdslb.com）按需放行明文；
+  - 调试模式仅信任用户安装的证书（便于抓包调试），正式包保持仅系统证书。
+
+### 🐛 问题修复
+- **用户锁依赖注入规范化 [FIX-02]**：
+  - `AccountRepository` 接口补充 `updateUserLock` 方法，`UserLockViewModel` 注入参数由具体实现类 `AccountRepositoryImpl` 改为接口，消除对具体类的硬依赖。
+- **ExoPlayer 实例重置能力补齐 [FIX-04]**：
+  - `ExoMediaPlayer` 新增 `reset()` 方法（stop + clearMediaItems + 置空媒体源），消除实例复用残留状态；
+  - 数据源工厂提取为可覆写方法，补齐 5 个 JVM 单元测试用例。
+- **挂起函数异常处理全量收尾 [FIX-09]**：
+  - 将 ViewModel、UI 组件、Repository 与 HTTP/WebSocket 层中残余的 `runCatching` 全部替换为协程安全的 `runSuspendCatching`，确保 `CancellationException` 不再被吞掉；
+  - 移除调用点冗余的取消异常重抛样板代码，收敛异常处理职责。
+
 ## [v0.5.5] - 2026-11-05
 
 ### ⚠️ 不兼容变更 (Breaking Changes)
