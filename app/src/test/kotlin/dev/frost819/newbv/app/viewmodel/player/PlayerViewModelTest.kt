@@ -1045,6 +1045,9 @@ class PlayerViewModelTest {
             viewModel.detachPlayer()
 
             assertThat(viewModel.hasInitializedSession).isFalse()
+
+            // 收尾取消轮询任务，避免 runTest 泄漏检查因无限周期任务挂起
+            viewModel.viewModelScope.cancel()
         }
 
     @Test
@@ -1075,7 +1078,10 @@ class PlayerViewModelTest {
                 ),
             )
             viewModel.trySendHeartbeat()
-            advanceUntilIdle()
+            // 不能用 advanceUntilIdle：init 启动的在线人数观察者以 60s 周期
+            // 无限轮询（viewModelScope 存活期间），虚拟时间将永无尽头。
+            // 心跳上传协程无真实挂起点，runCurrent 即可将其恢复完成。
+            runCurrent()
 
             coVerify {
                 videoPlayRepository.sendHeartbeat(
@@ -1085,6 +1091,9 @@ class PlayerViewModelTest {
                     preferApiType = any(),
                 )
             }
+
+            // 收尾取消轮询任务，避免 runTest 泄漏检查因无限周期任务挂起
+            viewModel.viewModelScope.cancel()
         }
 
     // ── trySendHeartbeat test ─────────────────────────────────
@@ -1460,8 +1469,10 @@ class PlayerViewModelTest {
             viewModel.retryPlayback(downgradeQuality = true)
             runCurrent()
 
+            // FIX-11 起 retryPlayback 不再同步更新 lastPlayed，
+            // 续播位置改由 resolveUrlsAndPlay 成功后显式 seekTo(currentMs) 恢复，
+            // 避免与历史进度恢复逻辑（hasSeekToHistoryPosition）产生冲突
             assertThat(viewModel.uiState.value.mediaProfileState.qualityId).isEqualTo(64)
-            assertThat(viewModel.uiState.value.lastPlayed).isEqualTo(45)
         }
 
     @Test
