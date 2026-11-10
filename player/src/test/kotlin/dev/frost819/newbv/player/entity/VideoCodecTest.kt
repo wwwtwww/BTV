@@ -6,20 +6,20 @@ import org.junit.jupiter.api.Test
 
 class VideoCodecTest {
     @Test
-    fun `fromCode returns correct codec by ordinal`() {
-        assertEquals(VideoCodec.AVC, VideoCodec.fromCode(0))
-        assertEquals(VideoCodec.HEVC, VideoCodec.fromCode(1))
-        assertEquals(VideoCodec.AV1, VideoCodec.fromCode(2))
+    fun `fromOrdinal returns correct codec by ordinal`() {
+        assertEquals(VideoCodec.AVC, VideoCodec.fromOrdinal(0))
+        assertEquals(VideoCodec.HEVC, VideoCodec.fromOrdinal(1))
+        assertEquals(VideoCodec.AV1, VideoCodec.fromOrdinal(2))
     }
 
     @Test
-    fun `fromCode returns AVC for null`() {
-        assertEquals(VideoCodec.AVC, VideoCodec.fromCode(null))
+    fun `fromOrdinal returns AVC for null`() {
+        assertEquals(VideoCodec.AVC, VideoCodec.fromOrdinal(null))
     }
 
     @Test
-    fun `fromCode returns AVC for unknown code`() {
-        assertEquals(VideoCodec.AVC, VideoCodec.fromCode(99))
+    fun `fromOrdinal returns AVC for unknown code`() {
+        assertEquals(VideoCodec.AVC, VideoCodec.fromOrdinal(99))
     }
 
     @Test

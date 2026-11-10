@@ -264,7 +264,7 @@ object Prefs {
         PrefKeys.defaultVideoCodec,
         VideoCodec.AVC,
         save = { it.ordinal },
-        restore = { VideoCodec.fromCode(it) },
+        restore = { VideoCodec.fromOrdinal(it) },
     )
 
     /** 启用视频软解。 */

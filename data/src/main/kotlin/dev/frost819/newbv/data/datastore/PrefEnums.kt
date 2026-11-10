@@ -85,7 +85,7 @@ enum class VideoCodec(
 
     companion object {
         /** 从 ordinal 安全解析，越界返回 [AVC]。 */
-        fun fromCode(ordinal: Int): VideoCodec = entries.find { it.ordinal == ordinal } ?: AVC
+        fun fromOrdinal(ordinal: Int): VideoCodec = entries.getOrElse(ordinal) { AVC }
 
         /** 从 codec string（如 `avc1.640028`、`hvc1.1.6.L153.90`）匹配编码，无匹配返回 null。 */
         fun fromCodecString(codec: String): VideoCodec? =

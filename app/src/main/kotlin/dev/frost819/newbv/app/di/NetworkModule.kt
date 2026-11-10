@@ -40,6 +40,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * 网络与基础设施 Hilt 模块。
@@ -308,10 +309,14 @@ object NetworkModule {
      * 提供 [SettingsRepository] 单例。
      *
      * 绑定 [SettingsRepositoryImpl]，封装 Prefs 单例的读写操作。
+     *
+     * @param mainDispatcher 主线程调度器，注入给 SettingsRepositoryImpl 用于 stateIn 转换。
      */
     @Provides
     @Singleton
-    fun provideSettingsRepository(): SettingsRepository = SettingsRepositoryImpl()
+    fun provideSettingsRepository(
+        @MainDispatcher mainDispatcher: CoroutineDispatcher,
+    ): SettingsRepository = SettingsRepositoryImpl(mainDispatcher)
 
     /**
      * 提供共享的 [HttpClient] 单例。

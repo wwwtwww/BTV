@@ -14,8 +14,8 @@ import dev.frost819.newbv.data.datastore.Resolution
 import dev.frost819.newbv.data.datastore.ScreensaverTimeout
 import dev.frost819.newbv.data.datastore.ThemeMode
 import dev.frost819.newbv.data.datastore.VideoCodec
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -29,12 +29,16 @@ import kotlinx.coroutines.flow.stateIn
  *
  * 所有写入操作直接调用 Prefs 属性赋值，由 [Prefs] 内部保证异步持久化。
  *
+ * @param mainDispatcher 主线程调度器，用于 stateIn 转换。生产环境注入主线程调度器，测试环境可替换为 TestDispatcher。
+ *
  * @see Prefs
  * @see SettingsRepository
  */
-class SettingsRepositoryImpl : SettingsRepository {
+class SettingsRepositoryImpl(
+    private val mainDispatcher: CoroutineDispatcher,
+) : SettingsRepository {
     /** 仓库内部使用的协程作用域，用于 stateIn 转换。 */
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val scope = CoroutineScope(mainDispatcher + SupervisorJob())
 
     // ===== 音视频设置 =====
 
@@ -43,7 +47,7 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     override val defaultVideoCodec: StateFlow<VideoCodec> by lazy {
-        intEnumFlow(PrefKeys.defaultVideoCodec, VideoCodec.entries, VideoCodec::fromCode, Prefs.defaultVideoCodec)
+        intEnumFlow(PrefKeys.defaultVideoCodec, VideoCodec.entries, VideoCodec::fromOrdinal, Prefs.defaultVideoCodec)
     }
 
     override val defaultAudio: StateFlow<Audio> by lazy {

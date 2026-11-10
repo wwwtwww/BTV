@@ -22,8 +22,8 @@ enum class VideoCodec(
     ;
 
     companion object {
-        /** 根据枚举序号获取编码（从 PlayData 的编码列表选择） */
-        fun fromCode(code: Int?): VideoCodec = entries.find { it.ordinal == code } ?: AVC
+        /** 根据 ordinal 安全解析，越界返回 [AVC]。 */
+        fun fromOrdinal(ordinal: Int?): VideoCodec = entries.getOrElse(ordinal ?: -1) { AVC }
 
         /** 从 B 站返回的 codec 字符串（如 "avc1.640034"）匹配编码类型 */
         fun fromCodecString(codec: String) =

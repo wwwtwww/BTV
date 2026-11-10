@@ -10,9 +10,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.LiveAreaParent
 import dev.frost819.newbv.biliapi.http.entity.live.LiveRoomItem
 import dev.frost819.newbv.biliapi.repositories.LiveRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -177,7 +175,7 @@ class LiveHomeViewModel
             recommendJob?.cancel()
             recommendJob =
                 viewModelScope.launch {
-                    runCatching {
+                    runSuspendCatching {
                         withTimeout(LOAD_TIMEOUT_MS) {
                             val existingIds =
                                 _uiState.value.recommendItems
@@ -207,9 +205,6 @@ class LiveHomeViewModel
                             )
                         }
                     }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
                         _uiState.update {
                             it.copy(
                                 recommendLoading = false,

@@ -410,8 +410,8 @@ class PrefsTest {
     }
 
     @Test
-    fun `VideoCodec fromCode returns default for invalid`() {
-        assertThat(VideoCodec.fromCode(99999)).isEqualTo(VideoCodec.AVC)
+    fun `VideoCodec fromOrdinal returns default for invalid`() {
+        assertThat(VideoCodec.fromOrdinal(99999)).isEqualTo(VideoCodec.AVC)
     }
 
     @Test

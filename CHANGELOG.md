@@ -6,6 +6,29 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.5.10] - 2026-11-10
+
+> 审计修复 Batch 3 架构收敛收尾（23/24），完成 CI 全链路稳定性修复与代码规范清理。
+
+### 审计修复 Batch 3 架构收敛（23/24）
+
+- **FIX-19**: SettingsRepository 抽取 — 将 Prefs 单例的 22 个读写操作封装为 SettingsRepository 接口 + SettingsRepositoryImpl + SettingsViewModel
+- **FIX-20**: DI @Binds 迁移 — RepositoryBindsModule、PlayerBindsModule 使用更高效的 @Binds 替代 @Provides
+
+### CI 稳定性修复
+
+- 修复 Entity 不可变性（FIX-17）导致的测试编译错误（test + androidTest）
+- 修复 PrefDelegateTest 不稳定测试（delay → awaitPersistForTesting）
+- 修复 LiveHomeViewModelTest mock 设置问题
+- 修复 AccountRepositoryImplTest copy() 模式断言
+- ktlint 自动格式化修复（29 个文件）
+- detekt 静态分析修复（删除未使用的 flowOfInt 函数）
+- 修复 @Binds 迁移导致的 Dagger MissingBinding（添加 @ApplicationContext 限定符）
+
+### 审计进度
+
+23/24 完成（96%），仅剩 FIX-18（UpdateViewModel 大型重构，留到下个版本）
+
 ## [v0.5.9] - 2026-11-10
 
 > 审计修复 Batch 3 架构收敛（23/24），完成 SettingsViewModel 抽取与 DI @Binds 迁移。

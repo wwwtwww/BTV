@@ -86,23 +86,23 @@ class PrefEnumsTest {
     // ===== VideoCodec =====
 
     @Test
-    fun `VideoCodec fromCode returns AVC for ordinal 0`() {
-        assertThat(VideoCodec.fromCode(0)).isEqualTo(VideoCodec.AVC)
+    fun `VideoCodec fromOrdinal returns AVC for ordinal 0`() {
+        assertThat(VideoCodec.fromOrdinal(0)).isEqualTo(VideoCodec.AVC)
     }
 
     @Test
-    fun `VideoCodec fromCode returns HEVC for ordinal 1`() {
-        assertThat(VideoCodec.fromCode(1)).isEqualTo(VideoCodec.HEVC)
+    fun `VideoCodec fromOrdinal returns HEVC for ordinal 1`() {
+        assertThat(VideoCodec.fromOrdinal(1)).isEqualTo(VideoCodec.HEVC)
     }
 
     @Test
-    fun `VideoCodec fromCode returns AV1 for ordinal 2`() {
-        assertThat(VideoCodec.fromCode(2)).isEqualTo(VideoCodec.AV1)
+    fun `VideoCodec fromOrdinal returns AV1 for ordinal 2`() {
+        assertThat(VideoCodec.fromOrdinal(2)).isEqualTo(VideoCodec.AV1)
     }
 
     @Test
-    fun `VideoCodec fromCode returns DVH1 for ordinal 3`() {
-        assertThat(VideoCodec.fromCode(3)).isEqualTo(VideoCodec.DVH1)
+    fun `VideoCodec fromOrdinal returns DVH1 for ordinal 3`() {
+        assertThat(VideoCodec.fromOrdinal(3)).isEqualTo(VideoCodec.DVH1)
     }
 
     @Test
