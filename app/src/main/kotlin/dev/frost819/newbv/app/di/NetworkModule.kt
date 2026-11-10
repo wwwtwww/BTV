@@ -7,7 +7,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.frost819.newbv.BuildConfig
-import dev.frost819.newbv.app.data.AccountRepositoryImpl
 import dev.frost819.newbv.app.network.HttpServer
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.repositories.AuthRepository
@@ -32,10 +31,8 @@ import dev.frost819.newbv.biliapi.repositories.VideoPlayRepository
 import dev.frost819.newbv.core.interaction.InteractionTracker
 import dev.frost819.newbv.core.log.CrashHandler
 import dev.frost819.newbv.core.log.CrashUploader
-import dev.frost819.newbv.data.db.dao.UserDao
-import dev.frost819.newbv.data.repository.AccountRepository
-import dev.frost819.newbv.data.repository.SearchHistoryRepository
-import dev.frost819.newbv.data.repository.SearchHistoryRepositoryImpl
+import dev.frost819.newbv.data.repository.SettingsRepository
+import dev.frost819.newbv.data.repository.SettingsRepositoryImpl
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -287,19 +284,6 @@ object NetworkModule {
     ): VideoPlayRepository = VideoPlayRepository(authRepository, channelRepository)
 
     /**
-     * 提供 [AccountRepository] 单例。
-     *
-     * 绑定 [AccountRepositoryImpl] 实现，聚合 UserDao + Prefs + AuthRepository。
-     */
-    @Provides
-    @Singleton
-    fun provideAccountRepository(
-        userDao: UserDao,
-        authRepository: AuthRepository,
-        channelRepository: ChannelRepository,
-    ): AccountRepository = AccountRepositoryImpl(userDao, authRepository, channelRepository)
-
-    /**
      * 提供 [SearchRepository] 单例。
      *
      * 封装 B 站搜索接口（热词/建议/搜索+筛选）。
@@ -321,15 +305,13 @@ object NetworkModule {
     fun provideLiveRepository(): LiveRepository = LiveRepository()
 
     /**
-     * 提供 [SearchHistoryRepository] 单例。
+     * 提供 [SettingsRepository] 单例。
      *
-     * 绑定 [SearchHistoryRepositoryImpl]，持久化搜索历史到 Room。
+     * 绑定 [SettingsRepositoryImpl]，封装 Prefs 单例的读写操作。
      */
     @Provides
     @Singleton
-    fun provideSearchHistoryRepository(
-        searchHistoryDao: dev.frost819.newbv.data.db.dao.SearchHistoryDao,
-    ): SearchHistoryRepository = SearchHistoryRepositoryImpl(searchHistoryDao)
+    fun provideSettingsRepository(): SettingsRepository = SettingsRepositoryImpl()
 
     /**
      * 提供共享的 [HttpClient] 单例。

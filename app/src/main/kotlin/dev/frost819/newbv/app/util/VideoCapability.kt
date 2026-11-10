@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.datastore.VideoCodec
+import javax.inject.Inject
 
 /**
  * 视频解码能力描述。
@@ -57,11 +58,19 @@ interface VideoCapabilityProvider {
  * @param context 应用上下文（查询系统解码器能力）。
  * @param useSoftwareDecoder 是否按软件解码选择器判定；默认读取用户偏好。测试可注入固定值。
  */
-class MediaCodecVideoCapabilityProvider(
+class MediaCodecVideoCapabilityProvider @Inject constructor(
     private val context: Context,
-    private val useSoftwareDecoder: () -> Boolean = { Prefs.enableSoftwareVideoDecoder },
 ) : VideoCapabilityProvider {
+    /** 测试用次构造函数，允许注入固定软解开关值。 */
+    constructor(
+        context: Context,
+        useSoftwareDecoder: () -> Boolean,
+    ) : this(context) {
+        this.useSoftwareDecoder = useSoftwareDecoder
+    }
+
     private val cache = mutableMapOf<String, Boolean>()
+    private var useSoftwareDecoder: () -> Boolean = { Prefs.enableSoftwareVideoDecoder }
 
     override fun isDecodable(profile: VideoDecodeProfile): Boolean {
         val mime = profile.codec.mimeType ?: return true

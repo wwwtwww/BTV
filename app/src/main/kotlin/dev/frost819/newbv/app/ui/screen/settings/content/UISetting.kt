@@ -32,6 +32,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -41,12 +43,12 @@ import dev.frost819.newbv.app.ui.component.settings.SettingSwitchListItem
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.screen.main.displayName
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
+import dev.frost819.newbv.app.viewmodel.settings.SettingsViewModel
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.HomeHeroMode
 import dev.frost819.newbv.data.datastore.HomeTopNavItem
 import dev.frost819.newbv.data.datastore.LeftNaviItem
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
-import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.datastore.ThemeMode
 import kotlin.math.roundToInt
 
@@ -54,25 +56,23 @@ import kotlin.math.roundToInt
  * 界面设置页。
  *
  * 启动页/首页 Tab/首页沉浸看板/个人页 Tab/显示视频详情/常显进度条/Density/主题模式。
+ *
+ * @param viewModel 设置页 ViewModel，通过 Hilt 注入。
  */
 @Composable
-fun UISetting(modifier: Modifier = Modifier) {
+fun UISetting(
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     var showDensityDialog by remember { mutableStateOf(false) }
-    var dialogDensity by remember { mutableFloatStateOf(Prefs.density) }
+    var dialogDensity by remember { mutableFloatStateOf(uiState.density) }
     var showStartupPageDialog by remember { mutableStateOf(false) }
     var showHomepageDialog by remember { mutableStateOf(false) }
     var showHomeHeroModeDialog by remember { mutableStateOf(false) }
     var showPersonalPageDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
-
-    var showVideoInfo by remember { mutableStateOf(Prefs.showVideoInfo) }
-    var showPersistentSeek by remember { mutableStateOf(Prefs.showPersistentSeek) }
-    var selectedLeftNavItem by remember { mutableStateOf(Prefs.homeLeftNavItem) }
-    var selectedFirstHomeTopNavItem by remember { mutableStateOf(Prefs.firstHomeTopNavItem) }
-    var selectedHomeHeroMode by remember { mutableStateOf(Prefs.homeHeroMode) }
-    var selectedFirstPersonalTopNavItem by remember { mutableStateOf(Prefs.firstPersonalTopNavItem) }
-    var selectedThemeMode by remember { mutableStateOf(Prefs.themeMode) }
-    var density by remember { mutableFloatStateOf(Prefs.density) }
 
     Box(modifier = modifier) {
         Column(
@@ -94,35 +94,35 @@ fun UISetting(modifier: Modifier = Modifier) {
                 item {
                     SettingListItem(
                         title = "启动页",
-                        supportText = "当前：${selectedLeftNavItem.displayName}",
+                        supportText = "当前：${uiState.homeLeftNavItem.displayName}",
                         onClick = { showStartupPageDialog = true },
                     )
                 }
                 item {
                     SettingListItem(
                         title = "首页置顶 Tab",
-                        supportText = "当前：${selectedFirstHomeTopNavItem.displayName}",
+                        supportText = "当前：${uiState.firstHomeTopNavItem.displayName}",
                         onClick = { showHomepageDialog = true },
                     )
                 }
                 item {
                     SettingListItem(
                         title = "首页沉浸看板",
-                        supportText = "当前：${selectedHomeHeroMode.displayName}",
+                        supportText = "当前：${uiState.homeHeroMode.displayName}",
                         onClick = { showHomeHeroModeDialog = true },
                     )
                 }
                 item {
                     SettingListItem(
                         title = "个人页置顶 Tab",
-                        supportText = "当前：${selectedFirstPersonalTopNavItem.displayName}",
+                        supportText = "当前：${uiState.firstPersonalTopNavItem.displayName}",
                         onClick = { showPersonalPageDialog = true },
                     )
                 }
                 item {
                     SettingListItem(
                         title = "主题模式",
-                        supportText = "当前：${selectedThemeMode.displayName}",
+                        supportText = "当前：${uiState.themeMode.displayName}",
                         onClick = { showThemeDialog = true },
                     )
                 }
@@ -130,30 +130,24 @@ fun UISetting(modifier: Modifier = Modifier) {
                     SettingSwitchListItem(
                         title = "显示视频详情",
                         supportText = "点击卡片时先进入详情页而非直接播放",
-                        checked = showVideoInfo,
-                        onCheckedChange = {
-                            showVideoInfo = it
-                            Prefs.showVideoInfo = it
-                        },
+                        checked = uiState.showVideoInfo,
+                        onCheckedChange = { viewModel.updateShowVideoInfo(it) },
                     )
                 }
                 item {
                     SettingSwitchListItem(
                         title = "常显进度条",
                         supportText = "播放器底部常驻迷你进度条",
-                        checked = showPersistentSeek,
-                        onCheckedChange = {
-                            showPersistentSeek = it
-                            Prefs.showPersistentSeek = it
-                        },
+                        checked = uiState.showPersistentSeek,
+                        onCheckedChange = { viewModel.updateShowPersistentSeek(it) },
                     )
                 }
                 item {
                     SettingListItem(
                         title = "界面缩放",
-                        supportText = "当前：$density",
+                        supportText = "当前：${uiState.density}",
                         onClick = {
-                            dialogDensity = density
+                            dialogDensity = uiState.density
                             showDensityDialog = true
                         },
                     )
@@ -166,9 +160,8 @@ fun UISetting(modifier: Modifier = Modifier) {
         show = showDensityDialog,
         onHideDialog = {
             showDensityDialog = false
-            if (dialogDensity != density) {
-                density = dialogDensity
-                Prefs.density = dialogDensity
+            if (dialogDensity != uiState.density) {
+                viewModel.updateDensity(dialogDensity)
             }
         },
         density = dialogDensity,
@@ -178,12 +171,9 @@ fun UISetting(modifier: Modifier = Modifier) {
     if (showStartupPageDialog) {
         OptionDialog(
             options = LeftNaviItem.entries.toTypedArray(),
-            selectedOption = selectedLeftNavItem,
+            selectedOption = uiState.homeLeftNavItem,
             onDismiss = { showStartupPageDialog = false },
-            onSelect = {
-                Prefs.homeLeftNavItem = it
-                selectedLeftNavItem = it
-            },
+            onSelect = { viewModel.updateHomeLeftNavItem(it) },
             getDisplayName = { it.displayName },
         )
     }
@@ -191,12 +181,9 @@ fun UISetting(modifier: Modifier = Modifier) {
     if (showHomepageDialog) {
         OptionDialog(
             options = HomeTopNavItem.entries.toTypedArray(),
-            selectedOption = selectedFirstHomeTopNavItem,
+            selectedOption = uiState.firstHomeTopNavItem,
             onDismiss = { showHomepageDialog = false },
-            onSelect = {
-                Prefs.firstHomeTopNavItem = it
-                selectedFirstHomeTopNavItem = it
-            },
+            onSelect = { viewModel.updateFirstHomeTopNavItem(it) },
             getDisplayName = { it.displayName },
         )
     }
@@ -204,12 +191,9 @@ fun UISetting(modifier: Modifier = Modifier) {
     if (showHomeHeroModeDialog) {
         OptionDialog(
             options = HomeHeroMode.entries.toTypedArray(),
-            selectedOption = selectedHomeHeroMode,
+            selectedOption = uiState.homeHeroMode,
             onDismiss = { showHomeHeroModeDialog = false },
-            onSelect = {
-                Prefs.homeHeroMode = it
-                selectedHomeHeroMode = it
-            },
+            onSelect = { viewModel.updateHomeHeroMode(it) },
             getDisplayName = { it.displayName },
         )
     }
@@ -217,12 +201,9 @@ fun UISetting(modifier: Modifier = Modifier) {
     if (showPersonalPageDialog) {
         OptionDialog(
             options = PersonalTopNavItem.entries.toTypedArray(),
-            selectedOption = selectedFirstPersonalTopNavItem,
+            selectedOption = uiState.firstPersonalTopNavItem,
             onDismiss = { showPersonalPageDialog = false },
-            onSelect = {
-                Prefs.firstPersonalTopNavItem = it
-                selectedFirstPersonalTopNavItem = it
-            },
+            onSelect = { viewModel.updateFirstPersonalTopNavItem(it) },
             getDisplayName = { it.displayName },
         )
     }
@@ -230,12 +211,9 @@ fun UISetting(modifier: Modifier = Modifier) {
     if (showThemeDialog) {
         OptionDialog(
             options = ThemeMode.entries.toTypedArray(),
-            selectedOption = selectedThemeMode,
+            selectedOption = uiState.themeMode,
             onDismiss = { showThemeDialog = false },
-            onSelect = {
-                Prefs.themeMode = it
-                selectedThemeMode = it
-            },
+            onSelect = { viewModel.updateThemeMode(it) },
             getDisplayName = { it.displayName },
         )
     }
@@ -245,7 +223,7 @@ fun UISetting(modifier: Modifier = Modifier) {
  * Density 调节弹窗。
  *
  * D-Pad Up/Down 调整 density 值，范围 0.5 ~ 5.0，步进 0.1。
- * 弹窗打开期间仅更新本地 [dialogDensity]，关闭时才写入 Prefs，
+ * 弹窗打开期间仅更新本地 [dialogDensity]，关闭时才写入 ViewModel，
  * 避免全局 density 变化导致 AlertDialog 窗口重建闪烁。
  */
 @Composable

@@ -6,6 +6,15 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.5.9] - 2026-11-10
+
+> 审计修复 Batch 3 架构收敛（23/24），完成 SettingsViewModel 抽取与 DI @Binds 迁移。
+
+### 审计修复 Batch 3 架构收敛（23/24）
+
+- **FIX-19** SettingsViewModel：新建 SettingsRepository 接口 + SettingsRepositoryImpl + SettingsViewModel，4 个设置 Composable 全部改为通过 ViewModel 读写，Prefs 直接写入清零
+- **FIX-20** DI @Binds 迁移：新建 RepositoryBindsModule + PlayerBindsModule，3 处 @Provides 改为 @Binds，OkHttpCdnSelector 因构造需自定义 SSL 保留 @Provides
+
 ## [v0.5.8] - 2026-11-10
 
 > 审计修复 Batch 2 全部完成（20/24），重点加固 ViewModel 并发保护、TV 焦点全链路修复、播放器重组优化、触屏手势、底层并发安全与 Room 唯一索引。

@@ -27,8 +27,7 @@ class SearchHistoryRepositoryImpl
             if (Prefs.incognitoMode) return
             val existing = searchHistoryDao.findHistory(keyword)
             if (existing != null) {
-                existing.searchDate = Date()
-                searchHistoryDao.update(existing)
+                searchHistoryDao.update(existing.copy(searchDate = Date()))
             } else {
                 searchHistoryDao.insert(SearchHistoryEntity(keyword = keyword))
             }

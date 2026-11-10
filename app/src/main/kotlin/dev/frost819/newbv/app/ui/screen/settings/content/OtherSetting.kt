@@ -16,6 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Switch
 import androidx.tv.material3.Text
@@ -26,8 +28,8 @@ import dev.frost819.newbv.app.ui.component.settings.OptionDialog
 import dev.frost819.newbv.app.ui.component.settings.SettingListItem
 import dev.frost819.newbv.app.ui.component.settings.displayName
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
+import dev.frost819.newbv.app.viewmodel.settings.SettingsViewModel
 import dev.frost819.newbv.data.datastore.ApiType
-import dev.frost819.newbv.data.datastore.Prefs
 
 /**
  * 其他设置页。
@@ -35,18 +37,19 @@ import dev.frost819.newbv.data.datastore.Prefs
  * 接口选择/崩溃上报/查看日志。
  *
  * @param onNavigateToLogViewer 跳转日志查看页回调。
+ * @param viewModel 设置页 ViewModel，通过 Hilt 注入。
  */
 @Composable
 fun OtherSetting(
     modifier: Modifier = Modifier,
     onNavigateToLogViewer: () -> Unit = {},
     screenFocusSaver: FocusSaver? = null,
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
     var showPreferedApiDialog by remember { mutableStateOf(false) }
-    var selectedApi by remember { mutableStateOf(Prefs.apiType) }
-    var crashReportEnabled by remember { mutableStateOf(Prefs.crashReportEnabled) }
 
     Column(
         modifier =
@@ -65,7 +68,7 @@ fun OtherSetting(
 
         SettingListItem(
             title = "接口选择",
-            supportText = "当前：${selectedApi.displayName}",
+            supportText = "当前：${uiState.apiType.displayName}",
             onClick = { showPreferedApiDialog = true },
         )
 
@@ -74,17 +77,11 @@ fun OtherSetting(
             supportText = "崩溃时自动上传日志到开发者服务器",
             trailingContent = {
                 Switch(
-                    checked = crashReportEnabled,
-                    onCheckedChange = {
-                        crashReportEnabled = it
-                        Prefs.crashReportEnabled = it
-                    },
+                    checked = uiState.crashReportEnabled,
+                    onCheckedChange = { viewModel.updateCrashReportEnabled(it) },
                 )
             },
-            onClick = {
-                crashReportEnabled = !crashReportEnabled
-                Prefs.crashReportEnabled = crashReportEnabled
-            },
+            onClick = { viewModel.updateCrashReportEnabled(!uiState.crashReportEnabled) },
         )
 
         if (BuildConfig.DEBUG) {
@@ -106,12 +103,9 @@ fun OtherSetting(
     if (showPreferedApiDialog) {
         OptionDialog(
             options = ApiType.entries.toTypedArray(),
-            selectedOption = selectedApi,
+            selectedOption = uiState.apiType,
             onDismiss = { showPreferedApiDialog = false },
-            onSelect = {
-                Prefs.apiType = it
-                selectedApi = it
-            },
+            onSelect = { viewModel.updateApiType(it) },
             getDisplayName = { it.displayName },
         )
     }

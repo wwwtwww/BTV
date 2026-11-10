@@ -5,6 +5,16 @@ import dev.frost819.newbv.bilisubtitle.entity.SubtitleItem
 import dev.frost819.newbv.bilisubtitle.entity.Timestamp
 import kotlinx.serialization.json.Json
 
+/**
+ * 字幕解析器。
+ *
+ * 将 B 站字幕原始字符串解析为模块内部统一的 [SubtitleItem] 列表，
+ * 支持 BCC（B 站 JSON 字幕）和 SRT 两种输入格式。
+ * 解析失败或输入为空时返回空列表，不抛出异常。
+ *
+ * @see SubtitleItem
+ * @see SubtitleEncoder
+ */
 object SubtitleParser {
     private val json =
         Json {
@@ -13,6 +23,17 @@ object SubtitleParser {
             isLenient = true
         }
 
+    /**
+     * 解析 BCC 格式字幕 JSON 字符串。
+     *
+     * 将 B 站字幕 JSON 反序列化为 [BiliSubtitle]，再逐条转换为 [SubtitleItem]。
+     * 若 JSON 解析失败（格式错误、字段缺失等），静默返回空列表。
+     *
+     * @param bcc BCC 格式字幕 JSON 原始字符串
+     * @return 解析后的字幕条目列表；输入为空或解析失败时返回空列表
+     *
+     * @see Timestamp.fromBccString
+     */
     fun fromBccString(bcc: String): List<SubtitleItem> {
         if (bcc.isBlank()) return emptyList()
         val result = mutableListOf<SubtitleItem>()
@@ -32,6 +53,17 @@ object SubtitleParser {
         return result
     }
 
+    /**
+     * 解析 SRT 格式字幕字符串。
+     *
+     * 按空行分隔字幕块，从每个块中提取序号行、时间行（含 `-->` 分隔符）
+     * 和后续内容行。时间解析或格式异常的块会被静默跳过。
+     *
+     * @param srt SRT 格式字幕原始字符串
+     * @return 解析后的字幕条目列表；输入为空时返回空列表
+     *
+     * @see Timestamp.fromSrtString
+     */
     fun fromSrtString(srt: String): List<SubtitleItem> {
         if (srt.isBlank()) return emptyList()
         val result = mutableListOf<SubtitleItem>()

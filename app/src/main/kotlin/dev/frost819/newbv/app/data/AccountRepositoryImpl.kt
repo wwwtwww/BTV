@@ -112,8 +112,7 @@ class AccountRepositoryImpl
         override suspend fun upsertUser(user: UserEntity) {
             val existing = userDao.findUserByUid(user.uid)
             if (existing != null) {
-                existing.auth = user.auth
-                userDao.update(existing)
+                userDao.update(existing.copy(auth = user.auth))
             } else {
                 userDao.insert(user)
             }
@@ -204,9 +203,7 @@ class AccountRepositoryImpl
             runSuspendCatching {
                 val response: MyInfoData = BiliHttpApi.getUserSelfInfo().getResponseData()
                 val user = userDao.findUserByUid(Prefs.uid) ?: return
-                user.username = response.name
-                user.avatar = response.face
-                userDao.update(user)
+                userDao.update(user.copy(username = response.name, avatar = response.face))
                 _uiState.update {
                     it.copy(
                         username = response.name,
@@ -275,8 +272,7 @@ class AccountRepositoryImpl
             lock: String,
         ) {
             val user = userDao.findUserByUid(uid) ?: return
-            user.lock = lock
-            userDao.update(user)
+            userDao.update(user.copy(lock = lock))
         }
 
         /**

@@ -30,6 +30,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Button
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.OutlinedButton
@@ -39,11 +41,11 @@ import dev.frost819.newbv.app.ui.component.settings.SettingListItem
 import dev.frost819.newbv.app.ui.component.settings.SettingsMenuSelectItem
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
 import dev.frost819.newbv.app.util.CacheManager
+import dev.frost819.newbv.app.viewmodel.settings.SettingsViewModel
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.CrashHandler
 import dev.frost819.newbv.core.theme.BVShape
-import dev.frost819.newbv.data.datastore.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -56,10 +58,16 @@ private val CACHE_THRESHOLD_OPTIONS = listOf(50, 100, 200, 500, CacheManager.THR
  *
  * 缓存阈值设置（超限自动 LRU 清理）/ 手动清理缓存 / 自动清空开关；
  * 崩溃日志大小显示与清理。
+ *
+ * @param viewModel 设置页 ViewModel，通过 Hilt 注入。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StorageSetting(modifier: Modifier = Modifier) {
+fun StorageSetting(
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val cacheManager = remember { CacheManager(context) }
@@ -67,8 +75,6 @@ fun StorageSetting(modifier: Modifier = Modifier) {
     var loading by remember { mutableStateOf(false) }
     var cacheSize by remember { mutableLongStateOf(0L) }
     var crashLogsSize by remember { mutableLongStateOf(0L) }
-    var cacheThreshold by remember { mutableStateOf(Prefs.cacheThreshold) }
-    var autoCleanEnabled by remember { mutableStateOf(Prefs.cacheAutoClean) }
 
     var showClearDialog by remember { mutableStateOf(false) }
     var showClearLogsDialog by remember { mutableStateOf(false) }
@@ -112,10 +118,10 @@ fun StorageSetting(modifier: Modifier = Modifier) {
                         title = "缓存上限",
                         supportText =
                             "当前：" +
-                                if (cacheThreshold == CacheManager.THRESHOLD_UNLIMITED) {
+                                if (uiState.cacheThreshold == CacheManager.THRESHOLD_UNLIMITED) {
                                     "无限制"
                                 } else {
-                                    "$cacheThreshold MB"
+                                    "${uiState.cacheThreshold} MB"
                                 },
                         onClick = { showThresholdDialog = true },
                     )
@@ -126,17 +132,11 @@ fun StorageSetting(modifier: Modifier = Modifier) {
                         supportText = "开启后缓存超过阈值时自动清理",
                         trailingContent = {
                             Switch(
-                                checked = autoCleanEnabled,
-                                onCheckedChange = {
-                                    autoCleanEnabled = it
-                                    Prefs.cacheAutoClean = it
-                                },
+                                checked = uiState.cacheAutoClean,
+                                onCheckedChange = { viewModel.updateCacheAutoClean(it) },
                             )
                         },
-                        onClick = {
-                            autoCleanEnabled = !autoCleanEnabled
-                            Prefs.cacheAutoClean = autoCleanEnabled
-                        },
+                        onClick = { viewModel.updateCacheAutoClean(!uiState.cacheAutoClean) },
                     )
                 }
                 item {
@@ -190,11 +190,10 @@ fun StorageSetting(modifier: Modifier = Modifier) {
     if (showThresholdDialog) {
         ThresholdOptionDialog(
             options = CACHE_THRESHOLD_OPTIONS,
-            selected = cacheThreshold,
+            selected = uiState.cacheThreshold,
             onDismiss = { showThresholdDialog = false },
             onSelect = { threshold ->
-                cacheThreshold = threshold
-                Prefs.cacheThreshold = threshold
+                viewModel.updateCacheThreshold(threshold)
                 // 阈值调低时立即生效（清理 + 刷新大小显示）
                 scope.launch(Dispatchers.IO) {
                     cacheManager.checkCache()
