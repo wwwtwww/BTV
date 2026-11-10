@@ -6,8 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.data.db.AppDatabase
 import dev.frost819.newbv.data.db.entity.UserEntity
+import android.database.sqlite.SQLiteConstraintException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -160,21 +162,15 @@ class UserDaoTest {
         }
 
     @Test
-    fun `insert duplicate uid creates separate records`() =
-        runTest {
-            dao.insert(
-                UserEntity(uid = 42L, username = "first", avatar = "a1", auth = "x1"),
-                UserEntity(uid = 42L, username = "second", avatar = "a2", auth = "x2"),
-            )
-
-            val all = dao.getAll()
-
-            assertThat(all).hasSize(2)
-            assertThat(all[0].uid).isEqualTo(42L)
-            assertThat(all[1].uid).isEqualTo(42L)
-            assertThat(all[0].id).isNotEqualTo(all[1].id)
-            assertThat(all.map { it.username }).containsExactly("first", "second")
+    fun `insert duplicate uid throws constraint exception`() {
+        val exception = assertThrows(SQLiteConstraintException::class.java) {
+            runTest {
+                dao.insert(UserEntity(uid = 42L, username = "first", avatar = "a1", auth = "x1"))
+                dao.insert(UserEntity(uid = 42L, username = "second", avatar = "a2", auth = "x2"))
+            }
         }
+        assertThat(exception.message).contains("UNIQUE constraint failed")
+    }
 
     @Test
     fun `user with empty string fields persists correctly`() =

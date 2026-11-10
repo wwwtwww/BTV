@@ -6,8 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.data.db.AppDatabase
 import dev.frost819.newbv.data.db.entity.SearchHistoryEntity
+import android.database.sqlite.SQLiteConstraintException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -206,20 +208,15 @@ class SearchHistoryDaoTest {
         }
 
     @Test
-    fun `insert duplicate keyword creates separate records`() =
-        runTest {
-            dao.insert(
-                SearchHistoryEntity(keyword = "dup", searchDate = Date(1000)),
-                SearchHistoryEntity(keyword = "dup", searchDate = Date(2000)),
-            )
-
-            val all = dao.getAll()
-
-            assertThat(all).hasSize(2)
-            assertThat(all[0].keyword).isEqualTo("dup")
-            assertThat(all[1].keyword).isEqualTo("dup")
-            assertThat(all[0].id).isNotEqualTo(all[1].id)
+    fun `insert duplicate keyword throws constraint exception`() {
+        val exception = assertThrows(SQLiteConstraintException::class.java) {
+            runTest {
+                dao.insert(SearchHistoryEntity(keyword = "dup", searchDate = Date(1000)))
+                dao.insert(SearchHistoryEntity(keyword = "dup", searchDate = Date(2000)))
+            }
         }
+        assertThat(exception.message).contains("UNIQUE constraint failed")
+    }
 
     // ===== delete =====
 
