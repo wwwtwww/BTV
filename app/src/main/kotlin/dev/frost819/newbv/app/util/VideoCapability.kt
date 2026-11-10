@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.util
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.Format
+import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.media3.exoplayer.RendererCapabilities
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
@@ -59,7 +60,7 @@ interface VideoCapabilityProvider {
  * @param useSoftwareDecoder 是否按软件解码选择器判定；默认读取用户偏好。测试可注入固定值。
  */
 class MediaCodecVideoCapabilityProvider @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
 ) : VideoCapabilityProvider {
     /** 测试用次构造函数，允许注入固定软解开关值。 */
     constructor(
