@@ -240,7 +240,7 @@ class PrefDelegateTest {
     fun `custom buvid3 is preserved across reinit`() =
         runBlocking {
             Prefs.buvid3 = "custom_buvid3_value"
-            delay(200)
+            Prefs.awaitPersistForTesting()
 
             Prefs.resetForTesting()
             Prefs.init(dataStore)
