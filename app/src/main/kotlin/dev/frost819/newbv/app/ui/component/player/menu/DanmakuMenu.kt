@@ -1,7 +1,9 @@
 package dev.frost819.newbv.app.ui.component.player.menu
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import dev.frost819.newbv.app.ui.component.player.menu.component.CheckBoxMenuList
 import dev.frost819.newbv.app.ui.component.player.menu.component.PlayerThreeLevelMenu
 import dev.frost819.newbv.app.ui.component.player.menu.component.RadioMenuList
@@ -31,6 +33,7 @@ import java.text.NumberFormat
  * @param onDanmakuAreaChange 区域变化回调
  * @param onDanmakuMaskChange 蒙版变化回调
  * @param onFocusStateChange 焦点状态变化回调
+ * @param navFocusRequester 导航栏焦点请求器
  */
 @Composable
 @Suppress("LongParameterList", "CyclomaticComplexMethod")
@@ -49,12 +52,14 @@ fun DanmakuMenuList(
     onDanmakuAreaChange: (Float) -> Unit,
     onDanmakuMaskChange: (Boolean) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
+    navFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     PlayerThreeLevelMenu(
         modifier = modifier,
         categories = VideoPlayerDanmakuMenuItem.entries,
         categoryLabel = { it.displayName },
         onFocusStateChange = onFocusStateChange,
+        navFocusRequester = navFocusRequester,
     ) { selectedItem, itemModifier, backToMenu ->
         when (selectedItem) {
             VideoPlayerDanmakuMenuItem.Switch ->

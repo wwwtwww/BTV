@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -60,6 +61,9 @@ class UgcViewModel
         /** 当前分区的下一页游标。 */
         private var nextPage: UgcFeedPage = UgcFeedPage()
 
+        /** 当前加载任务，用于并发保护。 */
+        private var loadJob: Job? = null
+
         init {
             loadMore()
         }
@@ -73,10 +77,13 @@ class UgcViewModel
          */
         fun switchType(type: UgcTypeV2) {
             if (type == currentType && _uiState.value.items.isNotEmpty()) return
+            loadJob?.cancel()
             currentType = type
             nextPage = UgcFeedPage()
             _uiState.value = UgcUiState()
-            loadMore()
+            loadJob = viewModelScope.launch {
+                loadMoreInternal()
+            }
         }
 
         /**
@@ -87,17 +94,23 @@ class UgcViewModel
         fun loadMore() {
             val current = _uiState.value
             if (current.loading || !current.hasMore) return
+            loadJob = viewModelScope.launch {
+                loadMoreInternal()
+            }
+        }
 
-            viewModelScope.launch {
-                _uiState.update { it.copy(loading = true, error = false) }
+        private suspend fun loadMoreInternal() {
+            val typeAtStart = currentType
+            _uiState.update { it.copy(loading = true, error = false) }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data: UgcFeedData =
-                            ugcRepository.getRegionFeedRcmd(
-                                ugcType = currentType,
-                                page = nextPage,
-                            )
+            runSuspendCatching {
+                withTimeout(LOAD_TIMEOUT_MS) {
+                    val data: UgcFeedData =
+                        ugcRepository.getRegionFeedRcmd(
+                            ugcType = typeAtStart,
+                            page = nextPage,
+                        )
+                    if (currentType == typeAtStart) {
                         nextPage = data.nextPage
                         _uiState.update {
                             it.copy(
@@ -106,11 +119,15 @@ class UgcViewModel
                             )
                         }
                     }
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to load UGC region: $currentType" }
+                }
+            }.onFailure { error ->
+                logger.error(error) { "Failed to load UGC region: $typeAtStart" }
+                if (currentType == typeAtStart) {
                     _uiState.update { it.copy(error = true) }
                 }
+            }
 
+            if (currentType == typeAtStart) {
                 _uiState.update { it.copy(loading = false) }
             }
         }
@@ -119,8 +136,11 @@ class UgcViewModel
          * 刷新当前分区数据。
          */
         fun refresh() {
+            loadJob?.cancel()
             nextPage = UgcFeedPage()
             _uiState.value = UgcUiState()
-            loadMore()
+            loadJob = viewModelScope.launch {
+                loadMoreInternal()
+            }
         }
     }

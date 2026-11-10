@@ -41,6 +41,9 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import dev.frost819.newbv.app.ui.component.TvLazyVerticalGrid
 import dev.frost819.newbv.app.ui.component.focusSaverItem
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import dev.frost819.newbv.app.ui.component.rememberFocusSaver
 import dev.frost819.newbv.app.ui.navigation.FollowRoute
 import dev.frost819.newbv.app.ui.navigation.UserSpaceRoute
@@ -74,12 +77,13 @@ private fun FollowScreen(
     val state by viewModel.uiState.collectAsState()
     val gridState = rememberLazyGridState()
     val focusSaver = rememberFocusSaver()
+    val fallbackFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(mid) {
         viewModel.init(mid)
     }
 
-    focusSaver.RestoreFocus()
+    focusSaver.RestoreFocus(fallbackRequester = fallbackFocusRequester)
 
     TvLazyVerticalGrid(
         state = gridState,
@@ -122,7 +126,9 @@ private fun FollowScreen(
                 key = { _, user -> user.mid },
             ) { index, user ->
                 FollowedUserCard(
-                    modifier = Modifier.focusSaverItem(focusSaver, "follow_$index"),
+                    modifier = Modifier
+                        .then(if (index == 0) Modifier.focusRequester(fallbackFocusRequester) else Modifier)
+                        .focusSaverItem(focusSaver, "follow_$index"),
                     user = user,
                     onClick = {
                         navController.navigate(UserSpaceRoute(mid = user.mid, name = user.name, face = user.avatar))

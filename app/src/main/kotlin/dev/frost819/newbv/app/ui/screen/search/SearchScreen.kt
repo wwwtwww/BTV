@@ -19,7 +19,7 @@ fun NavGraphBuilder.searchResultScreen(navController: NavController) {
         val route = backStackEntry.toRoute<SearchResultRoute>()
         val focusRequester = remember { FocusRequester() }
         val focusSaver = rememberFocusSaver()
-        focusSaver.RestoreFocus()
+        focusSaver.RestoreFocus(fallbackRequester = focusRequester)
         SearchInputContent(
             focusRequester = focusRequester,
             focusSaver = focusSaver,

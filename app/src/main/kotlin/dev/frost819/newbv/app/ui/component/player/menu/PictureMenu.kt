@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.ui.component.player.menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.ui.component.player.menu.component.PlayerThreeLevelMenu
 import dev.frost819.newbv.app.ui.component.player.menu.component.RadioMenuList
@@ -28,6 +29,7 @@ import dev.frost819.newbv.data.datastore.VideoCodec
  * @param onCodecChange 编码变化回调
  * @param onAspectRatioChange 宽高比变化回调
  * @param onFocusStateChange 焦点状态变化回调
+ * @param navFocusRequester 导航栏焦点请求器
  */
 @Composable
 fun PictureMenuList(
@@ -41,6 +43,7 @@ fun PictureMenuList(
     onCodecChange: (VideoCodec) -> Unit,
     onAspectRatioChange: (VideoAspectRatio) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
+    navFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val qualityIdList =
         remember(availableQualityIds) {
@@ -52,6 +55,7 @@ fun PictureMenuList(
         categories = VideoPlayerPictureMenuItem.entries,
         categoryLabel = { it.displayName },
         onFocusStateChange = onFocusStateChange,
+        navFocusRequester = navFocusRequester,
     ) { selectedItem, itemModifier, backToMenu ->
         when (selectedItem) {
             VideoPlayerPictureMenuItem.Resolution ->

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -57,6 +58,7 @@ class UserSpaceViewModel
         val uiState: StateFlow<UserSpaceUiState> = _uiState.asStateFlow()
 
         private var videoPage = SpaceVideoPage()
+        private var loadJob: Job? = null
 
         private fun prefApiType(): BiliApiType =
             when (Prefs.apiType) {
@@ -88,6 +90,7 @@ class UserSpaceViewModel
         }
 
         fun refresh(mid: Long) {
+            loadJob?.cancel()
             videoPage = SpaceVideoPage()
             _uiState.update {
                 it.copy(
@@ -104,7 +107,8 @@ class UserSpaceViewModel
 
             _uiState.update { it.copy(loading = true, error = false) }
 
-            viewModelScope.launch {
+            loadJob?.cancel()
+            loadJob = viewModelScope.launch {
                 runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         userRepository.getSpaceVideos(

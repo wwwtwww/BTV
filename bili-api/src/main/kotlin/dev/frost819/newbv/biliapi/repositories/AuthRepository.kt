@@ -1,11 +1,11 @@
 package dev.frost819.newbv.biliapi.repositories
 
 class AuthRepository {
-    var sessionData: String? = null
-    var biliJct: String? = null
-    var accessToken: String? = null
-    var mid: Long? = null
-    var buvid3: String? = null
-    var buvid: String? = null
-    var deviceCookies: String? = null
+    @Volatile var sessionData: String? = null
+    @Volatile var biliJct: String? = null
+    @Volatile var accessToken: String? = null
+    @Volatile var mid: Long? = null
+    @Volatile var buvid3: String? = null
+    @Volatile var buvid: String? = null
+    @Volatile var deviceCookies: String? = null
 }

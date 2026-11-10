@@ -3,6 +3,7 @@ package dev.frost819.newbv.data.db.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import dev.frost819.newbv.data.db.entity.SearchHistoryEntity
@@ -39,6 +40,15 @@ interface SearchHistoryDao {
     /** 插入一条或多条搜索历史。 */
     @Insert
     suspend fun insert(vararg searchHistory: SearchHistoryEntity)
+
+    /**
+     * 插入或替换搜索历史。
+     *
+     * 当 [keyword] 已存在时替换整条记录（唯一索引冲突策略），
+     * 调用方需确保传入的 [SearchHistoryEntity.searchDate] 为最新时间。
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(searchHistory: SearchHistoryEntity)
 
     /** 删除一条或多条搜索历史。 */
     @Delete

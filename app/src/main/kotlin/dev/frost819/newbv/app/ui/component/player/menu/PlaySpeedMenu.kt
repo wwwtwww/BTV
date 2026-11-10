@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import dev.frost819.newbv.app.ui.component.player.ifElse
 import dev.frost819.newbv.app.ui.component.player.menu.component.MenuListItem
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
+import dev.frost819.newbv.core.focus.safeRequestFocus
 
 /**
  * 倍速设置面板。
@@ -34,6 +35,7 @@ import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
  * @param currentSelectedPlaySpeedItem 当前选中的倍速项
  * @param onPlaySpeedChange 倍速变化回调
  * @param onFocusStateChange 焦点状态变化回调
+ * @param navFocusRequester 导航栏焦点请求器，返回时用于请求焦点
  */
 @Composable
 fun PlaySpeedMenuList(
@@ -41,6 +43,7 @@ fun PlaySpeedMenuList(
     currentSelectedPlaySpeedItem: PlaySpeedItem,
     onPlaySpeedChange: (Float) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
+    navFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val focusRequester = remember { FocusRequester() }
 
@@ -61,6 +64,7 @@ fun PlaySpeedMenuList(
                         }
                         if (it.key == Key.DirectionRight) {
                             onFocusStateChange(MenuFocusState.MenuNav)
+                            navFocusRequester.safeRequestFocus()
                         }
                         false
                     }.focusRestorer(focusRequester),

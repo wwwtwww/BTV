@@ -24,6 +24,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -48,6 +50,7 @@ import dev.frost819.newbv.app.viewmodel.personal.PersonalViewModel
 import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonStatus
 import dev.frost819.newbv.biliapi.entity.season.FollowingSeasonType
 import dev.frost819.newbv.core.focus.focusInvertedColors
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -160,7 +163,7 @@ fun FollowingSeasonScreen(
                     onCancelFollowingSeason = {
                         viewModel.cancelFollowingSeason(item.seasonId)
                     },
-                    modifier = Modifier.focusSaverItem(focusSaver, "season_$index"),
+                    modifier = Modifier.focusSaverItem(focusSaver, "season_${item.seasonId}"),
                 )
             }
 
@@ -205,6 +208,11 @@ private fun FollowingSeasonFilterDialog(
 ) {
     var selectedType by remember { mutableStateOf(currentType) }
     var selectedStatus by remember { mutableStateOf(currentStatus) }
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -218,7 +226,7 @@ private fun FollowingSeasonFilterDialog(
             contentAlignment = Alignment.Center,
         ) {
             androidx.tv.material3.Surface(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(24.dp).focusRequester(dialogFocusRequester),
                 shape = androidx.tv.material3.MaterialTheme.shapes.large,
                 colors =
                     androidx.tv.material3.SurfaceDefaults.colors(

@@ -11,6 +11,7 @@ import io.grpc.ManagedChannel
  */
 class ChannelRepository {
     /** 当前账号的 App gRPC channel。 */
+    @Volatile
     var defaultChannel: ManagedChannel? = null
         private set
 

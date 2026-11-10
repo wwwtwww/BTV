@@ -177,10 +177,15 @@ private fun MainStage(
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
     val maxHeightDp = with(density) { (windowInfo.containerSize.height * 0.7f).toDp() }
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
@@ -311,10 +316,15 @@ private fun PickActionStage(
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
     val maxHeightDp = with(density) { (windowInfo.containerSize.height * 0.7f).toDp() }
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
@@ -373,10 +383,15 @@ private fun PickActionValueStage(
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
     val maxHeightDp = with(density) { (windowInfo.containerSize.height * 0.7f).toDp() }
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
@@ -413,9 +428,15 @@ private fun ConfirmClearStage(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
+
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.7f),
+            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.7f),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,

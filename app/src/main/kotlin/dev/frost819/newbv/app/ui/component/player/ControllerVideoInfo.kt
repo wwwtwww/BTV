@@ -11,7 +11,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -144,6 +143,7 @@ import kotlinx.coroutines.delay
  * @param currentSubtitleId 当前生效的字幕 ID
  * @param onSubtitleChange 字幕切换回调
  * @param onResetAutoHide 重置 OSD 自动隐藏计时器回调
+ * @param onQuickMenuVisibilityChange 快捷菜单可见性变化回调，用于暂停 OSD 自动隐藏
  */
 @Composable
 fun ControllerVideoInfo(
@@ -192,6 +192,7 @@ fun ControllerVideoInfo(
     currentSubtitleId: Long = -1L,
     onSubtitleChange: (Subtitle) -> Unit = {},
     onResetAutoHide: () -> Unit = {},
+    onQuickMenuVisibilityChange: (Boolean) -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -259,6 +260,7 @@ fun ControllerVideoInfo(
                 currentSubtitleId = currentSubtitleId,
                 onSubtitleChange = onSubtitleChange,
                 onResetAutoHide = onResetAutoHide,
+                onQuickMenuVisibilityChange = onQuickMenuVisibilityChange,
             )
         }
     }
@@ -490,6 +492,7 @@ private fun QualityBadge(
  * @param currentSubtitleId 当前生效的字幕 ID
  * @param onSubtitleChange 字幕切换回调
  * @param onResetAutoHide 重置 OSD 自动隐藏计时器回调
+ * @param onQuickMenuVisibilityChange 快捷菜单可见性变化回调，用于暂停 OSD 自动隐藏
  */
 @Composable
 fun ControllerVideoInfoBottom(
@@ -534,6 +537,7 @@ fun ControllerVideoInfoBottom(
     currentSubtitleId: Long = -1L,
     onSubtitleChange: (Subtitle) -> Unit = {},
     onResetAutoHide: () -> Unit = {},
+    onQuickMenuVisibilityChange: (Boolean) -> Unit = {},
 ) {
     val seekFocusRequester = remember { FocusRequester() }
     val playPauseFocusRequester = remember { FocusRequester() }
@@ -554,6 +558,11 @@ fun ControllerVideoInfoBottom(
         delay(50)
         // 初始呼出焦点直达按钮行第1项，消灭进入设置必须先往下按一次的痛点
         runSuspendCatching { playPauseFocusRequester.safeRequestFocus() }
+    }
+
+    // 快捷菜单可见性变化通知：打开时暂停 OSD 自动隐藏，关闭时恢复
+    LaunchedEffect(activeQuickMenu != null) {
+        onQuickMenuVisibilityChange(activeQuickMenu != null)
     }
 
     Column(
@@ -615,7 +624,7 @@ fun ControllerVideoInfoBottom(
                                 alpha = if (isSeekFocused) 1f else 0f,
                             ),
                         shape = BVShape.small,
-                    ).focusable()
+                    )
                     .focusRequester(seekFocusRequester)
                     .pointerInput(seekerState.totalDuration) {
                         awaitEachGesture {
@@ -684,7 +693,7 @@ fun ControllerVideoInfoBottom(
                     }.onFocusChanged { isSeekFocused = it.isFocused },
         ) {
             VideoProgressSeek(
-                modifier = Modifier.focusable().fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 duration = seekerState.totalDuration,
                 position = if (isSeeking) goTime else seekerState.currentTime,
                 bufferedPercentage = seekerState.bufferedPercentage,
@@ -936,7 +945,6 @@ fun ControllerVideoInfoBottom(
                                 } else {
                                     VodQuickMenuType.Resolution
                                 }
-                            onResetAutoHide()
                         },
                     ),
                 )
@@ -950,7 +958,6 @@ fun ControllerVideoInfoBottom(
                         action = {
                             activeQuickMenu =
                                 if (activeQuickMenu == VodQuickMenuType.PlaySpeed) null else VodQuickMenuType.PlaySpeed
-                            onResetAutoHide()
                         },
                     ),
                 )
@@ -964,7 +971,6 @@ fun ControllerVideoInfoBottom(
                         action = {
                             activeQuickMenu =
                                 if (activeQuickMenu == VodQuickMenuType.Audio) null else VodQuickMenuType.Audio
-                            onResetAutoHide()
                         },
                     ),
                 )
@@ -989,7 +995,6 @@ fun ControllerVideoInfoBottom(
                                     } else {
                                         VodQuickMenuType.Subtitle
                                     }
-                                onResetAutoHide()
                             },
                         ),
                     )

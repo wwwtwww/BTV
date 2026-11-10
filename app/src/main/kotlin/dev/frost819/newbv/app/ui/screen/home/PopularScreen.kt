@@ -88,7 +88,7 @@ fun PopularScreen(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "popular_$index"),
+                modifier = Modifier.focusSaverItem(focusSaver, "popular_${item.aid}"),
                 data = cardData,
                 onClick = {
                     navController.navigateFromVideoCard(cardData)

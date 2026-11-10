@@ -302,6 +302,8 @@ fun LivePlayerController(
                 isBuffering = isBuffering,
                 isError = isError,
                 errorMessage = errorMessage,
+                onRetry = onRefresh,
+                onExit = onBack,
             )
 
             GestureTip(

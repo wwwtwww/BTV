@@ -3,6 +3,7 @@ package dev.frost819.newbv.data.db.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import dev.frost819.newbv.data.db.entity.UserEntity
@@ -30,6 +31,14 @@ interface UserDao {
     /** 插入一个或多个账户。 */
     @Insert
     suspend fun insert(vararg user: UserEntity)
+
+    /**
+     * 插入或替换账户。
+     *
+     * 当 [uid] 已存在时替换整条记录（唯一索引冲突策略）。
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(user: UserEntity)
 
     /** 删除一个或多个账户。 */
     @Delete

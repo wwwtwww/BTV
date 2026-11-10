@@ -125,7 +125,7 @@ fun ToViewScreen(
                         )
                     }
                 SmallVideoCard(
-                    modifier = Modifier.focusSaverItem(focusSaver, "toview_unwatched_$index"),
+                    modifier = Modifier.focusSaverItem(focusSaver, "toview_unwatched_${item.oid}"),
                     data = cardData,
                     onClick = {
                         navController.navigateFromVideoCard(cardData)
@@ -168,7 +168,7 @@ fun ToViewScreen(
                         )
                     }
                 SmallVideoCard(
-                    modifier = Modifier.focusSaverItem(focusSaver, "toview_watched_$index"),
+                    modifier = Modifier.focusSaverItem(focusSaver, "toview_watched_${item.oid}"),
                     data = cardData,
                     onClick = {
                         navController.navigateFromVideoCard(cardData)

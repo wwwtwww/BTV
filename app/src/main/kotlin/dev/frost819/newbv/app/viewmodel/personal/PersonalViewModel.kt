@@ -145,6 +145,9 @@ class PersonalViewModel
         private var favoriteLoadJob: Job? = null
         private var followingPageNumber: Int = 1
         private var followingTotal: Int = 0
+        private var toViewLoadJob: Job? = null
+        private var historyLoadJob: Job? = null
+        private var followingSeasonLoadJob: Job? = null
 
         init {
             _uiState.update { it.copy(isLogin = Prefs.isLogin) }
@@ -164,31 +167,31 @@ class PersonalViewModel
          * 稍后再看接口不支持分页，一次性加载全部。
          */
         fun loadToView() {
-            viewModelScope.launch {
-                if (_uiState.value.toViewLoading) return@launch
+            toViewLoadJob?.cancel()
+            toViewLoadJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(toViewLoading = true, toViewError = false) }
 
-                _uiState.update { it.copy(toViewLoading = true, toViewError = false) }
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val data =
+                                toViewRepository.getToView(
+                                    cursor = 0,
+                                    preferApiType = prefApiType(),
+                                )
+                            toViewItems.clear()
+                            toViewItems.addAll(data.data)
+                        }
+                    }.onFailure { error ->
+                        if (error is CancellationException && error !is TimeoutCancellationException) {
+                            throw error
+                        }
+                        logger.error(error) { "Failed to load toview" }
+                        _uiState.update { it.copy(toViewError = true) }
+                    }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data =
-                            toViewRepository.getToView(
-                                cursor = 0,
-                                preferApiType = prefApiType(),
-                            )
-                        toViewItems.clear()
-                        toViewItems.addAll(data.data)
-                    }
-                }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
-                    logger.error(error) { "Failed to load toview" }
-                    _uiState.update { it.copy(toViewError = true) }
+                    _uiState.update { it.copy(toViewLoading = false) }
                 }
-
-                _uiState.update { it.copy(toViewLoading = false) }
-            }
         }
 
         /**
@@ -223,6 +226,7 @@ class PersonalViewModel
          * 刷新稍后再看列表。
          */
         fun refreshToView() {
+            toViewLoadJob?.cancel()
             toViewItems.clear()
             _uiState.update { it.copy(toViewError = false) }
             loadToView()
@@ -239,43 +243,46 @@ class PersonalViewModel
          * 超过 [LOAD_TIMEOUT_MS] 未返回时标记为加载失败。
          */
         fun loadHistory() {
-            viewModelScope.launch {
-                val current = _uiState.value
-                if (current.historyLoading || !current.historyHasMore) return@launch
+            val current = _uiState.value
+            if (!current.historyHasMore) return
 
-                _uiState.update { it.copy(historyLoading = true, historyError = false) }
+            historyLoadJob?.cancel()
+            historyLoadJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(historyLoading = true, historyError = false) }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data =
-                            historyRepository.getHistories(
-                                cursor = historyCursor,
-                                preferApiType = prefApiType(),
-                            )
-                        historyCursor = data.cursor
-                        _uiState.update {
-                            it.copy(
-                                historyItems = it.historyItems + data.data,
-                                historyHasMore = data.cursor != 0L,
-                            )
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val data =
+                                historyRepository.getHistories(
+                                    cursor = historyCursor,
+                                    preferApiType = prefApiType(),
+                                )
+                            historyCursor = data.cursor
+                            _uiState.update {
+                                it.copy(
+                                    historyItems = it.historyItems + data.data,
+                                    historyHasMore = data.cursor != 0L,
+                                )
+                            }
                         }
+                    }.onFailure { error ->
+                        if (error is CancellationException && error !is TimeoutCancellationException) {
+                            throw error
+                        }
+                        logger.error(error) { "Failed to load history" }
+                        _uiState.update { it.copy(historyError = true) }
                     }
-                }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
-                    logger.error(error) { "Failed to load history" }
-                    _uiState.update { it.copy(historyError = true) }
-                }
 
-                _uiState.update { it.copy(historyLoading = false) }
-            }
+                    _uiState.update { it.copy(historyLoading = false) }
+                }
         }
 
         /**
          * 刷新历史记录。
          */
         fun refreshHistory() {
+            historyLoadJob?.cancel()
             historyCursor = 0L
             _uiState.update {
                 it.copy(historyItems = emptyList(), historyHasMore = true, historyError = false)
@@ -419,40 +426,42 @@ class PersonalViewModel
          * 使用页码分页，每页 30 条。
          */
         fun loadFollowingSeasons() {
-            viewModelScope.launch {
-                val current = _uiState.value
-                if (current.followingLoading || !current.followingHasMore) return@launch
+            val current = _uiState.value
+            if (!current.followingHasMore) return
 
-                _uiState.update { it.copy(followingLoading = true, followingError = false) }
+            followingSeasonLoadJob?.cancel()
+            followingSeasonLoadJob =
+                viewModelScope.launch {
+                    _uiState.update { it.copy(followingLoading = true, followingError = false) }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data =
-                            seasonRepository.getFollowingSeasons(
-                                type = current.followingType,
-                                status = current.followingStatus,
-                                pageNumber = followingPageNumber,
-                                preferApiType = prefApiType(),
-                            )
-                        followingPageNumber++
-                        followingTotal = data.total
-                        _uiState.update {
-                            it.copy(
-                                followingSeasons = it.followingSeasons + data.list,
-                                followingHasMore = it.followingSeasons.size + data.list.size < followingTotal,
-                            )
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val data =
+                                seasonRepository.getFollowingSeasons(
+                                    type = current.followingType,
+                                    status = current.followingStatus,
+                                    pageNumber = followingPageNumber,
+                                    preferApiType = prefApiType(),
+                                )
+                            followingPageNumber++
+                            followingTotal = data.total
+                            _uiState.update {
+                                it.copy(
+                                    followingSeasons = it.followingSeasons + data.list,
+                                    followingHasMore = it.followingSeasons.size + data.list.size < followingTotal,
+                                )
+                            }
                         }
+                    }.onFailure { error ->
+                        if (error is CancellationException && error !is TimeoutCancellationException) {
+                            throw error
+                        }
+                        logger.error(error) { "Failed to load following seasons" }
+                        _uiState.update { it.copy(followingError = true) }
                     }
-                }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
-                    logger.error(error) { "Failed to load following seasons" }
-                    _uiState.update { it.copy(followingError = true) }
-                }
 
-                _uiState.update { it.copy(followingLoading = false) }
-            }
+                    _uiState.update { it.copy(followingLoading = false) }
+                }
         }
 
         /**
@@ -483,6 +492,7 @@ class PersonalViewModel
          * 刷新追番列表。
          */
         fun refreshFollowingSeasons() {
+            followingSeasonLoadJob?.cancel()
             followingPageNumber = 1
             followingTotal = 0
             _uiState.update {

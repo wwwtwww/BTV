@@ -35,6 +35,8 @@ import androidx.navigation.toRoute
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import dev.frost819.newbv.app.ui.component.ListFooterTip
 import dev.frost819.newbv.app.ui.component.TvLazyVerticalGrid
 import dev.frost819.newbv.app.ui.component.focusSaverItem
@@ -82,6 +84,7 @@ private fun UserSpaceScreen(
     val state by viewModel.uiState.collectAsState()
     val gridState = rememberLazyGridState()
     val focusSaver = rememberFocusSaver()
+    val fallbackFocusRequester = remember { FocusRequester() }
     val watchLaterViewModel: WatchLaterViewModel = hiltViewModel()
 
     CollectWatchLaterEffects(watchLaterViewModel)
@@ -90,7 +93,7 @@ private fun UserSpaceScreen(
         viewModel.init(mid, name, face)
     }
 
-    focusSaver.RestoreFocus()
+    focusSaver.RestoreFocus(fallbackRequester = fallbackFocusRequester)
 
     LaunchedEffect(gridState, state.videos.size) {
         snapshotFlow {
@@ -144,7 +147,9 @@ private fun UserSpaceScreen(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "user_space_$index"),
+                modifier = Modifier
+                    .then(if (index == 0) Modifier.focusRequester(fallbackFocusRequester) else Modifier)
+                    .focusSaverItem(focusSaver, "user_space_$index"),
                 data = cardData,
                 onClick = { navController.navigateFromVideoCard(cardData) },
                 onGoToDetailPage = {

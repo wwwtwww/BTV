@@ -9,6 +9,7 @@ import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +45,8 @@ class FollowViewModel
     ) : ViewModel() {
         private val logger = Loggers.get("FollowViewModel")
 
+        private var loadJob: Job? = null
+
         private fun prefApiType(): ApiType =
             if (Prefs.apiType == dev.frost819.newbv.data.datastore.ApiType.App) ApiType.App else ApiType.Web
 
@@ -62,23 +65,25 @@ class FollowViewModel
         }
 
         private fun load(mid: Long) {
-            viewModelScope.launch {
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        userRepository.getFollowedUsers(mid, preferApiType = prefApiType())
+            loadJob?.cancel()
+            loadJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            userRepository.getFollowedUsers(mid, preferApiType = prefApiType())
+                        }
+                    }.onSuccess { users ->
+                        _uiState.update {
+                            it.copy(
+                                users = users,
+                                loading = false,
+                                error = false,
+                            )
+                        }
+                    }.onFailure { error ->
+                        logger.error(error) { "Failed to load followed users" }
+                        _uiState.update { it.copy(loading = false, error = true) }
                     }
-                }.onSuccess { users ->
-                    _uiState.update {
-                        it.copy(
-                            users = users,
-                            loading = false,
-                            error = false,
-                        )
-                    }
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to load followed users" }
-                    _uiState.update { it.copy(loading = false, error = true) }
                 }
-            }
         }
     }

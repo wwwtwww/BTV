@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -90,13 +91,15 @@ fun rememberGestureTipState(): androidx.compose.runtime.MutableState<GestureTipS
  * @param callbacks 手势回调集合。
  * @param gestureTipState 手势提示状态（外部持有）。
  */
+@Composable
 fun Modifier.playerGestures(
     totalDuration: () -> Long,
     controllerVisible: () -> Boolean,
     callbacks: PlayerGestureCallbacks,
     gestureTipState: androidx.compose.runtime.MutableState<GestureTipState>,
-): Modifier =
-    this.pointerInput(Unit) {
+): Modifier {
+    val currentCallbacks by rememberUpdatedState(callbacks)
+    return this.pointerInput(Unit) {
         val doubleTapTimeout = 300L
         val tapSlop = 40f
         val dragThreshold = 10f
@@ -130,7 +133,7 @@ fun Modifier.playerGestures(
 
                     if (isDragging) {
                         if (isHorizontalDrag == true) {
-                            callbacks.onSeekCommit()
+                            currentCallbacks.onSeekCommit()
                         }
                         gestureTipState.value = GestureTipState(isActive = false)
                     } else {
@@ -141,11 +144,11 @@ fun Modifier.playerGestures(
                         if (!moved) {
                             val now = System.currentTimeMillis()
                             if (now - lastTapTime < doubleTapTimeout) {
-                                callbacks.onDoubleTap()
+                                currentCallbacks.onDoubleTap()
                                 lastTapTime = 0L
                             } else {
                                 lastTapTime = now
-                                callbacks.onSingleTap()
+                                currentCallbacks.onSingleTap()
                             }
                         }
                     }
@@ -178,7 +181,7 @@ fun Modifier.playerGestures(
                         if (durationMs > 0) {
                             val deltaMs = (deltaX / width * durationMs * 0.5f).toLong()
                             if (deltaMs != 0L) {
-                                callbacks.onSeekDelta(deltaMs)
+                                currentCallbacks.onSeekDelta(deltaMs)
                                 gestureTipState.value =
                                     GestureTipState(
                                         isActive = true,
@@ -191,9 +194,9 @@ fun Modifier.playerGestures(
                         // Compose 中 y 向下为正，上滑（deltaY < 0）应增加亮度/音量，故取反
                         val isLeftHalf = startX < width / 2
                         if (isLeftHalf) {
-                            callbacks.onBrightnessChange(-deltaY)
+                            currentCallbacks.onBrightnessChange(-deltaY)
                         } else {
-                            callbacks.onVolumeChange(-deltaY)
+                            currentCallbacks.onVolumeChange(-deltaY)
                         }
                     }
                     change.consume()
@@ -201,6 +204,7 @@ fun Modifier.playerGestures(
             }
         }
     }
+}
 
 /**
  * 亮度调节辅助函数。
@@ -242,6 +246,7 @@ fun adjustVolume(
     deltaY: Float,
 ): Int {
     val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    if (maxVolume <= 0) return 0
     val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
     val deltaSteps = (deltaY / 80f).toInt()
     val newVolume = (currentVolume + deltaSteps).coerceIn(0, maxVolume)

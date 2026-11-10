@@ -3,6 +3,7 @@ package dev.frost819.newbv.app
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,9 +71,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
-        interactionTracker.onTouch()
-        return super.onTouchEvent(event)
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            interactionTracker.onTouch()
+        }
+        return super.dispatchTouchEvent(event)
     }
 
     @SuppressLint("RestrictedApi")

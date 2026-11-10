@@ -511,7 +511,6 @@ private fun SeasonEpisodeRow(
             modifier =
                 Modifier
                     .focusRestorer(focusRequester)
-                    .onFocusChanged { if (it.hasFocus) focusSaver.saveFocusedKey(rowKey) }
                     .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(horizontal = 50.dp),
@@ -641,7 +640,6 @@ private fun SeasonSwitcherRow(
             modifier =
                 Modifier
                     .focusRestorer(focusRequester)
-                    .onFocusChanged { if (it.hasFocus) focusSaver.saveFocusedKey("seasons") }
                     .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 50.dp),

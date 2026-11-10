@@ -21,9 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
@@ -42,6 +40,7 @@ import dev.frost819.newbv.app.util.formatHourMinSec
 import dev.frost819.newbv.app.util.toWanString
 import dev.frost819.newbv.app.viewmodel.ugc.UgcViewModel
 import dev.frost819.newbv.biliapi.entity.ugc.UgcTypeV2
+import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -95,12 +94,15 @@ fun UgcContent(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(UgcTabItem.Douga) }
     var focusOnContent by remember { mutableStateOf(false) }
+    var focusOnNav by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsState()
 
     Material3Scaffold(
         topBar = {
             TopNav(
-                modifier = Modifier.focusRequester(navFocusRequester),
+                modifier = Modifier
+                    .focusRequester(navFocusRequester)
+                    .onFocusChanged { focusOnNav = it.isFocused },
                 items = UgcTabItem.entries.toList(),
                 selectedIndex = UgcTabItem.entries.indexOf(selectedTab),
                 isLargePadding = !focusOnContent,
@@ -122,7 +124,7 @@ fun UgcContent(
                     .padding(innerPadding)
                     .onFocusChanged { focusOnContent = it.hasFocus }
                     .onPreviewKeyEvent { event ->
-                        if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
+                        if (event.isMenuKey() && event.type == KeyEventType.KeyUp && focusOnNav) {
                             viewModel.refresh()
                             navFocusRequester.safeRequestFocus()
                             return@onPreviewKeyEvent true
@@ -192,7 +194,7 @@ private fun UgcGrid(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "ugc_$index"),
+                modifier = Modifier.focusSaverItem(focusSaver, "ugc_${item.aid}"),
                 data = cardData,
                 onClick = {
                     navController.navigateFromVideoCard(cardData)

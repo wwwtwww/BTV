@@ -80,18 +80,21 @@ class FocusSaver(
         maxRetries: Int = 3,
         retryDelayMs: Long = 60,
     ) {
-        LaunchedEffect(savedKey.value) {
+        LaunchedEffect(Unit) {
             val key = savedKey.value
             var restored = false
             if (key.isNotEmpty()) {
-                val target = requesters[key]
-                if (target != null) {
-                    repeat(maxRetries) { attempt ->
+                repeat(maxRetries) { attempt ->
+                    // 每次重试都重新查找 target，应对 Lazy 子项延迟挂载
+                    val target = requesters[key]
+                    if (target != null) {
                         kotlinx.coroutines.delay(retryDelayMs)
                         if (target.safeRequestFocus()) {
                             restored = true
                             return@LaunchedEffect
                         }
+                    } else {
+                        kotlinx.coroutines.delay(retryDelayMs)
                     }
                 }
             }

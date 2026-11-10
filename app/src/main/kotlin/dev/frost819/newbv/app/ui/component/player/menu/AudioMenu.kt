@@ -3,8 +3,10 @@ package dev.frost819.newbv.app.ui.component.player.menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import dev.frost819.newbv.app.ui.component.player.menu.component.RadioMenuList
 import dev.frost819.newbv.app.viewmodel.player.MenuFocusState
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.data.datastore.Audio
 
 /**
@@ -15,6 +17,7 @@ import dev.frost819.newbv.data.datastore.Audio
  * @param currentAudio 当前正在播放的音轨
  * @param onAudioChange 音轨切换回调
  * @param onFocusStateChange 焦点状态变化回调
+ * @param navFocusRequester 导航栏焦点请求器，返回时用于请求焦点
  */
 @Composable
 fun AudioMenuList(
@@ -23,6 +26,7 @@ fun AudioMenuList(
     currentAudio: Audio,
     onAudioChange: (Audio) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
+    navFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     val audioList =
         remember(availableAudio) {
@@ -35,7 +39,10 @@ fun AudioMenuList(
         items = audioList.map { it.detailedDisplayName },
         selected = audioList.indexOf(currentAudio).coerceAtLeast(0),
         onSelectedChanged = { onAudioChange(audioList[it]) },
-        onFocusBackToParent = { onFocusStateChange(MenuFocusState.MenuNav) },
+        onFocusBackToParent = {
+            onFocusStateChange(MenuFocusState.MenuNav)
+            navFocusRequester.safeRequestFocus()
+        },
     )
 }
 

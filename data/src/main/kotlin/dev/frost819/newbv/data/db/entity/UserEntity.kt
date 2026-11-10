@@ -2,6 +2,7 @@ package dev.frost819.newbv.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -17,12 +18,12 @@ import androidx.room.PrimaryKey
  * @property auth 登录凭证 JSON（含 SESSDATA / bili_jct / access_token 等），由调用方序列化。
  * @property lock 用户锁密码（空字符串表示未启用），用于启动解锁校验。
  */
-@Entity(tableName = "user")
+@Entity(tableName = "user", indices = [Index(value = ["uid"], unique = true)])
 data class UserEntity(
     @PrimaryKey(autoGenerate = true) val id: Int? = null,
     @ColumnInfo(name = "uid") val uid: Long,
-    @ColumnInfo(name = "username") var username: String,
-    @ColumnInfo(name = "avatar") var avatar: String,
-    @ColumnInfo(name = "auth") var auth: String,
-    @ColumnInfo(name = "lock", defaultValue = "") var lock: String = "",
+    @ColumnInfo(name = "username") val username: String,
+    @ColumnInfo(name = "avatar") val avatar: String,
+    @ColumnInfo(name = "auth") val auth: String,
+    @ColumnInfo(name = "lock", defaultValue = "") val lock: String = "",
 )

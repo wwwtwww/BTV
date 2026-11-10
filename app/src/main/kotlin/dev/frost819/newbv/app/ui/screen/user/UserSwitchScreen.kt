@@ -21,6 +21,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +70,8 @@ fun UserSwitchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusSaver = rememberFocusSaver()
-    focusSaver.RestoreFocus()
+    val fallbackFocusRequester = remember { FocusRequester() }
+    focusSaver.RestoreFocus(fallbackRequester = fallbackFocusRequester)
 
     LifecycleResumeEffect(Unit) {
         viewModel.updateData()
@@ -111,6 +115,7 @@ fun UserSwitchScreen(
                             onClick = onNavigateLogin,
                             modifier =
                                 Modifier
+                                    .focusRequester(fallbackFocusRequester)
                                     .focusSaverItem(focusSaver, "add_user_empty")
                                     .touchClickable(onClick = onNavigateLogin),
                         ) {
@@ -130,7 +135,15 @@ fun UserSwitchScreen(
                             isCurrentUser = user.uid == uiState.currentUid,
                             onClick = { viewModel.switchUser(user) },
                             onDelete = { viewModel.deleteUser(user) },
-                            modifier = Modifier.focusSaverItem(focusSaver, "user_${user.uid}"),
+                            modifier = Modifier
+                                .then(
+                                    if (user == uiState.users.first()) {
+                                        Modifier.focusRequester(fallbackFocusRequester)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .focusSaverItem(focusSaver, "user_${user.uid}"),
                         )
                     }
                     item {

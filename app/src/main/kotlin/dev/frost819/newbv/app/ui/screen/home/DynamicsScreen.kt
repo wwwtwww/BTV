@@ -110,7 +110,7 @@ fun DynamicsScreen(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "dynamics_$index"),
+                modifier = Modifier.focusSaverItem(focusSaver, "dynamics_${item.aid}"),
                 data = cardData,
                 onClick = {
                     navController.navigateFromVideoCard(cardData)

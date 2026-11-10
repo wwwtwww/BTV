@@ -10,10 +10,12 @@ import dev.frost819.newbv.biliapi.entity.pgc.PgcType
 import dev.frost819.newbv.biliapi.repositories.PgcRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -65,9 +67,11 @@ class PgcViewModel
         /** 当前分区的分页游标。 */
         private var cursor: Int = 0
 
+        /** 当前加载任务，用于并发保护。 */
+        private var loadJob: Job? = null
+
         init {
-            loadCarousel()
-            loadMore()
+            startLoad()
         }
 
         /**
@@ -77,11 +81,22 @@ class PgcViewModel
          */
         fun switchType(type: PgcType) {
             if (type == currentType && _uiState.value.items.isNotEmpty()) return
+            loadJob?.cancel()
             currentType = type
             cursor = 0
             _uiState.value = PgcUiState()
-            loadCarousel()
-            loadMore()
+            startLoad()
+        }
+
+        /**
+         * 启动合并加载任务（轮播图 + Feed）。
+         */
+        private fun startLoad() {
+            loadJob = viewModelScope.launch {
+                val carouselDeferred = async { loadCarouselInternal() }
+                loadMoreInternal()
+                carouselDeferred.await()
+            }
         }
 
         /**
@@ -89,21 +104,24 @@ class PgcViewModel
          *
          * 失败时静默处理（轮播图为辅助展示，不阻塞 Feed）。
          */
-        fun loadCarousel() {
-            viewModelScope.launch {
-                _uiState.update { it.copy(carouselLoading = true) }
+        private suspend fun loadCarouselInternal() {
+            val typeAtStart = currentType
+            _uiState.update { it.copy(carouselLoading = true) }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val carouselData = pgcRepository.getCarousel(currentType)
+            runSuspendCatching {
+                withTimeout(LOAD_TIMEOUT_MS) {
+                    val carouselData = pgcRepository.getCarousel(typeAtStart)
+                    if (currentType == typeAtStart) {
                         _uiState.update {
                             it.copy(carouselItems = carouselData.items)
                         }
                     }
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to load PGC carousel: $currentType" }
                 }
+            }.onFailure { error ->
+                logger.error(error) { "Failed to load PGC carousel: $typeAtStart" }
+            }
 
+            if (currentType == typeAtStart) {
                 _uiState.update { it.copy(carouselLoading = false) }
             }
         }
@@ -114,19 +132,24 @@ class PgcViewModel
          * 超时或失败时标记 error，不中断已有数据。
          */
         fun loadMore() {
-            val current = _uiState.value
-            if (current.loading || !current.hasMore) return
+            if (_uiState.value.loading || !_uiState.value.hasMore) return
+            loadJob = viewModelScope.launch {
+                loadMoreInternal()
+            }
+        }
 
-            viewModelScope.launch {
-                _uiState.update { it.copy(loading = true, error = false) }
+        private suspend fun loadMoreInternal() {
+            val typeAtStart = currentType
+            _uiState.update { it.copy(loading = true, error = false) }
 
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val data: PgcFeedData =
-                            pgcRepository.getFeed(
-                                pgcType = currentType,
-                                cursor = cursor,
-                            )
+            runSuspendCatching {
+                withTimeout(LOAD_TIMEOUT_MS) {
+                    val data: PgcFeedData =
+                        pgcRepository.getFeed(
+                            pgcType = typeAtStart,
+                            cursor = cursor,
+                        )
+                    if (currentType == typeAtStart) {
                         cursor = data.cursor
                         _uiState.update {
                             it.copy(
@@ -135,11 +158,15 @@ class PgcViewModel
                             )
                         }
                     }
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to load PGC feed: $currentType" }
+                }
+            }.onFailure { error ->
+                logger.error(error) { "Failed to load PGC feed: $typeAtStart" }
+                if (currentType == typeAtStart) {
                     _uiState.update { it.copy(error = true) }
                 }
+            }
 
+            if (currentType == typeAtStart) {
                 _uiState.update { it.copy(loading = false) }
             }
         }
@@ -148,9 +175,9 @@ class PgcViewModel
          * 刷新当前分区数据（轮播图 + Feed）。
          */
         fun refresh() {
+            loadJob?.cancel()
             cursor = 0
             _uiState.value = PgcUiState()
-            loadCarousel()
-            loadMore()
+            startLoad()
         }
     }

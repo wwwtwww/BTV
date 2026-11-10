@@ -304,7 +304,7 @@ fun <T : Any> PlayerQuickMenuPopover(
             List(items.size) { FocusRequester() }
         }
 
-    LaunchedEffect(visible, title, selectedIndex) {
+    LaunchedEffect(visible, title, selectedIndex, items.size) {
         if (!visible) return@LaunchedEffect
         // 若目标项处于当前视口之外，主动先触发滚动以触发布局挂载，避免 visibleItemsInfo 挂起
         if (lazyListState.layoutInfo.visibleItemsInfo.none { it.index == selectedIndex }) {

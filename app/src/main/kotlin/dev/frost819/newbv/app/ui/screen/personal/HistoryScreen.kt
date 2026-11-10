@@ -130,7 +130,7 @@ fun HistoryScreen(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "history_$index"),
+                modifier = Modifier.focusSaverItem(focusSaver, "history_${item.oid}"),
                 data = cardData,
                 onClick = {
                     navController.navigateFromVideoCard(cardData)

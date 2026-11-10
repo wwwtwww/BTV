@@ -40,6 +40,8 @@ fun RadioMenuList(
     onFocusBackToParent: () -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
+    // 当 selected 超出范围时回退到第一项，避免焦点恢复静默失败
+    val effectiveSelected = if (items.isNotEmpty()) selected.coerceIn(0, items.lastIndex) else 0
     LazyColumn(
         modifier =
             modifier
@@ -62,9 +64,9 @@ fun RadioMenuList(
                 modifier =
                     Modifier
                         .width(200.dp)
-                        .ifElse(selected == index, Modifier.focusRequester(focusRequester)),
+                        .ifElse(effectiveSelected == index, Modifier.focusRequester(focusRequester)),
                 text = item,
-                selected = selected == index,
+                selected = effectiveSelected == index,
                 onClick = { onSelectedChanged(index) },
             )
         }

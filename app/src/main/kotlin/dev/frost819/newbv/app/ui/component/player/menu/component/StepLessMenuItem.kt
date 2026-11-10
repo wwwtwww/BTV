@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app.ui.component.player.menu.component
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,8 +84,7 @@ fun StepLessMenuItem(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Surface(
-                modifier = Modifier.touchClickable(onClick = increment),
-                onClick = increment,
+                modifier = Modifier.focusable(false).touchClickable(onClick = increment),
             ) {
                 Icon(imageVector = Icons.Rounded.ArrowDropUp, contentDescription = "增加")
             }
@@ -114,8 +114,7 @@ fun StepLessMenuItem(
                 onClick = {},
             )
             Surface(
-                modifier = Modifier.touchClickable(onClick = decrement),
-                onClick = decrement,
+                modifier = Modifier.focusable(false).touchClickable(onClick = decrement),
             ) {
                 Icon(imageVector = Icons.Rounded.ArrowDropDown, contentDescription = "减少")
             }

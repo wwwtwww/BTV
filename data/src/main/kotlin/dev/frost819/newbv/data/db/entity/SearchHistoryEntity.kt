@@ -2,6 +2,7 @@ package dev.frost819.newbv.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.Date
 
@@ -15,9 +16,9 @@ import java.util.Date
  * @property keyword 搜索关键词。
  * @property searchDate 搜索时间，新插入时默认为当前时间；更新历史时需重新赋值。
  */
-@Entity(tableName = "search_history")
+@Entity(tableName = "search_history", indices = [Index(value = ["keyword"], unique = true)])
 data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Int? = null,
     @ColumnInfo(name = "keyword") val keyword: String,
-    @ColumnInfo(name = "search_date") var searchDate: Date = Date(),
+    @ColumnInfo(name = "search_date") val searchDate: Date = Date(),
 )

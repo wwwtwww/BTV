@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app.ui.component.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +46,7 @@ import dev.frost819.newbv.app.util.NetworkDiagnosticReport
 import dev.frost819.newbv.app.util.NetworkType
 import dev.frost819.newbv.app.util.NetworkUtil
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVShape
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -66,6 +70,7 @@ fun NetworkDiagnosticsDialog(
     var isChecking by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<NetworkDiagnosticReport?>(null) }
     var checkingJob by remember { mutableStateOf<Job?>(null) }
+    val dialogFocusRequester = remember { FocusRequester() }
 
     fun runCheck() {
         if (isChecking) return // 防重入保护：诊断正在进行中直接忽略重复触发
@@ -89,9 +94,15 @@ fun NetworkDiagnosticsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        LaunchedEffect(Unit) {
+            dialogFocusRequester.safeRequestFocus()
+        }
+
         Surface(
             modifier =
                 Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
                     .width(580.dp)
                     .clip(MaterialTheme.shapes.large),
             colors =

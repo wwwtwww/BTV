@@ -3,6 +3,7 @@ package dev.frost819.newbv.app.ui.component.player.menu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -100,6 +101,7 @@ fun MenuController(
             modifier
                 .fillMaxSize()
                 .focusRequester(focusRequester)
+                .focusable()
                 .onFocusChanged {},
         contentAlignment = Alignment.CenterEnd,
     ) {
@@ -155,6 +157,7 @@ private fun MenuControllerContent(
 ) {
     var selectedNavItem by remember { mutableStateOf(VideoPlayerMenuNavItem.PlaySpeed) }
     var focusState by remember { mutableStateOf(MenuFocusState.MenuNav) }
+    val navFocusRequester = remember { FocusRequester() }
 
     Surface(
         modifier = Modifier.fillMaxHeight(),
@@ -189,6 +192,7 @@ private fun MenuControllerContent(
                     onSubtitleSizeChange = onSubtitleSizeChange,
                     onSubtitleBackgroundOpacityChange = onSubtitleBackgroundOpacityChange,
                     onSubtitleBottomPadding = onSubtitleBottomPadding,
+                    navFocusRequester = navFocusRequester,
                 )
                 MenuNavList(
                     modifier =
@@ -208,6 +212,7 @@ private fun MenuControllerContent(
                     label = { it.displayName },
                     icon = { it.icon },
                     onSelectedChanged = { selectedNavItem = it },
+                    focusRequester = navFocusRequester,
                 )
             }
         }
@@ -238,6 +243,7 @@ private fun MenuList(
     onSubtitleSizeChange: (Int) -> Unit,
     onSubtitleBackgroundOpacityChange: (Float) -> Unit,
     onSubtitleBottomPadding: (Int) -> Unit,
+    navFocusRequester: FocusRequester,
 ) {
     Box(contentAlignment = Alignment.Center) {
         when (selectedNavMenu) {
@@ -252,6 +258,7 @@ private fun MenuList(
                     onCodecChange = onCodecChange,
                     onAspectRatioChange = onAspectRatioChange,
                     onFocusStateChange = onFocusStateChange,
+                    navFocusRequester = navFocusRequester,
                 )
 
             VideoPlayerMenuNavItem.Audio ->
@@ -260,6 +267,7 @@ private fun MenuList(
                     currentAudio = uiState.mediaProfileState.audio,
                     onAudioChange = onAudioChange,
                     onFocusStateChange = onFocusStateChange,
+                    navFocusRequester = navFocusRequester,
                 )
 
             VideoPlayerMenuNavItem.PlaySpeed ->
@@ -267,6 +275,7 @@ private fun MenuList(
                     currentSelectedPlaySpeedItem = PlaySpeedItem.fromSpeed(uiState.playSpeed),
                     onPlaySpeedChange = onPlaySpeedChange,
                     onFocusStateChange = onFocusStateChange,
+                    navFocusRequester = navFocusRequester,
                 )
 
             VideoPlayerMenuNavItem.Danmaku -> {
@@ -290,6 +299,7 @@ private fun MenuList(
                     onDanmakuAreaChange = onDanmakuAreaChange,
                     onFocusStateChange = onFocusStateChange,
                     onDanmakuMaskChange = onDanmakuMaskChange,
+                    navFocusRequester = navFocusRequester,
                 )
             }
 
@@ -311,6 +321,7 @@ private fun MenuList(
                     onSubtitleBackgroundOpacityChange = onSubtitleBackgroundOpacityChange,
                     onSubtitleBottomPadding = onSubtitleBottomPadding,
                     onFocusStateChange = onFocusStateChange,
+                    navFocusRequester = navFocusRequester,
                 )
             }
         }

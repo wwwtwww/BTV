@@ -47,7 +47,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -479,6 +478,10 @@ private fun FavoriteFolderDialog(
         selectedIds.addAll(selectedFolderIds)
     }
 
+    LaunchedEffect(Unit) {
+        defaultFocusRequester.safeRequestFocus()
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -487,9 +490,7 @@ private fun FavoriteFolderDialog(
             modifier =
                 Modifier
                     .focusRequester(defaultFocusRequester)
-                    .onGloballyPositioned {
-                        defaultFocusRequester.safeRequestFocus()
-                    }.width(500.dp)
+                    .width(500.dp)
                     .clip(MaterialTheme.shapes.large)
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(20.dp),
@@ -1013,10 +1014,7 @@ private fun VideoPartRow(
         }
         val focusRequester = focusSaver.focusRequesterFor("parts")
         LazyRow(
-            modifier =
-                Modifier
-                    .onFocusChanged { if (it.hasFocus) focusSaver.saveFocusedKey("parts") }
-                    .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding =
                 androidx.compose.foundation.layout
@@ -1140,10 +1138,7 @@ private fun VideoUgcSeasonRow(
         }
         val focusRequester = focusSaver.focusRequesterFor("seasons")
         LazyRow(
-            modifier =
-                Modifier
-                    .onFocusChanged { if (it.hasFocus) focusSaver.saveFocusedKey("seasons") }
-                    .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding =
                 androidx.compose.foundation.layout
@@ -1190,10 +1185,7 @@ private fun RelatedVideoRow(
         )
         val focusRequester = focusSaver.focusRequesterFor("related")
         LazyRow(
-            modifier =
-                Modifier
-                    .onFocusChanged { if (it.hasFocus) focusSaver.saveFocusedKey("related") }
-                    .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding =
                 androidx.compose.foundation.layout

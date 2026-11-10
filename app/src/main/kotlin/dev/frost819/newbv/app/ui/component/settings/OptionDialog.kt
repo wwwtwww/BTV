@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app.ui.component.settings
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -11,12 +12,17 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVShape
 
 /**
@@ -43,6 +49,7 @@ fun <T : Enum<T>> OptionDialog(
 ) {
     val windowInfo = LocalWindowInfo.current
     val density = LocalDensity.current
+    val dialogFocusRequester = remember { FocusRequester() }
     val maxHeightDp =
         with(density) {
             (windowInfo.containerSize.height * 0.6f).toDp()
@@ -52,9 +59,15 @@ fun <T : Enum<T>> OptionDialog(
         modifier = modifier.padding(vertical = 24.dp),
         onDismissRequest = onDismiss,
     ) {
+        LaunchedEffect(Unit) {
+            dialogFocusRequester.safeRequestFocus()
+        }
+
         Surface(
             modifier =
                 Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
             shape = BVShape.medium,

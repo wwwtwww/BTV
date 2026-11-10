@@ -89,7 +89,7 @@ fun RecommendScreen(
                     )
                 }
             SmallVideoCard(
-                modifier = Modifier.focusSaverItem(focusSaver, "rcmd_$index"),
+                modifier = Modifier.focusSaverItem(focusSaver, "rcmd_${item.aid}"),
                 data = cardData,
                 onClick = {
                     navController.navigateFromVideoCard(cardData)

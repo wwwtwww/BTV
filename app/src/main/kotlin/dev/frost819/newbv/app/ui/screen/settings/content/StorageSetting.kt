@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app.ui.screen.settings.content
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Button
@@ -36,6 +39,7 @@ import dev.frost819.newbv.app.ui.component.settings.SettingListItem
 import dev.frost819.newbv.app.ui.component.settings.SettingsMenuSelectItem
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
 import dev.frost819.newbv.app.util.CacheManager
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.CrashHandler
 import dev.frost819.newbv.core.theme.BVShape
@@ -219,6 +223,12 @@ private fun ThresholdOptionDialog(
     onDismiss: () -> Unit,
     onSelect: (Int) -> Unit,
 ) {
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
+
     BasicAlertDialog(
         modifier = Modifier.padding(vertical = 24.dp),
         onDismissRequest = onDismiss,
@@ -226,6 +236,8 @@ private fun ThresholdOptionDialog(
         Surface(
             modifier =
                 Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
             shape = BVShape.medium,

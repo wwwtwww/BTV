@@ -47,6 +47,7 @@ import dev.frost819.newbv.app.ui.state.player.PlayerUiState
 import dev.frost819.newbv.app.ui.state.player.SeekerState
 import dev.frost819.newbv.app.util.VideoShotImageCache
 import dev.frost819.newbv.biliapi.entity.video.Subtitle
+import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.core.theme.BVTheme
 import dev.frost819.newbv.core.theme.ThemeMode
 import dev.frost819.newbv.data.datastore.Prefs
@@ -139,6 +140,9 @@ fun VideoPlayerController(
 
     // 常显进度条
     var showPersistentSeek by remember { mutableStateOf(Prefs.showPersistentSeek) }
+
+    // 快捷菜单可见性状态（用于暂停 OSD 自动隐藏）
+    var isQuickMenuOpen by remember { mutableStateOf(false) }
 
     // 手势状态
     val gestureTipState = rememberGestureTipState()
@@ -340,6 +344,14 @@ fun VideoPlayerController(
         if (handleCustomShortcut(event)) return true
 
         // 始终生效的按键（KeyUp 已被顶层过滤，此处均为 KeyDown）
+        // Menu 键：统一使用 isMenuKey() 扩展函数（兼容标准 Key.Menu 与厂商键 Key(763)）
+        if (event.isMenuKey()) {
+            val nextShowMenu = !showMenuController
+            closeAllControllers()
+            showMenuController = nextShowMenu
+            return true
+        }
+
         when (event.key) {
             Key.Back -> {
                 if (showClickableControllers) {
@@ -352,13 +364,6 @@ fun VideoPlayerController(
                     return true
                 }
                 onExit()
-                return true
-            }
-
-            Key.Menu, Key(763) -> {
-                val nextShowMenu = !showMenuController
-                closeAllControllers()
-                showMenuController = nextShowMenu
                 return true
             }
 
@@ -454,7 +459,10 @@ fun VideoPlayerController(
                 .background(Color.Black)
                 .focusable()
                 .onPreviewKeyEvent { event ->
-                    startControllerAutoHide()
+                    // 快捷菜单打开期间暂停 OSD 自动隐藏计时器
+                    if (!isQuickMenuOpen) {
+                        startControllerAutoHide()
+                    }
                     if (event.key == Key.DirectionUp &&
                         showRelatedVideosController &&
                         event.type == KeyEventType.KeyDown
@@ -702,6 +710,7 @@ fun VideoPlayerController(
                 currentSubtitleId = uiState.subtitleId,
                 onSubtitleChange = onSubtitleChange,
                 onResetAutoHide = ::startControllerAutoHide,
+                onQuickMenuVisibilityChange = { isQuickMenuOpen = it },
             )
 
             // 底部横向胶囊选集轨

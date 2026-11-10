@@ -1,7 +1,9 @@
 package dev.frost819.newbv.app.ui.component.player.menu
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import dev.frost819.newbv.app.ui.component.player.menu.component.PlayerThreeLevelMenu
 import dev.frost819.newbv.app.ui.component.player.menu.component.RadioMenuList
 import dev.frost819.newbv.app.ui.component.player.menu.component.StepLessMenuItem
@@ -26,6 +28,7 @@ import dev.frost819.newbv.biliapi.entity.video.Subtitle
  * @param onSubtitleBackgroundOpacityChange 透明度变化回调
  * @param onSubtitleBottomPadding 底部间距变化回调
  * @param onFocusStateChange 焦点状态变化回调
+ * @param navFocusRequester 导航栏焦点请求器
  */
 @Composable
 @Suppress("LongParameterList")
@@ -41,12 +44,14 @@ fun ClosedCaptionMenuList(
     onSubtitleBackgroundOpacityChange: (Float) -> Unit,
     onSubtitleBottomPadding: (Int) -> Unit,
     onFocusStateChange: (MenuFocusState) -> Unit,
+    navFocusRequester: FocusRequester = remember { FocusRequester() },
 ) {
     PlayerThreeLevelMenu(
         modifier = modifier,
         categories = VideoPlayerClosedCaptionMenuItem.entries,
         categoryLabel = { it.displayName },
         onFocusStateChange = onFocusStateChange,
+        navFocusRequester = navFocusRequester,
     ) { selectedItem, itemModifier, backToMenu ->
         when (selectedItem) {
             VideoPlayerClosedCaptionMenuItem.Switch ->

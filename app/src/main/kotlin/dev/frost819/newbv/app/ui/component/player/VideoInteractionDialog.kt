@@ -16,8 +16,12 @@ import androidx.compose.material.icons.rounded.Paid
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,6 +34,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import dev.frost819.newbv.app.data.VideoSharedState
+import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.theme.BVTheme
 
@@ -52,6 +57,12 @@ fun VideoInteractionDialog(
     onOneClickTriple: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val dialogFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        dialogFocusRequester.safeRequestFocus()
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -64,6 +75,7 @@ fun VideoInteractionDialog(
             contentAlignment = Alignment.Center,
         ) {
             Surface(
+                modifier = Modifier.focusRequester(dialogFocusRequester),
                 colors =
                     androidx.tv.material3.SurfaceDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surface,

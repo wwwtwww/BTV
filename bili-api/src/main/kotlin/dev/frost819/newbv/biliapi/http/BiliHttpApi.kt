@@ -121,21 +121,15 @@ object BiliHttpApi {
     private const val SOCKET_TIMEOUT_MS = 20_000L
 
     private var endPoint: String = "api.bilibili.com"
-    private var clientInstance: HttpClient? = null
-    private val client: HttpClient
-        get() = clientInstance ?: createClient().also { clientInstance = it }
+    private val client: HttpClient by lazy { createClient() }
 
     /**
      * 在后台协程预创建 Ktor HttpClient，与 UI 初始化并行执行。
-     * 创建完成后赋值给 [clientInstance]，使首次网络请求时 [client] 直接可用，避免串行等待。
+     * 通过访问 [client] 触发 lazy 初始化，使首次网络请求时 client 直接可用，避免串行等待。
      */
     fun warmUpClient() {
-        if (clientInstance == null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                if (clientInstance == null) {
-                    clientInstance = createClient()
-                }
-            }
+        CoroutineScope(Dispatchers.IO).launch {
+            client
         }
     }
 
@@ -160,9 +154,13 @@ object BiliHttpApi {
      */
     var deviceCookies: String = ""
 
+    @Volatile
     var sessData: String = ""
+    @Volatile
     var biliJct: String = ""
+    @Volatile
     var mid: Long? = null
+    @Volatile
     var accessToken: String = ""
 
     fun init(

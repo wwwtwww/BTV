@@ -11,6 +11,7 @@ import dev.frost819.newbv.biliapi.http.entity.live.LiveRoomItem
 import dev.frost819.newbv.biliapi.repositories.LiveRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,10 @@ class LiveHomeViewModel
         private val _uiState = MutableStateFlow(LiveHomeUiState())
         val uiState: StateFlow<LiveHomeUiState> = _uiState.asStateFlow()
 
+        private var followLiveJob: Job? = null
+        private var areaListJob: Job? = null
+        private var recommendJob: Job? = null
+
         init {
             loadFollowLive()
             loadAreaList()
@@ -56,7 +61,8 @@ class LiveHomeViewModel
                 )
             }
 
-            viewModelScope.launch {
+            followLiveJob?.cancel()
+            followLiveJob = viewModelScope.launch {
                 runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val response = liveRepository.getFollowLive()
@@ -89,7 +95,8 @@ class LiveHomeViewModel
 
             _uiState.update { it.copy(areaLoading = true, areaError = false) }
 
-            viewModelScope.launch {
+            areaListJob?.cancel()
+            areaListJob = viewModelScope.launch {
                 runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         liveRepository.getLiveAreaList()
@@ -126,7 +133,8 @@ class LiveHomeViewModel
                 )
             }
 
-            viewModelScope.launch {
+            recommendJob?.cancel()
+            recommendJob = viewModelScope.launch {
                 runSuspendCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val response = liveRepository.getLiveRecommend()
@@ -163,7 +171,8 @@ class LiveHomeViewModel
 
             _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
 
-            viewModelScope.launch {
+            recommendJob?.cancel()
+            recommendJob = viewModelScope.launch {
                 runCatching {
                     withTimeout(LOAD_TIMEOUT_MS) {
                         val existingIds =

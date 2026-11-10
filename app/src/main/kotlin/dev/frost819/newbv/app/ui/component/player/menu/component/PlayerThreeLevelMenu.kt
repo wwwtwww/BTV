@@ -45,6 +45,7 @@ import dev.frost819.newbv.core.focus.safeRequestFocus
  * @param categoryLabel 子项显示名称
  * @param onFocusStateChange 焦点状态变化回调
  * @param modifier 修饰符
+ * @param navFocusRequester 导航栏焦点请求器，返回导航时用于请求焦点
  * @param valuePanel 值面板插槽，参数依次为当前子项、值面板修饰符、返回子项列表回调
  */
 @Composable
@@ -53,6 +54,7 @@ fun <T> PlayerThreeLevelMenu(
     categoryLabel: (T) -> String,
     onFocusStateChange: (MenuFocusState) -> Unit,
     modifier: Modifier = Modifier,
+    navFocusRequester: FocusRequester? = null,
     valuePanel: @Composable (selected: T, itemModifier: Modifier, backToMenu: () -> Unit) -> Unit,
 ) {
     // 防空：无子项时不渲染任何内容
@@ -94,7 +96,10 @@ fun <T> PlayerThreeLevelMenu(
                             return@onPreviewKeyEvent true
                         }
                         when (it.key) {
-                            Key.DirectionRight -> onFocusStateChange(MenuFocusState.MenuNav)
+                            Key.DirectionRight -> {
+                                onFocusStateChange(MenuFocusState.MenuNav)
+                                navFocusRequester?.safeRequestFocus()
+                            }
                             Key.DirectionLeft -> onFocusStateChange(MenuFocusState.Items)
                             else -> {}
                         }

@@ -138,7 +138,7 @@ fun FavoriteScreen(
                         )
                     }
                 SmallVideoCard(
-                    modifier = Modifier.focusSaverItem(focusSaver, "favorite_$index"),
+                    modifier = Modifier.focusSaverItem(focusSaver, "favorite_${item.id}"),
                     data = cardData,
                     onClick = {
                         navController.navigateFromVideoCard(cardData)

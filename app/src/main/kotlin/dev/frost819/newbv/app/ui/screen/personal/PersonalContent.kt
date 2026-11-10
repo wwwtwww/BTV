@@ -24,9 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +48,7 @@ import dev.frost819.newbv.app.ui.navigation.VideoPlayerRoute
 import dev.frost819.newbv.app.viewmodel.personal.PersonalUiEffect
 import dev.frost819.newbv.app.viewmodel.personal.PersonalViewModel
 import dev.frost819.newbv.core.focus.TvFocusDefaults
+import dev.frost819.newbv.core.focus.isMenuKey
 import dev.frost819.newbv.core.focus.safeRequestFocus
 import dev.frost819.newbv.core.theme.BVShape
 import dev.frost819.newbv.data.datastore.PersonalTopNavItem
@@ -78,6 +77,7 @@ fun PersonalContent(
     val firstTab = remember { Prefs.firstPersonalTopNavItem }
     var selectedTab by rememberSaveable { mutableStateOf(firstTab) }
     var focusOnContent by remember { mutableStateOf(false) }
+    var focusOnNav by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -105,7 +105,9 @@ fun PersonalContent(
     Material3Scaffold(
         topBar = {
             TopNav(
-                modifier = Modifier.focusRequester(navFocusRequester),
+                modifier = Modifier
+                    .focusRequester(navFocusRequester)
+                    .onFocusChanged { focusOnNav = it.isFocused },
                 items = reorderedItems,
                 selectedIndex = reorderedItems.indexOf(PersonalTabItem(selectedTab)),
                 isLargePadding = !focusOnContent,
@@ -176,7 +178,7 @@ fun PersonalContent(
                     .padding(innerPadding)
                     .onFocusChanged { focusOnContent = it.hasFocus }
                     .onPreviewKeyEvent { event ->
-                        if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
+                        if (event.isMenuKey() && event.type == KeyEventType.KeyUp && focusOnNav) {
                             viewModel.refresh(selectedTab)
                             navFocusRequester.safeRequestFocus()
                             return@onPreviewKeyEvent true

@@ -6,6 +6,19 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.5.8] - 2026-11-10
+
+> 审计修复 Batch 2 全部完成（20/24），重点加固 ViewModel 并发保护、TV 焦点全链路修复、播放器重组优化、触屏手势、底层并发安全与 Room 唯一索引。
+
+### 🐛 问题修复
+
+- **FIX-12 跨实体数据串扰**：6 个 ViewModel 补 loadJob 并发保护（UserSpace / Pgc / Ugc / LiveHome / Follow / Personal），防止快速切换时多协程并行写入导致数据覆盖。
+- **FIX-13 TV 焦点全面修复**：FocusSaver 重试逻辑、LazyRow 去覆盖、弹窗初始焦点、fallbackRequester、菜单键门控、播放器焦点链路、OSD 暂停、业务 ID 焦点 key、直播错误态焦点回收。
+- **FIX-14 播放器重组与蒙版解码优化**：BottomSubtitle remember + 二分查找、MaskModifiers Modifier.Node 迁移 + 安全保护 + Paint 缓存，降低每帧重建开销。
+- **FIX-15 触屏与手势**：MainActivity dispatchTouchEvent 透传、PlayerGestureHandler 防除零 + rememberUpdatedState，修复触屏设备崩溃与手势状态过期。
+- **FIX-16 底层并发安全**：BiliHttpApi client by lazy + @Volatile、AuthRepository / ChannelRepository @Volatile，保证多线程可见性与初始化安全。
+- **FIX-17 Room 唯一索引**：UserEntity / SearchHistoryEntity 唯一约束 + Migration v4→v5 + DAO upsert，消除重复插入导致的数据冗余。
+
 ## [v0.5.7] - 2026-11-10
 
 > 热修复版本：恢复详情页/UP空间返回续播，并修复单测卡死问题。
