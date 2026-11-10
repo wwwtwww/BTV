@@ -399,12 +399,21 @@ class LiveHomeViewModelTest {
     @Test
     fun `loadMoreRecommend error sets recommendError true`() =
         runTest(testDispatcher) {
+            // Given: init 返回至少一项，确保 recommendHasMore = true
+            val initItems = listOf(
+                LiveRoomItem(
+                    roomId = 100, uid = 1, title = "初始", uname = "主播",
+                    online = 100, cover = "", face = "",
+                ),
+            )
+            coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = initItems)
+
             viewModel = LiveHomeViewModel(liveRepository)
             advanceUntilIdle()
 
+            // When: loadMore 抛出异常
             coEvery { liveRepository.getLiveRecommend() } throws RuntimeException("网络错误")
 
-            // When
             viewModel.loadMoreRecommend()
             advanceUntilIdle()
 

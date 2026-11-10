@@ -149,8 +149,7 @@ class AccountRepositoryImplTest {
 
             repository.upsertUser(updated)
 
-            coVerify { userDao.update(existing) }
-            assertThat(existing.auth).isEqualTo("new_auth")
+            coVerify { userDao.update(existing.copy(auth = "new_auth")) }
         }
 
     @Test
