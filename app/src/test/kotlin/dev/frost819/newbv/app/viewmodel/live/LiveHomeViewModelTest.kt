@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LiveHomeViewModelTest {
-
     private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var liveRepository: LiveRepository
@@ -78,43 +77,44 @@ class LiveHomeViewModelTest {
     fun `loadFollowLive success filters living rooms and maps to card data`() =
         runTest(testDispatcher) {
             // Given: 3 个房间，只有 2 个 liveStatus == 1
-            val rooms = listOf(
-                FollowLiveRoom(
-                    roomId = 100,
-                    title = "直播中A",
-                    uid = 1,
-                    online = 5000,
-                    liveStatus = 1,
-                    uname = "主播A",
-                    face = "face_a",
-                    coverFromUser = "cover_a",
-                    keyframe = "kf_a",
-                    areaV2Name = "分区A",
-                    areaV2ParentName = "父分区A",
-                ),
-                FollowLiveRoom(
-                    roomId = 101,
-                    title = "未开播",
-                    uid = 2,
-                    online = 0,
-                    liveStatus = 0,
-                    uname = "主播B",
-                ),
-                FollowLiveRoom(
-                    roomId = 102,
-                    title = "直播中C",
-                    uid = 3,
-                    online = 12000,
-                    liveStatus = 1,
-                    uname = "主播C",
-                    face = "face_c",
-                    coverFromUser = "",
-                    keyframe = "kf_c",
-                    areaV2Name = "分区C",
-                    areaV2ParentName = "父分区C",
-                    nickname = "昵称C",
-                ),
-            )
+            val rooms =
+                listOf(
+                    FollowLiveRoom(
+                        roomId = 100,
+                        title = "直播中A",
+                        uid = 1,
+                        online = 5000,
+                        liveStatus = 1,
+                        uname = "主播A",
+                        face = "face_a",
+                        coverFromUser = "cover_a",
+                        keyframe = "kf_a",
+                        areaV2Name = "分区A",
+                        areaV2ParentName = "父分区A",
+                    ),
+                    FollowLiveRoom(
+                        roomId = 101,
+                        title = "未开播",
+                        uid = 2,
+                        online = 0,
+                        liveStatus = 0,
+                        uname = "主播B",
+                    ),
+                    FollowLiveRoom(
+                        roomId = 102,
+                        title = "直播中C",
+                        uid = 3,
+                        online = 12000,
+                        liveStatus = 1,
+                        uname = "主播C",
+                        face = "face_c",
+                        coverFromUser = "",
+                        keyframe = "kf_c",
+                        areaV2Name = "分区C",
+                        areaV2ParentName = "父分区C",
+                        nickname = "昵称C",
+                    ),
+                )
             coEvery { liveRepository.getFollowLive() } returns FollowLiveResponse(rooms = rooms)
 
             // When
@@ -123,8 +123,14 @@ class LiveHomeViewModelTest {
 
             // Then: 只保留 liveStatus == 1 的 2 个房间
             assertThat(viewModel.uiState.value.followItems).hasSize(2)
-            assertThat(viewModel.uiState.value.followItems[0].roomId).isEqualTo(100L)
-            assertThat(viewModel.uiState.value.followItems[1].roomId).isEqualTo(102L)
+            assertThat(
+                viewModel.uiState.value.followItems[0]
+                    .roomId,
+            ).isEqualTo(100L)
+            assertThat(
+                viewModel.uiState.value.followItems[1]
+                    .roomId,
+            ).isEqualTo(102L)
             assertThat(viewModel.uiState.value.followError).isFalse()
         }
 
@@ -151,17 +157,22 @@ class LiveHomeViewModelTest {
             advanceUntilIdle()
 
             // When: 再次调用 loadFollowLive
-            coEvery { liveRepository.getFollowLive() } returns FollowLiveResponse(
-                rooms = listOf(
-                    FollowLiveRoom(roomId = 200, title = "新直播", liveStatus = 1, uname = "新主播"),
-                ),
-            )
+            coEvery { liveRepository.getFollowLive() } returns
+                FollowLiveResponse(
+                    rooms =
+                        listOf(
+                            FollowLiveRoom(roomId = 200, title = "新直播", liveStatus = 1, uname = "新主播"),
+                        ),
+                )
             viewModel.loadFollowLive()
             advanceUntilIdle()
 
             // Then: 第二次结果覆盖第一次
             assertThat(viewModel.uiState.value.followItems).hasSize(1)
-            assertThat(viewModel.uiState.value.followItems[0].roomId).isEqualTo(200L)
+            assertThat(
+                viewModel.uiState.value.followItems[0]
+                    .roomId,
+            ).isEqualTo(200L)
         }
 
     // ── loadAreaList ────────────────────────────────────────
@@ -169,10 +180,11 @@ class LiveHomeViewModelTest {
     @Test
     fun `loadAreaList success populates area list`() =
         runTest(testDispatcher) {
-            val areas = listOf(
-                LiveAreaParent(id = 1, name = "娱乐"),
-                LiveAreaParent(id = 2, name = "游戏"),
-            )
+            val areas =
+                listOf(
+                    LiveAreaParent(id = 1, name = "娱乐"),
+                    LiveAreaParent(id = 2, name = "游戏"),
+                )
             coEvery { liveRepository.getLiveAreaList() } returns areas
 
             // When
@@ -181,7 +193,10 @@ class LiveHomeViewModelTest {
 
             // Then
             assertThat(viewModel.uiState.value.areaList).hasSize(2)
-            assertThat(viewModel.uiState.value.areaList[0].name).isEqualTo("娱乐")
+            assertThat(
+                viewModel.uiState.value.areaList[0]
+                    .name,
+            ).isEqualTo("娱乐")
             assertThat(viewModel.uiState.value.areaError).isFalse()
         }
 
@@ -223,31 +238,32 @@ class LiveHomeViewModelTest {
     @Test
     fun `loadRecommend success populates recommend items`() =
         runTest(testDispatcher) {
-            val items = listOf(
-                LiveRoomItem(
-                    roomId = 300,
-                    uid = 10,
-                    title = "推荐直播A",
-                    uname = "推荐主播A",
-                    online = 8000,
-                    cover = "cover_a",
-                    face = "face_a",
-                    areaV2Name = "分区A",
-                    areaV2ParentName = "父分区A",
-                ),
-                LiveRoomItem(
-                    roomId = 301,
-                    uid = 11,
-                    title = "推荐直播B",
-                    uname = "推荐主播B",
-                    online = 3000,
-                    cover = "",
-                    keyframe = "kf_b",
-                    face = "face_b",
-                    areaV2Name = "分区B",
-                    areaV2ParentName = "父分区B",
-                ),
-            )
+            val items =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 300,
+                        uid = 10,
+                        title = "推荐直播A",
+                        uname = "推荐主播A",
+                        online = 8000,
+                        cover = "cover_a",
+                        face = "face_a",
+                        areaV2Name = "分区A",
+                        areaV2ParentName = "父分区A",
+                    ),
+                    LiveRoomItem(
+                        roomId = 301,
+                        uid = 11,
+                        title = "推荐直播B",
+                        uname = "推荐主播B",
+                        online = 3000,
+                        cover = "",
+                        keyframe = "kf_b",
+                        face = "face_b",
+                        areaV2Name = "分区B",
+                        areaV2ParentName = "父分区B",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = items)
 
             // When
@@ -256,8 +272,14 @@ class LiveHomeViewModelTest {
 
             // Then
             assertThat(viewModel.uiState.value.recommendItems).hasSize(2)
-            assertThat(viewModel.uiState.value.recommendItems[0].roomId).isEqualTo(300L)
-            assertThat(viewModel.uiState.value.recommendItems[1].roomId).isEqualTo(301L)
+            assertThat(
+                viewModel.uiState.value.recommendItems[0]
+                    .roomId,
+            ).isEqualTo(300L)
+            assertThat(
+                viewModel.uiState.value.recommendItems[1]
+                    .roomId,
+            ).isEqualTo(301L)
             assertThat(viewModel.uiState.value.recommendHasMore).isTrue()
             assertThat(viewModel.uiState.value.recommendError).isFalse()
         }
@@ -330,12 +352,18 @@ class LiveHomeViewModelTest {
     fun `loadMoreRecommend deduplicates by roomId`() =
         runTest(testDispatcher) {
             // Given: init 加载了 roomId=300
-            val initItems = listOf(
-                LiveRoomItem(
-                    roomId = 300, uid = 10, title = "已有", uname = "主播",
-                    online = 100, cover = "", face = "",
-                ),
-            )
+            val initItems =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 300,
+                        uid = 10,
+                        title = "已有",
+                        uname = "主播",
+                        online = 100,
+                        cover = "",
+                        face = "",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = initItems)
 
             viewModel = LiveHomeViewModel(liveRepository)
@@ -343,16 +371,27 @@ class LiveHomeViewModelTest {
             assertThat(viewModel.uiState.value.recommendItems).hasSize(1)
 
             // When: loadMore 返回一个已有的 + 一个新的
-            val newBatch = listOf(
-                LiveRoomItem(
-                    roomId = 300, uid = 10, title = "重复", uname = "主播",
-                    online = 100, cover = "", face = "",
-                ),
-                LiveRoomItem(
-                    roomId = 301, uid = 11, title = "新的", uname = "新主播",
-                    online = 200, cover = "", face = "",
-                ),
-            )
+            val newBatch =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 300,
+                        uid = 10,
+                        title = "重复",
+                        uname = "主播",
+                        online = 100,
+                        cover = "",
+                        face = "",
+                    ),
+                    LiveRoomItem(
+                        roomId = 301,
+                        uid = 11,
+                        title = "新的",
+                        uname = "新主播",
+                        online = 200,
+                        cover = "",
+                        face = "",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = newBatch)
 
             viewModel.loadMoreRecommend()
@@ -360,31 +399,46 @@ class LiveHomeViewModelTest {
 
             // Then: 去重后只有 2 个（300 + 301）
             assertThat(viewModel.uiState.value.recommendItems).hasSize(2)
-            assertThat(viewModel.uiState.value.recommendItems.map { it.roomId }).containsExactly(300L, 301L)
+            assertThat(
+                viewModel.uiState.value.recommendItems
+                    .map { it.roomId },
+            ).containsExactly(300L, 301L)
         }
 
     @Test
     fun `loadMoreRecommend stops after 3 attempts when all duplicates`() =
         runTest(testDispatcher) {
             // Given: init 加载了 roomId=300
-            val initItems = listOf(
-                LiveRoomItem(
-                    roomId = 300, uid = 10, title = "已有", uname = "主播",
-                    online = 100, cover = "", face = "",
-                ),
-            )
+            val initItems =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 300,
+                        uid = 10,
+                        title = "已有",
+                        uname = "主播",
+                        online = 100,
+                        cover = "",
+                        face = "",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = initItems)
 
             viewModel = LiveHomeViewModel(liveRepository)
             advanceUntilIdle()
 
             // When: loadMore 每次都只返回已有的
-            val duplicateBatch = listOf(
-                LiveRoomItem(
-                    roomId = 300, uid = 10, title = "重复", uname = "主播",
-                    online = 100, cover = "", face = "",
-                ),
-            )
+            val duplicateBatch =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 300,
+                        uid = 10,
+                        title = "重复",
+                        uname = "主播",
+                        online = 100,
+                        cover = "",
+                        face = "",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = duplicateBatch)
 
             viewModel.loadMoreRecommend()
@@ -400,12 +454,18 @@ class LiveHomeViewModelTest {
     fun `loadMoreRecommend error sets recommendError true`() =
         runTest(testDispatcher) {
             // Given: init 返回至少一项，确保 recommendHasMore = true
-            val initItems = listOf(
-                LiveRoomItem(
-                    roomId = 100, uid = 1, title = "初始", uname = "主播",
-                    online = 100, cover = "", face = "",
-                ),
-            )
+            val initItems =
+                listOf(
+                    LiveRoomItem(
+                        roomId = 100,
+                        uid = 1,
+                        title = "初始",
+                        uname = "主播",
+                        online = 100,
+                        cover = "",
+                        face = "",
+                    ),
+                )
             coEvery { liveRepository.getLiveRecommend() } returns LiveRecommendResponse(list = initItems)
 
             viewModel = LiveHomeViewModel(liveRepository)

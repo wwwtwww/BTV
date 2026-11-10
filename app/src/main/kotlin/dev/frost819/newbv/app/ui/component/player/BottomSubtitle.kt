@@ -50,14 +50,16 @@ fun BottomSubtitle(
     padding: Dp,
 ) {
     // 直接根据 subtitleData 和 currentTime 计算当前字幕，避免 LaunchedEffect 每 100ms 重启导致不必要的重组
-    val currentText = remember(subtitleData, currentTime) {
-        // 字幕数据按时间排序，使用 lastOrNull 找到 startTime <= currentTime 的最后一条
-        // 然后验证该字幕的结束时间是否 >= currentTime（即正在显示中）
-        subtitleData.lastOrNull { it.from.totalMills <= currentTime }
-            ?.takeIf { it.to.totalMills >= currentTime }
-            ?.content
-            ?: if (BuildConfig.DEBUG) "【DEBUG】无内容" else ""
-    }
+    val currentText =
+        remember(subtitleData, currentTime) {
+            // 字幕数据按时间排序，使用 lastOrNull 找到 startTime <= currentTime 的最后一条
+            // 然后验证该字幕的结束时间是否 >= currentTime（即正在显示中）
+            subtitleData
+                .lastOrNull { it.from.totalMills <= currentTime }
+                ?.takeIf { it.to.totalMills >= currentTime }
+                ?.content
+                ?: if (BuildConfig.DEBUG) "【DEBUG】无内容" else ""
+        }
 
     Box(modifier = modifier.fillMaxSize()) {
         if (currentText.isNotEmpty()) {

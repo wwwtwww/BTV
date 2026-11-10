@@ -30,7 +30,7 @@ class VideoListViewModel
         private val _videoListState = MutableStateFlow(VideoListState())
         val videoListState = _videoListState.asStateFlow()
 
-        private val _currentAid = MutableStateFlow(0L)
+        private val currentAidFlow = MutableStateFlow(0L)
 
         /**
          * 设置当前播放视频 AV 号，用于过滤 repository 的数据。
@@ -40,7 +40,7 @@ class VideoListViewModel
          * @param aid 当前视频 AV 号
          */
         fun setCurrentAid(aid: Long) {
-            _currentAid.value = aid
+            currentAidFlow.value = aid
         }
 
         init {
@@ -54,7 +54,7 @@ class VideoListViewModel
             viewModelScope.launch {
                 combine(
                     videoInfoRepository.relatedVideos,
-                    _currentAid,
+                    currentAidFlow,
                 ) { relatedVideos, currentAid ->
                     relatedVideos to currentAid
                 }.collect { (list, aid) ->

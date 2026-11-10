@@ -10,11 +10,11 @@ import dev.frost819.newbv.biliapi.repositories.UserRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -108,29 +108,30 @@ class UserSpaceViewModel
             _uiState.update { it.copy(loading = true, error = false) }
 
             loadJob?.cancel()
-            loadJob = viewModelScope.launch {
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        userRepository.getSpaceVideos(
-                            mid = mid,
-                            order = SpaceVideoOrder.PubDate,
-                            page = videoPage,
-                            preferApiType = prefApiType(),
-                        )
+            loadJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            userRepository.getSpaceVideos(
+                                mid = mid,
+                                order = SpaceVideoOrder.PubDate,
+                                page = videoPage,
+                                preferApiType = prefApiType(),
+                            )
+                        }
+                    }.onSuccess { data ->
+                        _uiState.update {
+                            it.copy(
+                                videos = it.videos + data.videos,
+                                loading = false,
+                                hasMore = data.page.hasNext,
+                            )
+                        }
+                        videoPage = data.page
+                    }.onFailure { error ->
+                        logger.error(error) { "Failed to load space videos" }
+                        _uiState.update { it.copy(loading = false, error = true) }
                     }
-                }.onSuccess { data ->
-                    _uiState.update {
-                        it.copy(
-                            videos = it.videos + data.videos,
-                            loading = false,
-                            hasMore = data.page.hasNext,
-                        )
-                    }
-                    videoPage = data.page
-                }.onFailure { error ->
-                    logger.error(error) { "Failed to load space videos" }
-                    _uiState.update { it.copy(loading = false, error = true) }
                 }
-            }
         }
     }

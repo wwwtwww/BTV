@@ -100,9 +100,10 @@ fun UgcContent(
     Material3Scaffold(
         topBar = {
             TopNav(
-                modifier = Modifier
-                    .focusRequester(navFocusRequester)
-                    .onFocusChanged { focusOnNav = it.isFocused },
+                modifier =
+                    Modifier
+                        .focusRequester(navFocusRequester)
+                        .onFocusChanged { focusOnNav = it.isFocused },
                 items = UgcTabItem.entries.toList(),
                 selectedIndex = UgcTabItem.entries.indexOf(selectedTab),
                 isLargePadding = !focusOnContent,

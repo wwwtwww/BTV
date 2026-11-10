@@ -1,12 +1,12 @@
 package dev.frost819.newbv.data.db.dao
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.data.db.AppDatabase
 import dev.frost819.newbv.data.db.entity.UserEntity
-import android.database.sqlite.SQLiteConstraintException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertThrows
@@ -163,12 +163,13 @@ class UserDaoTest {
 
     @Test
     fun `insert duplicate uid throws constraint exception`() {
-        val exception = assertThrows(SQLiteConstraintException::class.java) {
-            runTest {
-                dao.insert(UserEntity(uid = 42L, username = "first", avatar = "a1", auth = "x1"))
-                dao.insert(UserEntity(uid = 42L, username = "second", avatar = "a2", auth = "x2"))
+        val exception =
+            assertThrows(SQLiteConstraintException::class.java) {
+                runTest {
+                    dao.insert(UserEntity(uid = 42L, username = "first", avatar = "a1", auth = "x1"))
+                    dao.insert(UserEntity(uid = 42L, username = "second", avatar = "a2", auth = "x2"))
+                }
             }
-        }
         assertThat(exception.message).contains("UNIQUE constraint failed")
     }
 
@@ -276,12 +277,13 @@ class UserDaoTest {
 
             val inserted = dao.findUserByUid(500L)!!
             val originalId = inserted.id
-            val toUpdate = inserted.copy(
-                username = "new",
-                avatar = "new_url",
-                auth = "new_auth",
-                lock = "4321",
-            )
+            val toUpdate =
+                inserted.copy(
+                    username = "new",
+                    avatar = "new_url",
+                    auth = "new_auth",
+                    lock = "4321",
+                )
             dao.update(toUpdate)
 
             val updated = dao.findUserByUid(500L)!!

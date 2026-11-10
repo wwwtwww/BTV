@@ -1,0 +1,753 @@
+﻿> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :app
+release 构建未配置有效签名私钥，产出 APK 将不可直接安装（报 INSTALL_PARSE_FAILED_NO_CERTIFICATES）。本地如需签署 release 包，请参考 signing.properties.template 配置 signing.properties 或注入环境变量。
+
+> Task :data:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :bili-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :bili-api-grpc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :data:preDebugBuild UP-TO-DATE
+> Task :core:preBuild UP-TO-DATE
+> Task :danmaku:preBuild UP-TO-DATE
+> Task :bili-subtitle:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :danmaku-engine:preBuild UP-TO-DATE
+> Task :core:preDebugBuild UP-TO-DATE
+> Task :bili-api-grpc:protobufDummy UP-TO-DATE
+> Task :bili-api:processResources NO-SOURCE
+> Task :core:processDebugNavigationResources UP-TO-DATE
+> Task :danmaku:preDebugBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :danmaku:processDebugNavigationResources UP-TO-DATE
+> Task :core:generateDebugBuildConfig UP-TO-DATE
+> Task :player:preBuild UP-TO-DATE
+> Task :core:generateDebugResources UP-TO-DATE
+> Task :core:packageDebugResources UP-TO-DATE
+> Task :player:preDebugBuild UP-TO-DATE
+> Task :player:processDebugNavigationResources UP-TO-DATE
+> Task :danmaku:generateDebugResources UP-TO-DATE
+> Task :danmaku-engine:preDebugBuild UP-TO-DATE
+> Task :data:processDebugNavigationResources UP-TO-DATE
+> Task :core:parseDebugLocalResources UP-TO-DATE
+> Task :danmaku-engine:processDebugNavigationResources UP-TO-DATE
+> Task :player:generateDebugBuildConfig UP-TO-DATE
+> Task :data:generateDebugResources UP-TO-DATE
+> Task :danmaku:packageDebugResources UP-TO-DATE
+> Task :danmaku-engine:generateDebugBuildConfig UP-TO-DATE
+> Task :player:generateDebugResources UP-TO-DATE
+> Task :danmaku:parseDebugLocalResources UP-TO-DATE
+> Task :danmaku-engine:generateDebugResources UP-TO-DATE
+> Task :core:generateDebugRFile UP-TO-DATE
+> Task :data:packageDebugResources UP-TO-DATE
+> Task :player:packageDebugResources UP-TO-DATE
+> Task :danmaku-engine:packageDebugResources UP-TO-DATE
+> Task :danmaku:generateDebugRFile UP-TO-DATE
+> Task :danmaku:javaPreCompileDebug UP-TO-DATE
+> Task :danmaku:writeDebugAarMetadata UP-TO-DATE
+> Task :danmaku:extractDeepLinksDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig
+> Task :data:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :data:generateDebugRFile UP-TO-DATE
+> Task :danmaku:processDebugManifest UP-TO-DATE
+> Task :player:parseDebugLocalResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :data:generateDebugBuildConfig UP-TO-DATE
+> Task :danmaku-engine:parseDebugLocalResources UP-TO-DATE
+> Task :danmaku-engine:generateDebugRFile UP-TO-DATE
+> Task :danmaku:mapDebugSourceSetPaths UP-TO-DATE
+> Task :bili-api-grpc:extractIncludeProto UP-TO-DATE
+> Task :player:generateDebugRFile UP-TO-DATE
+> Task :bili-subtitle:compileKotlin UP-TO-DATE
+> Task :bili-api-grpc:extractProto UP-TO-DATE
+> Task :player:javaPreCompileDebug UP-TO-DATE
+> Task :player:writeDebugAarMetadata UP-TO-DATE
+> Task :bili-subtitle:compileJava NO-SOURCE
+> Task :player:extractDeepLinksDebug UP-TO-DATE
+> Task :bili-subtitle:processResources NO-SOURCE
+> Task :danmaku:compileDebugLibraryResources UP-TO-DATE
+> Task :bili-subtitle:classes UP-TO-DATE
+> Task :bili-api-grpc:generateProto UP-TO-DATE
+> Task :player:processDebugManifest UP-TO-DATE
+> Task :player:mapDebugSourceSetPaths UP-TO-DATE
+> Task :player:compileDebugLibraryResources UP-TO-DATE
+> Task :danmaku:preDebugUnitTestBuild UP-TO-DATE
+> Task :bili-subtitle:jar UP-TO-DATE
+> Task :danmaku:mapDebugUnitTestSourceSetPaths
+> Task :bili-api:processTestResources
+> Task :player:preDebugUnitTestBuild UP-TO-DATE
+> Task :bili-api-grpc:compileKotlin UP-TO-DATE
+> Task :danmaku:generateDebugUnitTestResources FROM-CACHE
+> Task :bili-api-grpc:compileJava UP-TO-DATE
+> Task :bili-api-grpc:processResources UP-TO-DATE
+> Task :bili-api-grpc:classes UP-TO-DATE
+> Task :bili-api-grpc:jar UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :core:compileDebugKotlin UP-TO-DATE
+> Task :core:javaPreCompileDebug UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :bili-api:compileKotlin UP-TO-DATE
+> Task :bili-api:compileJava NO-SOURCE
+> Task :bili-api:classes UP-TO-DATE
+> Task :core:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :bili-api:jar UP-TO-DATE
+> Task :core:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :core:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :core:writeDebugAarMetadata UP-TO-DATE
+> Task :core:extractDeepLinksDebug UP-TO-DATE
+> Task :core:processDebugManifest UP-TO-DATE
+> Task :core:mapDebugSourceSetPaths UP-TO-DATE
+> Task :core:compileDebugLibraryResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :core:processDebugJavaRes UP-TO-DATE
+> Task :danmaku-engine:compileDebugKotlin UP-TO-DATE
+> Task :danmaku-engine:javaPreCompileDebug UP-TO-DATE
+> Task :data:javaPreCompileDebug UP-TO-DATE
+> Task :danmaku-engine:compileDebugJavaWithJavac UP-TO-DATE
+> Task :danmaku-engine:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :danmaku-engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :danmaku-engine:writeDebugAarMetadata UP-TO-DATE
+> Task :danmaku-engine:extractDeepLinksDebug UP-TO-DATE
+> Task :danmaku-engine:processDebugManifest UP-TO-DATE
+> Task :danmaku-engine:mapDebugSourceSetPaths UP-TO-DATE
+> Task :danmaku-engine:compileDebugLibraryResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :danmaku-engine:processDebugJavaRes UP-TO-DATE
+> Task :core:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :danmaku-engine:generateDebugAssets UP-TO-DATE
+> Task :danmaku-engine:mergeDebugAssets
+> Task :danmaku-engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :data:kspDebugKotlin UP-TO-DATE
+> Task :danmaku-engine:checkDebugUnitTestAarMetadata
+> Task :data:compileDebugKotlin UP-TO-DATE
+> Task :core:mapDebugUnitTestSourceSetPaths
+> Task :data:compileDebugJavaWithJavac UP-TO-DATE
+> Task :core:generateDebugUnitTestResources FROM-CACHE
+> Task :data:transformDebugClassesWithAsm UP-TO-DATE
+> Task :data:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :data:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :data:writeDebugAarMetadata UP-TO-DATE
+> Task :core:checkDebugUnitTestAarMetadata
+> Task :data:extractDeepLinksDebug UP-TO-DATE
+> Task :data:processDebugManifest UP-TO-DATE
+> Task :data:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :data:compileDebugLibraryResources UP-TO-DATE
+> Task :data:processDebugJavaRes UP-TO-DATE
+> Task :danmaku-engine:mapDebugUnitTestSourceSetPaths
+> Task :danmaku-engine:generateDebugUnitTestResources FROM-CACHE
+> Task :bili-api-grpc:extractIncludeTestProto
+> Task :bili-api-grpc:extractTestProto
+> Task :bili-api-grpc:generateTestProto NO-SOURCE
+> Task :bili-api-grpc:compileTestKotlin NO-SOURCE
+> Task :bili-api-grpc:compileTestJava NO-SOURCE
+> Task :bili-api-grpc:processTestResources NO-SOURCE
+> Task :bili-api-grpc:testClasses UP-TO-DATE
+> Task :bili-api-grpc:test NO-SOURCE
+> Task :data:generateDebugUnitTestAssets UP-TO-DATE
+> Task :data:generateDebugAssets UP-TO-DATE
+> Task :data:mergeDebugAssets
+> Task :data:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:processDebugMainManifest
+> Task :data:mergeDebugUnitTestAssets
+> Task :bili-subtitle:processTestResources
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :data:checkDebugUnitTestAarMetadata
+> Task :data:mapDebugUnitTestSourceSetPaths
+> Task :data:generateDebugUnitTestResources FROM-CACHE
+> Task :data:mergeDebugUnitTestResources FROM-CACHE
+> Task :core:mergeDebugUnitTestResources
+> Task :danmaku-engine:mergeDebugUnitTestResources
+> Task :danmaku-engine:processDebugUnitTestManifest
+> Task :core:processDebugUnitTestManifest
+> Task :data:processDebugUnitTestManifest
+> Task :danmaku:compileDebugKotlin UP-TO-DATE
+> Task :danmaku:compileDebugJavaWithJavac NO-SOURCE
+> Task :danmaku:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :player:generateDebugUnitTestStubRFile
+> Task :danmaku:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :danmaku:processDebugJavaRes UP-TO-DATE
+> Task :core:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :core:generateDebugUnitTestAssets UP-TO-DATE
+> Task :core:generateDebugAssets UP-TO-DATE
+> Task :core:mergeDebugAssets
+> Task :player:compileDebugKotlin UP-TO-DATE
+> Task :player:compileDebugJavaWithJavac UP-TO-DATE
+> Task :player:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :danmaku:mergeDebugUnitTestResources
+> Task :player:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :player:processDebugJavaRes UP-TO-DATE
+> Task :core:mergeDebugUnitTestAssets
+> Task :danmaku-engine:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :danmaku:checkDebugUnitTestAarMetadata
+> Task :danmaku-engine:generateDebugUnitTestAssets UP-TO-DATE
+> Task :danmaku-engine:mergeDebugUnitTestAssets
+> Task :danmaku:processDebugUnitTestManifest
+> Task :data:processDebugUnitTestResources FROM-CACHE
+> Task :danmaku-engine:processDebugUnitTestResources
+> Task :data:packageDebugUnitTestForUnitTest
+> Task :core:processDebugUnitTestResources
+> Task :data:generateDebugUnitTestConfig
+> Task :data:kspDebugUnitTestKotlin SKIPPED
+> Task :data:compileDebugUnitTestKotlin FROM-CACHE
+> Task :danmaku-engine:packageDebugUnitTestForUnitTest
+> Task :danmaku-engine:generateDebugUnitTestConfig
+> Task :danmaku:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :danmaku:generateDebugUnitTestAssets UP-TO-DATE
+> Task :danmaku:generateDebugAssets UP-TO-DATE
+> Task :danmaku:mergeDebugAssets
+> Task :danmaku:mergeDebugUnitTestAssets
+> Task :core:packageDebugUnitTestForUnitTest
+> Task :core:generateDebugUnitTestConfig
+> Task :data:processDebugUnitTestJavaRes
+> Task :data:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :data:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :data:hiltCollectClassesDebugUnitTest UP-TO-DATE
+> Task :danmaku:processDebugUnitTestResources
+> Task :data:hiltAggregateDepsDebugUnitTest FROM-CACHE
+> Task :danmaku:packageDebugUnitTestForUnitTest
+> Task :app:processDebugResources
+> Task :data:hiltJavaCompileDebugUnitTest NO-SOURCE
+> Task :danmaku:generateDebugUnitTestConfig
+> Task :data:transformDebugUnitTestClassesWithAsm FROM-CACHE
+> Task :data:testDebugUnitTest FROM-CACHE
+> Task :data:test UP-TO-DATE
+> Task :player:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :bili-subtitle:compileTestKotlin
+> Task :bili-subtitle:compileTestJava NO-SOURCE
+> Task :bili-subtitle:testClasses
+> Task :bili-api:compileTestKotlin
+> Task :bili-subtitle:test
+> Task :app:kspDebugKotlin
+> Task :danmaku-engine:compileDebugUnitTestKotlin
+> Task :core:compileDebugUnitTestKotlin
+> Task :danmaku:compileDebugUnitTestKotlin
+> Task :player:compileDebugUnitTestKotlin
+
+> Task :bili-api:compileTestKotlin
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:309:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:310:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:311:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:327:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:382:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:383:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/PlayDataTest.kt:384:33 Unnecessary non-null assertion (!!) on a non-null receiver of type 'DashAudio'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/login/LoginEntityTest.kt:49:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/ugc/region/UgcRegionEntityTest.kt:24:20 'constructor(nextPage: Long = ...): UgcRegionPage' is deprecated. User region v2 instead.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/RelatedVideoGrpcTest.kt:48:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Author'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/RelatedVideoGrpcTest.kt:73:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Author'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/RelatedVideoGrpcTest.kt:74:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Author'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/RelatedVideoGrpcTest.kt:94:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Author'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/RelatedVideoGrpcTest.kt:95:34 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Author'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/VideoDetailGrpcTest.kt:95:37 Unnecessary non-null assertion (!!) on a non-null receiver of type 'VideoDetail.PlayerIcon'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/VideoDetailGrpcTest.kt:192:37 Unnecessary non-null assertion (!!) on a non-null receiver of type 'VideoDetail.PlayerIcon'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/season/SeasonEntityTest.kt:56:37 Unnecessary non-null assertion (!!) on a non-null receiver of type 'Dimension'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/season/SeasonEntityTest.kt:394:39 Unnecessary non-null assertion (!!) on a non-null receiver of type 'SeasonDetail.UserStatus.Progress'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/season/SeasonEntityTest.kt:395:39 Unnecessary non-null assertion (!!) on a non-null receiver of type 'SeasonDetail.UserStatus.Progress'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/season/SeasonEntityTest.kt:579:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'SeasonDetail.UserStatus.Progress'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/entity/video/season/SeasonEntityTest.kt:580:46 Unnecessary non-null assertion (!!) on a non-null receiver of type 'SeasonDetail.UserStatus.Progress'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:206:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:207:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:208:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:209:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:353:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:354:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:355:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/LoginRepositoryUnitTest.kt:356:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'WebCookies'.
+w: file:///E:/BTV/bili-api/src/test/kotlin/dev/frost819/newbv/biliapi/repositories/UgcRepositoryUnitTest.kt:208:56 'enum class UgcType : Enum<UgcType>' is deprecated. Use dev.frost819.newbv.biliapi.entity.ugc.UgcTypeV2 instead.
+
+> Task :bili-api:compileTestJava NO-SOURCE
+> Task :bili-api:testClasses
+
+> Task :app:compileDebugKotlin
+.\gradlew : e: Failed connecting to the daemon in 4 retries
+所在位置 行:1 字符: 13
++  cd e:\BTV; .\gradlew test 2>&1 | Out-File -FilePath e:\BTV\test-outp ...
++             ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: Failed conne...on in 4 retries 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+java.lang.RuntimeException: Failed connecting to the daemon in 4 retries
+	at org.jetbrains.kotlin.buildtools.internal.KotlinLoggerMessageCollectorAdapte
+r.report(KotlinLoggerMessageCollectorAdapter.kt:33)
+	at org.jetbrains.kotlin.cli.common.messages.MessageCollector.report$default(Me
+ssageCollector.kt:12)
+	at org.jetbrains.kotlin.compilerRunner.KotlinCompilerRunnerUtils.newDaemonConn
+ection(KotlinCompilerRunnerUtils.kt:93)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.compi
+leWithDaemon(BaseCompilationOperationImpl.kt:185)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:91)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:55)
+	at org.jetbrains.kotlin.buildtools.internal.CancellableBuildOperationImpl.exec
+uteImpl(CancellableBuildOperationImpl.kt:58)
+	at org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl.execute(BuildOp
+erationImpl.kt:33)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation$lambda$1(KotlinToolchainsImpl.kt:74)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation(KotlinToolchainsImpl.kt:78)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.perf
+ormCompilation(BuildToolsApiCompilationWork.kt:184)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.comp
+ileInDaemon(BuildToolsApiCompilationWork.kt:261)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.exec
+ute(BuildToolsApiCompilationWork.kt:309)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer
+.java:68)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:64)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:61)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(Class
+LoaderUtils.java:102)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoI
+solationWorkerFactory.java:61)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuil
+dOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(A
+bstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationW
+orkerFactory.java:58)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(Defau
+ltWorkerExecutor.java:176)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.a
+ccess$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1
+.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:30)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withLocksAcquired
+$0(DefaultWorkerLeaseService.java:269)
+	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStati
+stics.java:42)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(Defaul
+tWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerL
+easeService.java:259)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+un(DefaultConditionalExecutionQueue.java:133)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExec
+ute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManage
+dExecutor.java:47)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1
+144)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:
+642)
+	at java.lang.Thread.run(Thread.java:1583)
+w: Failed to compile with Kotlin daemon
+Using fallback strategy: Compile without Kotlin daemon
+Try ./gradlew --stop if this issue persists
+If it does not look related to your configuration, please file an issue with logs to https://kotl.in/issue
+
+> Task :danmaku-engine:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :danmaku-engine:processDebugUnitTestJavaRes
+> Task :bili-api:test
+> Task :player:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :player:processDebugUnitTestJavaRes
+
+> Task :danmaku:compileDebugUnitTestKotlin
+e: Failed connecting to the daemon in 4 retries
+java.lang.RuntimeException: Failed connecting to the daemon in 4 retries
+	at org.jetbrains.kotlin.buildtools.internal.KotlinLoggerMessageCollectorAdapte
+r.report(KotlinLoggerMessageCollectorAdapter.kt:33)
+	at org.jetbrains.kotlin.cli.common.messages.MessageCollector.report$default(Me
+ssageCollector.kt:12)
+	at org.jetbrains.kotlin.compilerRunner.KotlinCompilerRunnerUtils.newDaemonConn
+ection(KotlinCompilerRunnerUtils.kt:93)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.compi
+leWithDaemon(BaseCompilationOperationImpl.kt:185)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:91)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:55)
+	at org.jetbrains.kotlin.buildtools.internal.CancellableBuildOperationImpl.exec
+uteImpl(CancellableBuildOperationImpl.kt:58)
+	at org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl.execute(BuildOp
+erationImpl.kt:33)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation$lambda$1(KotlinToolchainsImpl.kt:74)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation(KotlinToolchainsImpl.kt:78)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.perf
+ormCompilation(BuildToolsApiCompilationWork.kt:184)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.comp
+ileInDaemon(BuildToolsApiCompilationWork.kt:261)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.exec
+ute(BuildToolsApiCompilationWork.kt:309)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer
+.java:68)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:64)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:61)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(Class
+LoaderUtils.java:102)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoI
+solationWorkerFactory.java:61)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuil
+dOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(A
+bstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationW
+orkerFactory.java:58)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(Defau
+ltWorkerExecutor.java:176)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.a
+ccess$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1
+.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:30)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withLocksAcquired
+$0(DefaultWorkerLeaseService.java:269)
+	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStati
+stics.java:42)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(Defaul
+tWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerL
+easeService.java:259)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+un(DefaultConditionalExecutionQueue.java:133)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExec
+ute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManage
+dExecutor.java:47)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1
+144)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:
+642)
+	at java.lang.Thread.run(Thread.java:1583)
+w: Failed to compile with Kotlin daemon
+Using fallback strategy: Compile without Kotlin daemon
+Try ./gradlew --stop if this issue persists
+If it does not look related to your configuration, please file an issue with logs to https://kotl.in/issue
+
+> Task :core:compileDebugUnitTestKotlin
+e: Failed connecting to the daemon in 4 retries
+java.lang.RuntimeException: Failed connecting to the daemon in 4 retries
+	at org.jetbrains.kotlin.buildtools.internal.KotlinLoggerMessageCollectorAdapte
+r.report(KotlinLoggerMessageCollectorAdapter.kt:33)
+	at org.jetbrains.kotlin.cli.common.messages.MessageCollector.report$default(Me
+ssageCollector.kt:12)
+	at org.jetbrains.kotlin.compilerRunner.KotlinCompilerRunnerUtils.newDaemonConn
+ection(KotlinCompilerRunnerUtils.kt:93)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.compi
+leWithDaemon(BaseCompilationOperationImpl.kt:185)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:91)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:55)
+	at org.jetbrains.kotlin.buildtools.internal.CancellableBuildOperationImpl.exec
+uteImpl(CancellableBuildOperationImpl.kt:58)
+	at org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl.execute(BuildOp
+erationImpl.kt:33)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation$lambda$1(KotlinToolchainsImpl.kt:74)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation(KotlinToolchainsImpl.kt:78)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.perf
+ormCompilation(BuildToolsApiCompilationWork.kt:184)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.comp
+ileInDaemon(BuildToolsApiCompilationWork.kt:261)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.exec
+ute(BuildToolsApiCompilationWork.kt:309)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer
+.java:68)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:64)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:61)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(Class
+LoaderUtils.java:102)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoI
+solationWorkerFactory.java:61)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuil
+dOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(A
+bstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationW
+orkerFactory.java:58)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(Defau
+ltWorkerExecutor.java:176)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.a
+ccess$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1
+.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:30)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withLocksAcquired
+$0(DefaultWorkerLeaseService.java:269)
+	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStati
+stics.java:42)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(Defaul
+tWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerL
+easeService.java:259)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+un(DefaultConditionalExecutionQueue.java:133)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExec
+ute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManage
+dExecutor.java:47)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1
+144)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:
+642)
+	at java.lang.Thread.run(Thread.java:1583)
+w: Failed to compile with Kotlin daemon
+Using fallback strategy: Compile without Kotlin daemon
+Try ./gradlew --stop if this issue persists
+If it does not look related to your configuration, please file an issue with logs to https://kotl.in/issue
+
+> Task :danmaku:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :danmaku:processDebugUnitTestJavaRes
+> Task :danmaku-engine:testDebugUnitTest
+> Task :core:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :core:processDebugUnitTestJavaRes
+> Task :app:compileDebugJavaWithJavac
+> Task :app:hiltCollectClassesDebug
+> Task :app:hiltAggregateDepsDebug UP-TO-DATE
+> Task :danmaku-engine:test
+> Task :app:hiltJavaCompileDebug UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+> Task :player:testDebugUnitTest
+> Task :app:kspDebugUnitTestKotlin
+> Task :app:transformDebugClassesWithAsm
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :danmaku:testDebugUnitTest
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+
+> Task :app:compileDebugUnitTestKotlin
+e: Failed connecting to the daemon in 4 retries
+java.lang.RuntimeException: Failed connecting to the daemon in 4 retries
+	at org.jetbrains.kotlin.buildtools.internal.KotlinLoggerMessageCollectorAdapte
+r.report(KotlinLoggerMessageCollectorAdapter.kt:33)
+	at org.jetbrains.kotlin.cli.common.messages.MessageCollector.report$default(Me
+ssageCollector.kt:12)
+	at org.jetbrains.kotlin.compilerRunner.KotlinCompilerRunnerUtils.newDaemonConn
+ection(KotlinCompilerRunnerUtils.kt:93)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.compi
+leWithDaemon(BaseCompilationOperationImpl.kt:185)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:91)
+	at org.jetbrains.kotlin.buildtools.internal.BaseCompilationOperationImpl.execu
+teCancellableImpl(BaseCompilationOperationImpl.kt:55)
+	at org.jetbrains.kotlin.buildtools.internal.CancellableBuildOperationImpl.exec
+uteImpl(CancellableBuildOperationImpl.kt:58)
+	at org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl.execute(BuildOp
+erationImpl.kt:33)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation$lambda$1(KotlinToolchainsImpl.kt:74)
+	at org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl$BuildSessionI
+mpl.executeOperation(KotlinToolchainsImpl.kt:78)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.perf
+ormCompilation(BuildToolsApiCompilationWork.kt:184)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.comp
+ileInDaemon(BuildToolsApiCompilationWork.kt:261)
+	at org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork.exec
+ute(BuildToolsApiCompilationWork.kt:309)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer
+.java:68)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:64)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolation
+WorkerFactory.java:61)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(Class
+LoaderUtils.java:102)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoI
+solationWorkerFactory.java:61)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOpe
+rationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(Defaul
+tBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultB
+uildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuil
+dOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(A
+bstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationW
+orkerFactory.java:58)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(Defau
+ltWorkerExecutor.java:176)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.a
+ccess$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1
+.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:30)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.lambda$withLocksAcquired
+$0(DefaultWorkerLeaseService.java:269)
+	at org.gradle.internal.work.ResourceLockStatistics$1.measure(ResourceLockStati
+stics.java:42)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocksAcquired(Defaul
+tWorkerLeaseService.java:267)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerL
+easeService.java:259)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(Defaul
+tWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+unBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.r
+un(DefaultConditionalExecutionQueue.java:133)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExec
+ute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManage
+dExecutor.java:47)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1
+144)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:
+642)
+	at java.lang.Thread.run(Thread.java:1583)
+w: Failed to compile with Kotlin daemon
+Using fallback strategy: Compile without Kotlin daemon
+Try ./gradlew --stop if this issue persists
+If it does not look related to your configuration, please file an issue with logs to https://kotl.in/issue
+
+> Task :core:testDebugUnitTest
+> Task :player:test
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:hiltCollectClassesDebugUnitTest
+> Task :app:hiltAggregateDepsDebugUnitTest UP-TO-DATE
+> Task :app:hiltJavaCompileDebugUnitTest NO-SOURCE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+> Task :core:test
+> Task :danmaku:test
+> Task :app:transformDebugUnitTestClassesWithAsm
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+> Task :app:testDebugUnitTest
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader cla
+sses because bootstrap classpath has been appended
+
+> Task :app:test
+
+[Incubating] Problems report is available at: file:///E:/BTV/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 5m 54s
+203 actionable tasks: 72 executed, 15 from cache, 116 up-to-date

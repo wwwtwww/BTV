@@ -10,11 +10,11 @@ import dev.frost819.newbv.biliapi.entity.ugc.region.UgcFeedPage
 import dev.frost819.newbv.biliapi.repositories.UgcRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -81,9 +81,10 @@ class UgcViewModel
             currentType = type
             nextPage = UgcFeedPage()
             _uiState.value = UgcUiState()
-            loadJob = viewModelScope.launch {
-                loadMoreInternal()
-            }
+            loadJob =
+                viewModelScope.launch {
+                    loadMoreInternal()
+                }
         }
 
         /**
@@ -94,9 +95,10 @@ class UgcViewModel
         fun loadMore() {
             val current = _uiState.value
             if (current.loading || !current.hasMore) return
-            loadJob = viewModelScope.launch {
-                loadMoreInternal()
-            }
+            loadJob =
+                viewModelScope.launch {
+                    loadMoreInternal()
+                }
         }
 
         private suspend fun loadMoreInternal() {
@@ -139,8 +141,9 @@ class UgcViewModel
             loadJob?.cancel()
             nextPage = UgcFeedPage()
             _uiState.value = UgcUiState()
-            loadJob = viewModelScope.launch {
-                loadMoreInternal()
-            }
+            loadJob =
+                viewModelScope.launch {
+                    loadMoreInternal()
+                }
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -32,7 +33,6 @@ import dev.frost819.newbv.data.datastore.PlaySpeed
 import dev.frost819.newbv.data.datastore.Resolution
 import dev.frost819.newbv.data.datastore.ScreensaverTimeout
 import dev.frost819.newbv.data.datastore.VideoCodec
-import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * 音视频设置页。

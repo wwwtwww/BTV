@@ -624,8 +624,7 @@ fun ControllerVideoInfoBottom(
                                 alpha = if (isSeekFocused) 1f else 0f,
                             ),
                         shape = BVShape.small,
-                    )
-                    .focusRequester(seekFocusRequester)
+                    ).focusRequester(seekFocusRequester)
                     .pointerInput(seekerState.totalDuration) {
                         awaitEachGesture {
                             val firstDown =

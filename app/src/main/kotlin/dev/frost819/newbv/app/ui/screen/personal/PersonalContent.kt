@@ -105,9 +105,10 @@ fun PersonalContent(
     Material3Scaffold(
         topBar = {
             TopNav(
-                modifier = Modifier
-                    .focusRequester(navFocusRequester)
-                    .onFocusChanged { focusOnNav = it.isFocused },
+                modifier =
+                    Modifier
+                        .focusRequester(navFocusRequester)
+                        .onFocusChanged { focusOnNav = it.isFocused },
                 items = reorderedItems,
                 selectedIndex = reorderedItems.indexOf(PersonalTabItem(selectedTab)),
                 isLargePadding = !focusOnContent,

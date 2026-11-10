@@ -19,7 +19,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryBindsModule {
-
     /** 绑定 [AccountRepository] 的实现。 */
     @Binds
     @Singleton

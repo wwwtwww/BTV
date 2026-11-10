@@ -21,7 +21,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class PlayerBindsModule {
-
     /** 绑定 [VideoCapabilityProvider] 的实现。 */
     @Binds
     @Singleton

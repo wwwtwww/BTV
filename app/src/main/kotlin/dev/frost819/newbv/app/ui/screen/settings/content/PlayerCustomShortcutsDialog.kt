@@ -185,7 +185,12 @@ private fun MainStage(
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier =
+                Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
@@ -324,7 +329,12 @@ private fun PickActionStage(
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier =
+                Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
@@ -391,7 +401,12 @@ private fun PickActionValueStage(
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.focusRequester(dialogFocusRequester).focusable().fillMaxWidth(0.9f).wrapContentHeight(),
+            modifier =
+                Modifier
+                    .focusRequester(dialogFocusRequester)
+                    .focusable()
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight(),
             shape = BVShape.medium,
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,

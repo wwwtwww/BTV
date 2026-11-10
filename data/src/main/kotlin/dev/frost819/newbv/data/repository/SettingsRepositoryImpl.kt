@@ -33,13 +33,15 @@ import kotlinx.coroutines.flow.stateIn
  * @see SettingsRepository
  */
 class SettingsRepositoryImpl : SettingsRepository {
-
     /** 仓库内部使用的协程作用域，用于 stateIn 转换。 */
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // ===== 辅助扩展：从 Prefs.flowOf 获取并映射为业务类型 StateFlow =====
 
-    private fun <T> flowOfInt(map: (Int) -> T, initial: T): StateFlow<T> =
+    private fun <T> flowOfInt(
+        map: (Int) -> T,
+        initial: T,
+    ): StateFlow<T> =
         @Suppress("UNCHECKED_CAST")
         (Prefs.flowOf(PrefKeys.density) as kotlinx.coroutines.flow.MutableStateFlow<Any?>?)
             ?.map { map((it as? Int) ?: 0) }
@@ -69,7 +71,12 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     override val screensaverTimeout: StateFlow<ScreensaverTimeout> by lazy {
-        intEnumFlow(PrefKeys.screensaverTimeout, ScreensaverTimeout.entries, ScreensaverTimeout::fromCode, Prefs.screensaverTimeout)
+        intEnumFlow(
+            PrefKeys.screensaverTimeout,
+            ScreensaverTimeout.entries,
+            ScreensaverTimeout::fromCode,
+            Prefs.screensaverTimeout,
+        )
     }
 
     override val enableFfmpegAudioRenderer: StateFlow<Boolean> by lazy {
@@ -107,7 +114,12 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     override val firstHomeTopNavItem: StateFlow<HomeTopNavItem> by lazy {
-        intEnumFlow(PrefKeys.firstHomeTopNavItem, HomeTopNavItem.entries, HomeTopNavItem::fromCode, Prefs.firstHomeTopNavItem)
+        intEnumFlow(
+            PrefKeys.firstHomeTopNavItem,
+            HomeTopNavItem.entries,
+            HomeTopNavItem::fromCode,
+            Prefs.firstHomeTopNavItem,
+        )
     }
 
     override val homeHeroMode: StateFlow<HomeHeroMode> by lazy {
@@ -115,7 +127,12 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     override val firstPersonalTopNavItem: StateFlow<PersonalTopNavItem> by lazy {
-        intEnumFlow(PrefKeys.firstPersonalTopNavItem, PersonalTopNavItem.entries, PersonalTopNavItem::fromOrdinal, Prefs.firstPersonalTopNavItem)
+        intEnumFlow(
+            PrefKeys.firstPersonalTopNavItem,
+            PersonalTopNavItem.entries,
+            PersonalTopNavItem::fromOrdinal,
+            Prefs.firstPersonalTopNavItem,
+        )
     }
 
     override val themeMode: StateFlow<ThemeMode> by lazy {
@@ -144,28 +161,93 @@ class SettingsRepositoryImpl : SettingsRepository {
 
     // ===== 更新方法 =====
 
-    override fun updateDefaultQuality(value: Resolution) { Prefs.defaultQuality = value }
-    override fun updateDefaultVideoCodec(value: VideoCodec) { Prefs.defaultVideoCodec = value }
-    override fun updateDefaultAudio(value: Audio) { Prefs.defaultAudio = value }
-    override fun updateDefaultPlaySpeed(value: PlaySpeed) { Prefs.defaultPlaySpeed = value }
-    override fun updateActionAfterPlay(value: ActionAfterPlay) { Prefs.actionAfterPlay = value }
-    override fun updateScreensaverTimeout(value: ScreensaverTimeout) { Prefs.screensaverTimeout = value }
-    override fun updateEnableFfmpegAudioRenderer(value: Boolean) { Prefs.enableFfmpegAudioRenderer = value }
-    override fun updateEnableSoftwareVideoDecoder(value: Boolean) { Prefs.enableSoftwareVideoDecoder = value }
-    override fun updateShowPlayerDebugInfo(value: Boolean) { Prefs.showPlayerDebugInfo = value }
-    override fun updateAutoSelectCdn(value: Boolean) { Prefs.autoSelectCdn = value }
-    override fun updateDensity(value: Float) { Prefs.density = value }
-    override fun updateShowVideoInfo(value: Boolean) { Prefs.showVideoInfo = value }
-    override fun updateShowPersistentSeek(value: Boolean) { Prefs.showPersistentSeek = value }
-    override fun updateHomeLeftNavItem(value: LeftNaviItem) { Prefs.homeLeftNavItem = value }
-    override fun updateFirstHomeTopNavItem(value: HomeTopNavItem) { Prefs.firstHomeTopNavItem = value }
-    override fun updateHomeHeroMode(value: HomeHeroMode) { Prefs.homeHeroMode = value }
-    override fun updateFirstPersonalTopNavItem(value: PersonalTopNavItem) { Prefs.firstPersonalTopNavItem = value }
-    override fun updateThemeMode(value: ThemeMode) { Prefs.themeMode = value }
-    override fun updateApiType(value: ApiType) { Prefs.apiType = value }
-    override fun updateCrashReportEnabled(value: Boolean) { Prefs.crashReportEnabled = value }
-    override fun updateCacheThreshold(value: Int) { Prefs.cacheThreshold = value }
-    override fun updateCacheAutoClean(value: Boolean) { Prefs.cacheAutoClean = value }
+    override fun updateDefaultQuality(value: Resolution) {
+        Prefs.defaultQuality = value
+    }
+
+    override fun updateDefaultVideoCodec(value: VideoCodec) {
+        Prefs.defaultVideoCodec = value
+    }
+
+    override fun updateDefaultAudio(value: Audio) {
+        Prefs.defaultAudio = value
+    }
+
+    override fun updateDefaultPlaySpeed(value: PlaySpeed) {
+        Prefs.defaultPlaySpeed = value
+    }
+
+    override fun updateActionAfterPlay(value: ActionAfterPlay) {
+        Prefs.actionAfterPlay = value
+    }
+
+    override fun updateScreensaverTimeout(value: ScreensaverTimeout) {
+        Prefs.screensaverTimeout = value
+    }
+
+    override fun updateEnableFfmpegAudioRenderer(value: Boolean) {
+        Prefs.enableFfmpegAudioRenderer = value
+    }
+
+    override fun updateEnableSoftwareVideoDecoder(value: Boolean) {
+        Prefs.enableSoftwareVideoDecoder = value
+    }
+
+    override fun updateShowPlayerDebugInfo(value: Boolean) {
+        Prefs.showPlayerDebugInfo = value
+    }
+
+    override fun updateAutoSelectCdn(value: Boolean) {
+        Prefs.autoSelectCdn = value
+    }
+
+    override fun updateDensity(value: Float) {
+        Prefs.density = value
+    }
+
+    override fun updateShowVideoInfo(value: Boolean) {
+        Prefs.showVideoInfo = value
+    }
+
+    override fun updateShowPersistentSeek(value: Boolean) {
+        Prefs.showPersistentSeek = value
+    }
+
+    override fun updateHomeLeftNavItem(value: LeftNaviItem) {
+        Prefs.homeLeftNavItem = value
+    }
+
+    override fun updateFirstHomeTopNavItem(value: HomeTopNavItem) {
+        Prefs.firstHomeTopNavItem = value
+    }
+
+    override fun updateHomeHeroMode(value: HomeHeroMode) {
+        Prefs.homeHeroMode = value
+    }
+
+    override fun updateFirstPersonalTopNavItem(value: PersonalTopNavItem) {
+        Prefs.firstPersonalTopNavItem = value
+    }
+
+    override fun updateThemeMode(value: ThemeMode) {
+        Prefs.themeMode = value
+    }
+
+    override fun updateApiType(value: ApiType) {
+        Prefs.apiType = value
+    }
+
+    override fun updateCrashReportEnabled(value: Boolean) {
+        Prefs.crashReportEnabled = value
+    }
+
+    override fun updateCacheThreshold(value: Int) {
+        Prefs.cacheThreshold = value
+    }
+
+    override fun updateCacheAutoClean(value: Boolean) {
+        Prefs.cacheAutoClean = value
+    }
 
     // ===== 内部辅助方法 =====
 
@@ -189,8 +271,7 @@ class SettingsRepositoryImpl : SettingsRepository {
             .map { value ->
                 val intValue = value as? Int ?: return@map initialValue
                 runCatching { entries[intValue] }.getOrDefault(initialValue)
-            }
-            .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, initialValue)
+            }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, initialValue)
     }
 
     /** 从 Prefs.flowOf 获取 Boolean 类型 StateFlow。 */

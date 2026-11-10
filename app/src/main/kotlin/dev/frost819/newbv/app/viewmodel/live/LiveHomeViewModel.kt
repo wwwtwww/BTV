@@ -62,29 +62,30 @@ class LiveHomeViewModel
             }
 
             followLiveJob?.cancel()
-            followLiveJob = viewModelScope.launch {
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val response = liveRepository.getFollowLive()
-                        response.rooms.filter { it.liveStatus == 1 }.map { it.toCardData() }
-                    }
-                }.onSuccess { items ->
-                    _uiState.update {
-                        it.copy(
-                            followItems = items,
-                            followLoading = false,
-                            followError = false,
-                        )
-                    }
-                }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            followLoading = false,
-                            followError = true,
-                        )
+            followLiveJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val response = liveRepository.getFollowLive()
+                            response.rooms.filter { it.liveStatus == 1 }.map { it.toCardData() }
+                        }
+                    }.onSuccess { items ->
+                        _uiState.update {
+                            it.copy(
+                                followItems = items,
+                                followLoading = false,
+                                followError = false,
+                            )
+                        }
+                    }.onFailure { error ->
+                        _uiState.update {
+                            it.copy(
+                                followLoading = false,
+                                followError = true,
+                            )
+                        }
                     }
                 }
-            }
         }
 
         /**
@@ -96,28 +97,29 @@ class LiveHomeViewModel
             _uiState.update { it.copy(areaLoading = true, areaError = false) }
 
             areaListJob?.cancel()
-            areaListJob = viewModelScope.launch {
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        liveRepository.getLiveAreaList()
-                    }
-                }.onSuccess { areas ->
-                    _uiState.update {
-                        it.copy(
-                            areaList = areas,
-                            areaLoading = false,
-                            areaError = false,
-                        )
-                    }
-                }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            areaLoading = false,
-                            areaError = true,
-                        )
+            areaListJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            liveRepository.getLiveAreaList()
+                        }
+                    }.onSuccess { areas ->
+                        _uiState.update {
+                            it.copy(
+                                areaList = areas,
+                                areaLoading = false,
+                                areaError = false,
+                            )
+                        }
+                    }.onFailure { error ->
+                        _uiState.update {
+                            it.copy(
+                                areaLoading = false,
+                                areaError = true,
+                            )
+                        }
                     }
                 }
-            }
         }
 
         /**
@@ -134,30 +136,31 @@ class LiveHomeViewModel
             }
 
             recommendJob?.cancel()
-            recommendJob = viewModelScope.launch {
-                runSuspendCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val response = liveRepository.getLiveRecommend()
-                        response.list.map { it.toCardData() }
-                    }
-                }.onSuccess { items ->
-                    _uiState.update {
-                        it.copy(
-                            recommendItems = items,
-                            recommendHasMore = items.isNotEmpty(),
-                            recommendLoading = false,
-                            recommendError = false,
-                        )
-                    }
-                }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            recommendLoading = false,
-                            recommendError = true,
-                        )
+            recommendJob =
+                viewModelScope.launch {
+                    runSuspendCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val response = liveRepository.getLiveRecommend()
+                            response.list.map { it.toCardData() }
+                        }
+                    }.onSuccess { items ->
+                        _uiState.update {
+                            it.copy(
+                                recommendItems = items,
+                                recommendHasMore = items.isNotEmpty(),
+                                recommendLoading = false,
+                                recommendError = false,
+                            )
+                        }
+                    }.onFailure { error ->
+                        _uiState.update {
+                            it.copy(
+                                recommendLoading = false,
+                                recommendError = true,
+                            )
+                        }
                     }
                 }
-            }
         }
 
         /**
@@ -172,48 +175,49 @@ class LiveHomeViewModel
             _uiState.update { it.copy(recommendLoading = true, recommendError = false) }
 
             recommendJob?.cancel()
-            recommendJob = viewModelScope.launch {
-                runCatching {
-                    withTimeout(LOAD_TIMEOUT_MS) {
-                        val existingIds =
-                            _uiState.value.recommendItems
-                                .map { it.roomId }
-                                .toSet()
-                        val newItems = mutableListOf<LiveRoomCardData>()
-                        val seenInBatch = mutableSetOf<Long>()
-                        var attempts = 0
-                        while (newItems.isEmpty() && attempts < 3) {
-                            val response = liveRepository.getLiveRecommend()
-                            response.list
-                                .map { it.toCardData() }
-                                .filter { it.roomId !in existingIds }
-                                .filter { seenInBatch.add(it.roomId) }
-                                .let { newItems.addAll(it) }
-                            attempts++
+            recommendJob =
+                viewModelScope.launch {
+                    runCatching {
+                        withTimeout(LOAD_TIMEOUT_MS) {
+                            val existingIds =
+                                _uiState.value.recommendItems
+                                    .map { it.roomId }
+                                    .toSet()
+                            val newItems = mutableListOf<LiveRoomCardData>()
+                            val seenInBatch = mutableSetOf<Long>()
+                            var attempts = 0
+                            while (newItems.isEmpty() && attempts < 3) {
+                                val response = liveRepository.getLiveRecommend()
+                                response.list
+                                    .map { it.toCardData() }
+                                    .filter { it.roomId !in existingIds }
+                                    .filter { seenInBatch.add(it.roomId) }
+                                    .let { newItems.addAll(it) }
+                                attempts++
+                            }
+                            newItems
                         }
-                        newItems
-                    }
-                }.onSuccess { newItems ->
-                    _uiState.update {
-                        it.copy(
-                            recommendItems = it.recommendItems + newItems,
-                            recommendHasMore = newItems.isNotEmpty(),
-                            recommendLoading = false,
-                            recommendError = false,
-                        )
-                    }
-                }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
-                    _uiState.update {
-                        it.copy(
-                            recommendLoading = false,
-                            recommendError = true,
-                        )
+                    }.onSuccess { newItems ->
+                        _uiState.update {
+                            it.copy(
+                                recommendItems = it.recommendItems + newItems,
+                                recommendHasMore = newItems.isNotEmpty(),
+                                recommendLoading = false,
+                                recommendError = false,
+                            )
+                        }
+                    }.onFailure { error ->
+                        if (error is CancellationException && error !is TimeoutCancellationException) {
+                            throw error
+                        }
+                        _uiState.update {
+                            it.copy(
+                                recommendLoading = false,
+                                recommendError = true,
+                            )
+                        }
                     }
                 }
-            }
         }
     }
 

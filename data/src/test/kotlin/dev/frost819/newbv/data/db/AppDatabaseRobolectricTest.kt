@@ -198,12 +198,13 @@ class AppDatabaseRobolectricTest {
             )
 
             val inserted = database.userDao().findUserByUid(100L)!!
-            val toUpdate = inserted.copy(
-                username = "new",
-                avatar = "new_url",
-                auth = "new_auth",
-                lock = "1234",
-            )
+            val toUpdate =
+                inserted.copy(
+                    username = "new",
+                    avatar = "new_url",
+                    auth = "new_auth",
+                    lock = "1234",
+                )
             database.userDao().update(toUpdate)
 
             val updated = database.userDao().findUserByUid(100L)!!

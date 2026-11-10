@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.StateFlow
  * - 不直接暴露 Prefs 属性，隔离数据层实现细节。
  */
 interface SettingsRepository {
-
     // ===== 音视频设置 =====
 
     /** 默认画质。 */

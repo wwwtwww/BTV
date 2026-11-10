@@ -10,12 +10,12 @@ import dev.frost819.newbv.biliapi.entity.pgc.PgcType
 import dev.frost819.newbv.biliapi.repositories.PgcRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -92,11 +92,12 @@ class PgcViewModel
          * 启动合并加载任务（轮播图 + Feed）。
          */
         private fun startLoad() {
-            loadJob = viewModelScope.launch {
-                val carouselDeferred = async { loadCarouselInternal() }
-                loadMoreInternal()
-                carouselDeferred.await()
-            }
+            loadJob =
+                viewModelScope.launch {
+                    val carouselDeferred = async { loadCarouselInternal() }
+                    loadMoreInternal()
+                    carouselDeferred.await()
+                }
         }
 
         /**
@@ -133,9 +134,10 @@ class PgcViewModel
          */
         fun loadMore() {
             if (_uiState.value.loading || !_uiState.value.hasMore) return
-            loadJob = viewModelScope.launch {
-                loadMoreInternal()
-            }
+            loadJob =
+                viewModelScope.launch {
+                    loadMoreInternal()
+                }
         }
 
         private suspend fun loadMoreInternal() {

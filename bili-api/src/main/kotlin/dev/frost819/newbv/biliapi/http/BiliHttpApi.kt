@@ -156,10 +156,13 @@ object BiliHttpApi {
 
     @Volatile
     var sessData: String = ""
+
     @Volatile
     var biliJct: String = ""
+
     @Volatile
     var mid: Long? = null
+
     @Volatile
     var accessToken: String = ""
 

@@ -3,11 +3,11 @@ package dev.frost819.newbv.app.util
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.Format
-import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.media3.exoplayer.RendererCapabilities
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.datastore.VideoCodec
 import javax.inject.Inject
@@ -59,73 +59,75 @@ interface VideoCapabilityProvider {
  * @param context 应用上下文（查询系统解码器能力）。
  * @param useSoftwareDecoder 是否按软件解码选择器判定；默认读取用户偏好。测试可注入固定值。
  */
-class MediaCodecVideoCapabilityProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
-) : VideoCapabilityProvider {
-    /** 测试用次构造函数，允许注入固定软解开关值。 */
+class MediaCodecVideoCapabilityProvider
+    @Inject
     constructor(
-        context: Context,
-        useSoftwareDecoder: () -> Boolean,
-    ) : this(context) {
-        this.useSoftwareDecoder = useSoftwareDecoder
-    }
-
-    private val cache = mutableMapOf<String, Boolean>()
-    private var useSoftwareDecoder: () -> Boolean = { Prefs.enableSoftwareVideoDecoder }
-
-    override fun isDecodable(profile: VideoDecodeProfile): Boolean {
-        val mime = profile.codec.mimeType ?: return true
-        val software = useSoftwareDecoder()
-        val key =
-            "$mime|${profile.width}x${profile.height}|" +
-                "${profile.frameRate}|${profile.codecs}|$software"
-        return cache.getOrPut(key) { query(mime, profile, software) }
-    }
-
-    private fun query(
-        mime: String,
-        profile: VideoDecodeProfile,
-        software: Boolean,
-    ): Boolean =
-        runCatching {
-            val format =
-                Format
-                    .Builder()
-                    .setSampleMimeType(mime)
-                    .setWidth(profile.width)
-                    .setHeight(profile.height)
-                    .apply { profile.frameRate?.let { setFrameRate(it) } }
-                    .apply { profile.codecs?.let { setCodecs(it) } }
-                    .build()
-            val selector = if (software) softwareSelector else MediaCodecSelector.DEFAULT
-            val support = MediaCodecVideoRenderer.supportsFormat(context, selector, format)
-            (support and RendererCapabilities.FORMAT_SUPPORT_MASK) == C.FORMAT_HANDLED
-        }.getOrDefault(true)
-
-    /**
-     * 软件解码选择器，与 [dev.frost819.newbv.player.impl.exo.ExoMediaPlayer] 保持一致：
-     * 仅选 `OMX.google.*` / `c2.android.*`，无软解时回退全部解码器。
-     */
-    private val softwareSelector =
-        MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
-            val all =
-                MediaCodecUtil.getDecoderInfos(
-                    mimeType,
-                    requiresSecureDecoder,
-                    requiresTunnelingDecoder,
-                )
-            all
-                .filter { it.name.startsWith("OMX.google.") || it.name.startsWith("c2.android.") }
-                .ifEmpty { all }
+        @ApplicationContext private val context: Context,
+    ) : VideoCapabilityProvider {
+        /** 测试用次构造函数，允许注入固定软解开关值。 */
+        constructor(
+            context: Context,
+            useSoftwareDecoder: () -> Boolean,
+        ) : this(context) {
+            this.useSoftwareDecoder = useSoftwareDecoder
         }
 
-    /** [VideoCodec] 对应的视频 MIME 类型，未知为 null。 */
-    private val VideoCodec.mimeType: String?
-        get() =
-            when (this) {
-                VideoCodec.AVC -> "video/avc"
-                VideoCodec.HEVC -> "video/hevc"
-                VideoCodec.AV1 -> "video/av01"
-                VideoCodec.DVH1 -> "video/dolby-vision"
+        private val cache = mutableMapOf<String, Boolean>()
+        private var useSoftwareDecoder: () -> Boolean = { Prefs.enableSoftwareVideoDecoder }
+
+        override fun isDecodable(profile: VideoDecodeProfile): Boolean {
+            val mime = profile.codec.mimeType ?: return true
+            val software = useSoftwareDecoder()
+            val key =
+                "$mime|${profile.width}x${profile.height}|" +
+                    "${profile.frameRate}|${profile.codecs}|$software"
+            return cache.getOrPut(key) { query(mime, profile, software) }
+        }
+
+        private fun query(
+            mime: String,
+            profile: VideoDecodeProfile,
+            software: Boolean,
+        ): Boolean =
+            runCatching {
+                val format =
+                    Format
+                        .Builder()
+                        .setSampleMimeType(mime)
+                        .setWidth(profile.width)
+                        .setHeight(profile.height)
+                        .apply { profile.frameRate?.let { setFrameRate(it) } }
+                        .apply { profile.codecs?.let { setCodecs(it) } }
+                        .build()
+                val selector = if (software) softwareSelector else MediaCodecSelector.DEFAULT
+                val support = MediaCodecVideoRenderer.supportsFormat(context, selector, format)
+                (support and RendererCapabilities.FORMAT_SUPPORT_MASK) == C.FORMAT_HANDLED
+            }.getOrDefault(true)
+
+        /**
+         * 软件解码选择器，与 [dev.frost819.newbv.player.impl.exo.ExoMediaPlayer] 保持一致：
+         * 仅选 `OMX.google.*` / `c2.android.*`，无软解时回退全部解码器。
+         */
+        private val softwareSelector =
+            MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                val all =
+                    MediaCodecUtil.getDecoderInfos(
+                        mimeType,
+                        requiresSecureDecoder,
+                        requiresTunnelingDecoder,
+                    )
+                all
+                    .filter { it.name.startsWith("OMX.google.") || it.name.startsWith("c2.android.") }
+                    .ifEmpty { all }
             }
-}
+
+        /** [VideoCodec] 对应的视频 MIME 类型，未知为 null。 */
+        private val VideoCodec.mimeType: String?
+            get() =
+                when (this) {
+                    VideoCodec.AVC -> "video/avc"
+                    VideoCodec.HEVC -> "video/hevc"
+                    VideoCodec.AV1 -> "video/av01"
+                    VideoCodec.DVH1 -> "video/dolby-vision"
+                }
+    }
