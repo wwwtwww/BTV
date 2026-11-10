@@ -36,11 +36,11 @@ import dev.frost819.newbv.data.repository.SettingsRepositoryImpl
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
+import kotlinx.coroutines.CoroutineDispatcher
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
-import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * 网络与基础设施 Hilt 模块。
