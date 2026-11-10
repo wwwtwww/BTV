@@ -145,9 +145,9 @@ class SearchHistoryDaoTest {
         runTest {
             val history = SearchHistoryEntity(keyword = "test", searchDate = Date(1000))
             dao.insert(history)
-            val inserted = dao.getAll().first()
+            var inserted = dao.getAll().first()
 
-            inserted.searchDate = Date(5000)
+            inserted = inserted.copy(searchDate = Date(5000))
             dao.update(inserted)
 
             val result = dao.getHistories(1)

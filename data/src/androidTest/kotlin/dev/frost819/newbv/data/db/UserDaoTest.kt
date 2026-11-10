@@ -128,10 +128,9 @@ class UserDaoTest {
         runTest {
             val user = UserEntity(uid = 100L, username = "oldName", avatar = "oldUrl", auth = "auth")
             dao.insert(user)
-            val inserted = dao.getAll().first()
+            var inserted = dao.getAll().first()
 
-            inserted.username = "newName"
-            inserted.avatar = "newUrl"
+            inserted = inserted.copy(username = "newName", avatar = "newUrl")
             dao.update(inserted)
 
             val result = dao.findUserByUid(100L)
@@ -144,10 +143,9 @@ class UserDaoTest {
         runTest {
             val user = UserEntity(uid = 100L, username = "user", avatar = "url", auth = "oldAuth")
             dao.insert(user)
-            val inserted = dao.getAll().first()
+            var inserted = dao.getAll().first()
 
-            inserted.auth = "newAuth"
-            inserted.lock = "1234"
+            inserted = inserted.copy(auth = "newAuth", lock = "1234")
             dao.update(inserted)
 
             val result = dao.findUserByUid(100L)
