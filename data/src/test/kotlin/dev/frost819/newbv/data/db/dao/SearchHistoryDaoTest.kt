@@ -311,8 +311,8 @@ class SearchHistoryDaoTest {
 
             val inserted = dao.findHistory("original")!!
             val originalId = inserted.id
-            inserted.searchDate = Date(999999999999L)
-            dao.update(inserted)
+            val toUpdate = inserted.copy(searchDate = Date(999999999999L))
+            dao.update(toUpdate)
 
             val updated = dao.findHistory("original")!!
             assertThat(updated.id).isEqualTo(originalId)
@@ -329,8 +329,7 @@ class SearchHistoryDaoTest {
             )
 
             val entity = dao.findHistory("a")!!
-            entity.searchDate = Date(9999)
-            dao.update(entity)
+            entity.copy(searchDate = Date(9999)).also { dao.update(it) }
 
             assertThat(dao.getAll()).hasSize(2)
         }
@@ -349,8 +348,8 @@ class SearchHistoryDaoTest {
             assertThat(found!!.keyword).isEqualTo("lifecycle")
 
             // When: update it
-            found.searchDate = Date(5000)
-            dao.update(found)
+            val toUpdate = found.copy(searchDate = Date(5000))
+            dao.update(toUpdate)
             val updated = dao.findHistory("lifecycle")!!
             assertThat(updated.searchDate.time).isEqualTo(5000)
 

@@ -29,9 +29,9 @@ class SearchHistoryEntityTest {
 
     @Test
     fun `searchDate is mutable`() {
-        val entity = SearchHistoryEntity(keyword = "test")
+        var entity = SearchHistoryEntity(keyword = "test")
         val originalDate = entity.searchDate
-        entity.searchDate = Date(999999999999L)
+        entity = entity.copy(searchDate = Date(999999999999L))
         assertThat(entity.searchDate).isNotEqualTo(originalDate)
         assertThat(entity.searchDate.time).isEqualTo(999999999999L)
     }

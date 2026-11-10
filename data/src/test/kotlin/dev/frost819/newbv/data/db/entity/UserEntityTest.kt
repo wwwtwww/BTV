@@ -41,29 +41,29 @@ class UserEntityTest {
 
     @Test
     fun `username is mutable`() {
-        val entity = UserEntity(uid = 1L, username = "old", avatar = "", auth = "")
-        entity.username = "new"
+        var entity = UserEntity(uid = 1L, username = "old", avatar = "", auth = "")
+        entity = entity.copy(username = "new")
         assertThat(entity.username).isEqualTo("new")
     }
 
     @Test
     fun `avatar is mutable`() {
-        val entity = UserEntity(uid = 1L, username = "", avatar = "old", auth = "")
-        entity.avatar = "new"
+        var entity = UserEntity(uid = 1L, username = "", avatar = "old", auth = "")
+        entity = entity.copy(avatar = "new")
         assertThat(entity.avatar).isEqualTo("new")
     }
 
     @Test
     fun `auth is mutable`() {
-        val entity = UserEntity(uid = 1L, username = "", avatar = "", auth = "old")
-        entity.auth = "new"
+        var entity = UserEntity(uid = 1L, username = "", avatar = "", auth = "old")
+        entity = entity.copy(auth = "new")
         assertThat(entity.auth).isEqualTo("new")
     }
 
     @Test
     fun `lock is mutable`() {
-        val entity = UserEntity(uid = 1L, username = "", avatar = "", auth = "")
-        entity.lock = "password"
+        var entity = UserEntity(uid = 1L, username = "", avatar = "", auth = "")
+        entity = entity.copy(lock = "password")
         assertThat(entity.lock).isEqualTo("password")
     }
 

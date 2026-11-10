@@ -116,8 +116,8 @@ class AppDatabaseRobolectricTest {
 
             val inserted = database.searchHistoryDao().findHistory("test")!!
             val newDate = Date(999999999999L)
-            inserted.searchDate = newDate
-            database.searchHistoryDao().update(inserted)
+            val toUpdate = inserted.copy(searchDate = newDate)
+            database.searchHistoryDao().update(toUpdate)
 
             val updated = database.searchHistoryDao().findHistory("test")!!
             assertThat(updated.searchDate).isEqualTo(newDate)
@@ -198,11 +198,13 @@ class AppDatabaseRobolectricTest {
             )
 
             val inserted = database.userDao().findUserByUid(100L)!!
-            inserted.username = "new"
-            inserted.avatar = "new_url"
-            inserted.auth = "new_auth"
-            inserted.lock = "1234"
-            database.userDao().update(inserted)
+            val toUpdate = inserted.copy(
+                username = "new",
+                avatar = "new_url",
+                auth = "new_auth",
+                lock = "1234",
+            )
+            database.userDao().update(toUpdate)
 
             val updated = database.userDao().findUserByUid(100L)!!
             assertThat(updated.username).isEqualTo("new")

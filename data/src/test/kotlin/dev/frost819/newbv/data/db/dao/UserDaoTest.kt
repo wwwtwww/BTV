@@ -280,11 +280,13 @@ class UserDaoTest {
 
             val inserted = dao.findUserByUid(500L)!!
             val originalId = inserted.id
-            inserted.username = "new"
-            inserted.avatar = "new_url"
-            inserted.auth = "new_auth"
-            inserted.lock = "4321"
-            dao.update(inserted)
+            val toUpdate = inserted.copy(
+                username = "new",
+                avatar = "new_url",
+                auth = "new_auth",
+                lock = "4321",
+            )
+            dao.update(toUpdate)
 
             val updated = dao.findUserByUid(500L)!!
             assertThat(updated.id).isEqualTo(originalId)
@@ -303,8 +305,7 @@ class UserDaoTest {
             )
 
             val entity = dao.findUserByUid(1L)!!
-            entity.username = "updated"
-            dao.update(entity)
+            entity.copy(username = "updated").also { dao.update(it) }
 
             assertThat(dao.getAll()).hasSize(2)
         }
@@ -316,8 +317,7 @@ class UserDaoTest {
 
             val entity = dao.findUserByUid(1L)!!
             assertThat(entity.lock).isEmpty()
-            entity.lock = "secret"
-            dao.update(entity)
+            entity.copy(lock = "secret").also { dao.update(it) }
 
             val found = dao.findUserByUid(1L)!!
             assertThat(found.lock).isEqualTo("secret")
@@ -330,8 +330,7 @@ class UserDaoTest {
 
             val entity = dao.findUserByUid(1L)!!
             assertThat(entity.lock).isEqualTo("password")
-            entity.lock = ""
-            dao.update(entity)
+            entity.copy(lock = "").also { dao.update(it) }
 
             val found = dao.findUserByUid(1L)!!
             assertThat(found.lock).isEmpty()
@@ -351,9 +350,8 @@ class UserDaoTest {
             assertThat(found!!.username).isEqualTo("lifecycle")
 
             // When: update it
-            found.username = "updated"
-            found.avatar = "new_avatar"
-            dao.update(found)
+            val toUpdate = found.copy(username = "updated", avatar = "new_avatar")
+            dao.update(toUpdate)
             val updated = dao.findUserByUid(777L)!!
             assertThat(updated.username).isEqualTo("updated")
             assertThat(updated.avatar).isEqualTo("new_avatar")
