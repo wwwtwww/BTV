@@ -36,18 +36,6 @@ class SettingsRepositoryImpl : SettingsRepository {
     /** 仓库内部使用的协程作用域，用于 stateIn 转换。 */
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // ===== 辅助扩展：从 Prefs.flowOf 获取并映射为业务类型 StateFlow =====
-
-    private fun <T> flowOfInt(
-        map: (Int) -> T,
-        initial: T,
-    ): StateFlow<T> =
-        @Suppress("UNCHECKED_CAST")
-        (Prefs.flowOf(PrefKeys.density) as kotlinx.coroutines.flow.MutableStateFlow<Any?>?)
-            ?.map { map((it as? Int) ?: 0) }
-            ?.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, initial)
-            ?: kotlinx.coroutines.flow.MutableStateFlow(initial)
-
     // ===== 音视频设置 =====
 
     override val defaultQuality: StateFlow<Resolution> by lazy {
