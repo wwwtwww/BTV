@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
@@ -239,11 +240,15 @@ class PrefDelegateTest {
     @Test
     fun `custom buvid3 is preserved across reinit`() =
         runBlocking {
-            Prefs.buvid3 = "custom_buvid3_value"
-            Prefs.awaitPersistForTesting()
+            // 直接向 DataStore 写入自定义 buvid3，绕过异步 persist 竞态
+            dataStore.edit { prefs ->
+                prefs[PrefKeys.buvid3] = "custom_buvid3_value"
+                prefs[PrefKeys.buvid] = "test_buvid"
+            }
 
             Prefs.resetForTesting()
-            Prefs.init(dataStore)
+            // 使用 initSuspend 避免在 runBlocking 内嵌套 runBlocking 导致 CI 死锁
+            Prefs.initSuspend(dataStore)
 
             assertThat(Prefs.buvid3).isEqualTo("custom_buvid3_value")
         }

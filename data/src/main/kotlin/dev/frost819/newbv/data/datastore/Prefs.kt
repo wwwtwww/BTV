@@ -471,10 +471,32 @@ object Prefs {
      */
     fun init(dataStore: DataStore<Preferences>) {
         check(!initialized) { "Prefs 已经初始化，禁止重复调用 init()" }
+        runBlocking { initSuspend(dataStore) }
+    }
+
+    /**
+     * Suspend 版本的 [init]，供测试直接调用以避免嵌套 runBlocking。
+     *
+     * 生产代码应使用 [init]；测试中若已在协程作用域内，应调用此方法代替 [init]，
+     * 防止内层 runBlocking 阻塞外层事件循环造成 CI 超时/死锁。
+     */
+    @androidx.annotation.VisibleForTesting
+    internal suspend fun initSuspend(dataStore: DataStore<Preferences>) {
+        check(!initialized) { "Prefs 已经初始化，禁止重复调用 initSuspend()" }
         dataStoreRef = dataStore
         initialized = true
+        loadFromDataStore()
+    }
 
-        val initialPrefs = runBlocking { dataStore.data.first() }
+    /**
+     * 从 DataStore 加载首帧数据并填充所有委托的内存缓存。
+     *
+     * 由 [initSuspend] 调用，负责读取 DataStore 首帧 Preferences、
+     * 恢复所有 [PrefDelegate] 的内存值，并确保 buvid / buvid3 已生成。
+     */
+    private suspend fun loadFromDataStore() {
+        val ds = dataStoreRef ?: error("dataStore 未设置")
+        val initialPrefs = ds.data.first()
         delegateMap.forEach { (key, delegate) ->
             if (initialPrefs.contains(key)) {
                 (delegate as PrefDelegate<Any?, Any?>).flow.value = initialPrefs[key]
