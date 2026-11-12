@@ -75,6 +75,7 @@ import dev.frost819.newbv.biliapi.http.plugins.BiliUserAgent
 import dev.frost819.newbv.biliapi.http.util.BiliAppConf
 import dev.frost819.newbv.biliapi.http.util.encApiSign
 import dev.frost819.newbv.biliapi.http.util.injectCookies
+import dev.frost819.newbv.biliapi.util.BiliLogger
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -122,6 +123,9 @@ object BiliHttpApi {
 
     private var endPoint: String = "api.bilibili.com"
     private val client: HttpClient by lazy { createClient() }
+
+    /** 模块内统一日志入口（见 [BiliLogger]），避免直接使用裸 [println]。 */
+    private val logger = BiliLogger
 
     /**
      * 在后台协程预创建 Ktor HttpClient，与 UI 初始化并行执行。
@@ -1880,7 +1884,7 @@ object BiliHttpApi {
             runSuspendCatching {
                 json.decodeFromString<PgcWebInitialStateData>(dataJson)
             }.onFailure {
-                println("parse initial state data failed: ${it.stackTraceToString()}")
+                logger.error { "parse initial state data failed: ${it.stackTraceToString()}" }
             }.getOrNull() ?: throw IllegalStateException("parse initial state data failed")
         return initinalData
     }
@@ -1983,7 +1987,7 @@ object BiliHttpApi {
                 (now - wbiLastRefreshDate > 2 * 60 * 60 * 1000L)
 
         if (!needToUpdate) {
-            println("Skip update wbi keys")
+            logger.info { "Skip update wbi keys" }
             return
         }
 
@@ -1991,10 +1995,10 @@ object BiliHttpApi {
             val wbiData = getWebInterfaceNav().data?.wbiImg ?: return
             wbiImgKey = wbiData.getImgKey()
             wbiSubKey = wbiData.getSubKey()
-            println("Update wbi keys: $wbiImgKey, $wbiSubKey")
+            logger.info { "Update wbi keys: $wbiImgKey, $wbiSubKey" }
             wbiLastRefreshDate = now
         }.onFailure {
-            println("Update wbi data failed: ${it.stackTraceToString()}")
+            logger.error { "Update wbi data failed: ${it.stackTraceToString()}" }
         }
     }
 

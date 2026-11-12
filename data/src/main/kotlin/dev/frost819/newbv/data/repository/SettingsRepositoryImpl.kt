@@ -43,29 +43,28 @@ class SettingsRepositoryImpl(
     // ===== 音视频设置 =====
 
     override val defaultQuality: StateFlow<Resolution> by lazy {
-        intEnumFlow(PrefKeys.defaultQuality, Resolution.entries, Resolution::fromCode, Prefs.defaultQuality)
+        intEnumFlow(PrefKeys.defaultQuality, Resolution::fromCode, Prefs.defaultQuality)
     }
 
     override val defaultVideoCodec: StateFlow<VideoCodec> by lazy {
-        intEnumFlow(PrefKeys.defaultVideoCodec, VideoCodec.entries, VideoCodec::fromOrdinal, Prefs.defaultVideoCodec)
+        intEnumFlow(PrefKeys.defaultVideoCodec, VideoCodec::fromOrdinal, Prefs.defaultVideoCodec)
     }
 
     override val defaultAudio: StateFlow<Audio> by lazy {
-        intEnumFlow(PrefKeys.defaultAudio, Audio.entries, Audio::fromCode, Prefs.defaultAudio)
+        intEnumFlow(PrefKeys.defaultAudio, Audio::fromCode, Prefs.defaultAudio)
     }
 
     override val defaultPlaySpeed: StateFlow<PlaySpeed> by lazy {
-        intEnumFlow(PrefKeys.defaultPlaySpeed, PlaySpeed.entries, PlaySpeed::fromCode, Prefs.defaultPlaySpeed)
+        intEnumFlow(PrefKeys.defaultPlaySpeed, PlaySpeed::fromCode, Prefs.defaultPlaySpeed)
     }
 
     override val actionAfterPlay: StateFlow<ActionAfterPlay> by lazy {
-        intEnumFlow(PrefKeys.actionAfterPlay, ActionAfterPlay.entries, ActionAfterPlay::fromCode, Prefs.actionAfterPlay)
+        intEnumFlow(PrefKeys.actionAfterPlay, ActionAfterPlay::fromCode, Prefs.actionAfterPlay)
     }
 
     override val screensaverTimeout: StateFlow<ScreensaverTimeout> by lazy {
         intEnumFlow(
             PrefKeys.screensaverTimeout,
-            ScreensaverTimeout.entries,
             ScreensaverTimeout::fromCode,
             Prefs.screensaverTimeout,
         )
@@ -102,39 +101,37 @@ class SettingsRepositoryImpl(
     }
 
     override val homeLeftNavItem: StateFlow<LeftNaviItem> by lazy {
-        intEnumFlow(PrefKeys.homeLeftNavItem, LeftNaviItem.entries, LeftNaviItem::fromOrdinal, Prefs.homeLeftNavItem)
+        intEnumFlow(PrefKeys.homeLeftNavItem, LeftNaviItem::fromOrdinal, Prefs.homeLeftNavItem)
     }
 
     override val firstHomeTopNavItem: StateFlow<HomeTopNavItem> by lazy {
         intEnumFlow(
             PrefKeys.firstHomeTopNavItem,
-            HomeTopNavItem.entries,
             HomeTopNavItem::fromCode,
             Prefs.firstHomeTopNavItem,
         )
     }
 
     override val homeHeroMode: StateFlow<HomeHeroMode> by lazy {
-        intEnumFlow(PrefKeys.homeHeroMode, HomeHeroMode.entries, HomeHeroMode::fromOrdinal, Prefs.homeHeroMode)
+        intEnumFlow(PrefKeys.homeHeroMode, HomeHeroMode::fromOrdinal, Prefs.homeHeroMode)
     }
 
     override val firstPersonalTopNavItem: StateFlow<PersonalTopNavItem> by lazy {
         intEnumFlow(
             PrefKeys.firstPersonalTopNavItem,
-            PersonalTopNavItem.entries,
             PersonalTopNavItem::fromOrdinal,
             Prefs.firstPersonalTopNavItem,
         )
     }
 
     override val themeMode: StateFlow<ThemeMode> by lazy {
-        intEnumFlow(PrefKeys.themeMode, ThemeMode.entries, ThemeMode::fromOrdinal, Prefs.themeMode)
+        intEnumFlow(PrefKeys.themeMode, ThemeMode::fromOrdinal, Prefs.themeMode)
     }
 
     // ===== 其他设置 =====
 
     override val apiType: StateFlow<ApiType> by lazy {
-        intEnumFlow(PrefKeys.apiType, ApiType.entries, ApiType::fromOrdinal, Prefs.apiType)
+        intEnumFlow(PrefKeys.apiType, ApiType::fromOrdinal, Prefs.apiType)
     }
 
     override val crashReportEnabled: StateFlow<Boolean> by lazy {
@@ -246,15 +243,18 @@ class SettingsRepositoryImpl(
     /**
      * 从 Prefs.flowOf 获取 Int 类型原始流，映射为枚举 StateFlow。
      *
+     * DataStore 中存储的是枚举的 code 值（如 [Resolution] 的 116、[Audio] 的 30216 等，
+     * 部分枚举按 ordinal 持久化），因此必须通过 [fromInt] 解码，不能用位置索引查找
+     * （code 值远大于 entries 下标范围，会数组越界）。
+     *
+     * 注意：[fromInt] 解码函数不得抛异常，由调用方（枚举定义）保证兜底。
+     *
      * @param key DataStore 键。
-     * @param entries 枚举值列表。
-     * @param fromInt 整数转枚举的映射函数。
+     * @param fromInt 整数（code 或 ordinal）转枚举的映射函数，自身需对非法值做安全兜底（不得抛异常）。
      * @param initialValue 初始值（从 Prefs 当前值获取）。
      */
-    @Suppress("UNCHECKED_CAST")
     private fun <T : Enum<T>> intEnumFlow(
         key: androidx.datastore.preferences.core.Preferences.Key<Int>,
-        entries: List<T>,
         fromInt: (Int) -> T,
         initialValue: T,
     ): StateFlow<T> {
@@ -262,7 +262,8 @@ class SettingsRepositoryImpl(
         return rawFlow
             .map { value ->
                 val intValue = value as? Int ?: return@map initialValue
-                runCatching { entries[intValue] }.getOrDefault(initialValue)
+                // 解码器自带兜底，不得抛异常
+                fromInt(intValue)
             }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, initialValue)
     }
 

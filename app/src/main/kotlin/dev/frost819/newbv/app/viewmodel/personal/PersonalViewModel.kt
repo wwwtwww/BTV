@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.app.viewmodel.personal
+package dev.frost819.newbv.app.viewmodel.personal
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel

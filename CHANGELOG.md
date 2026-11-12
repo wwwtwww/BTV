@@ -6,6 +6,28 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.5.12] - 2026-11-12
+
+> 稳定性修复版本：用户锁数据安全与保存失败重试、切集弹幕残留、接口日志体系升级与迁移幂等加固。
+
+### 🐛 问题修复
+- **用户锁写入数据安全 [P0]**：`AccountRepositoryImpl.upsertUser` 改用 `UserDao.upsertRemoteFields` 原子 UPSERT（`INSERT ... ON CONFLICT(uid) DO UPDATE`），消除旧 find→insert TOCTOU 竞态下 REPLACE 语义静默清空用户锁的风险；`updateUserLock` 用户不存在时显式抛错，杜绝安全功能假报保存成功。
+- **用户锁保存失败状态机闭环**：`UserLockViewModel` 新增 `SaveFailed` 阶段，保存失败提示固定重试文案（异常详情仅记日志），确认键重试、返回键回退上一阶段；`isSaving` 在 `finally` 中无条件清除，异常不再卡死“保存中”。
+- **切集弹幕/字幕残留修复 [P0]**：`PlayerViewModel` cid==0 延迟切集路径新增 `deferredDetailJob` 可取消协程，`VideoPlayerScreen` 引入 `pendingCidLoad`/`lastLoadedCid` 协调弹幕、字幕与蒙版加载，立即清空旧覆盖层并按 cid 补齐后精准加载，消除切集瞬间弹幕叠画与重复加载。
+- **设置项枚举解码越界修复**：`SettingsRepositoryImpl.intEnumFlow` 移除按位置索引查表的 `entries[intValue]`（code 值远大于下标范围会越界），统一经 `fromInt` 解码器自带兜底。
+- **Room 迁移 v4→v5 幂等加固**：`MIGRATION_4_5` 唯一索引创建改用 `IF NOT EXISTS`，空串重复值一并去重，避免历史 DB 升级时 `SQLiteConstraintException` 崩溃。
+
+### 🔧 优化与调整
+- **接口日志体系升级**：`BiliLogger` 新增 `BiliLogLevel`/`BiliLogSink` 抽象与级别过滤，`bili-api` 模块全部裸 `println`/`printStackTrace` 收敛至统一日志入口；`BVApplication` 启动时接入 Logcat sink（分段输出防截断，release 包仅 INFO 及以上），接口层失败原因（签名过期、风控、gRPC 错误）在大屏端可观测。
+- **直播 CDN 明文放行**：`network_security_config.xml` 放行 `alivecdn.com` 等直播流 CDN 域名明文流量，修复 HTTP 降级直播流起播失败。
+- **Windows 构建修复**：`bili-api-grpc` JavaCompile 固定 UTF-8 编码，修复 protoc 生成源码中文注释在 GBK 平台编译报错。
+- **播放器 reset 语义完善**：`ExoMediaPlayer.reset()` 复位 `playWhenReady` 与 BEHIND_LIVE_WINDOW 恢复状态，消除复用残留。
+- **搜索历史写入收敛**：`SearchHistoryRepositoryImpl.insert` 改用 DAO `upsert`，配合唯一索引消除重复插入。
+
+### 🧪 测试与文档
+- 新增 `Migration4To5Test`（内存 SQLite 执行迁移 SQL）、`SettingsEnumRoundTripTest` 枚举往返、用户锁 ViewModel/Repository 失败重试路径测试，扩充 `BiliLoggerTest`/`UserDaoTest` 覆盖。
+- AGENTS/PRD/开发计划文档代理功能描述与事实对齐。
+
 ## [v0.5.11] - 2026-11-11
 
 > 紧急热修复：修复 Room 数据库迁移 v4→v5 缺失导致的 OTA 升级后闪退问题。

@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!-- 默认禁止明文流量，只信任系统证书 -->
-    <base-config cleartextTrafficPermitted="false"
-                 usesCleartextTraffic="false">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
@@ -20,6 +19,15 @@
         <domain includeSubdomains="true">bilivideo.com</domain>
         <domain includeSubdomains="true">bilivideo.cn</domain>
         <domain includeSubdomains="true">hdslb.com</domain>
+    </domain-config>
+
+    <!-- 直播流 CDN 域名放行明文：直播流地址可能降级 HTTP，不放行会导致起播失败 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- 以下域名待真机验证，确认哪些实际走 HTTP（B 站部分区域直播流可能 HTTP 降级） -->
+        <domain includeSubdomains="true">alivecdn.com</domain>
+        <domain includeSubdomains="true">linknetkvcc.com</domain>
+        <domain includeSubdomains="true">videocloudcdn.net</domain>
+        <domain includeSubdomains="true">bosvd.com</domain>
     </domain-config>
 
     <!-- 调试模式下信任用户安装的证书（如抓包工具） -->

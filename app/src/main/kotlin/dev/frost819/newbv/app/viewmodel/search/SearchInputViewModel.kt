@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.app.viewmodel.search
+package dev.frost819.newbv.app.viewmodel.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -124,7 +124,13 @@ class SearchInputViewModel
             viewModelScope.launch {
                 // 确保数据库写入不会因路由变更或重组而被中途取消
                 withContext(NonCancellable) {
-                    searchHistoryRepository.addHistory(keyword)
+                    // 落库失败（磁盘异常、唯一索引冲突等）不能冲掉搜索结果的接力建议与已切换的结果态：
+                    // 降级为日志，仅影响历史列表刷新，主搜索流程照常推进。
+                    runSuspendCatching {
+                        searchHistoryRepository.addHistory(keyword)
+                    }.onFailure { e ->
+                        logger.warn(e) { "commitSearch: addHistory failed for keyword=$keyword" }
+                    }
                 }
                 loadHistories()
                 onCompleted()

@@ -237,9 +237,21 @@ open class ExoMediaPlayer(
         mPlayer?.stop()
     }
 
+    /**
+     * 重置播放器：停止播放、清空媒体项与 [mMediaSource]，并复位 BEHIND_LIVE_WINDOW 恢复计数。
+     *
+     * 注意：当前仅由测试覆写使用，生产路径尚未接入。直播/点播切流实际走 [release] + 重建播放器实例，
+     * 因此本方法未来接入生产调用时需重新评估 [mPlayer] 的复用边界。
+     */
     override fun reset() {
         mPlayer?.stop()
         mPlayer?.clearMediaItems()
+        // 重置播放意图，避免 reset 后仍残留 playWhenReady=true 导致下次 prepare 时意外自动起播
+        mPlayer?.playWhenReady = false
+        // 清空 BEHIND_LIVE_WINDOW 恢复状态，防止跨视频/跨集残留恢复频率限制状态
+        behindLiveWindowWindowStartAtMs = 0L
+        behindLiveWindowRecoverCount = 0
+        behindLiveWindowLastRecoverAtMs = 0L
         mMediaSource = null
     }
 

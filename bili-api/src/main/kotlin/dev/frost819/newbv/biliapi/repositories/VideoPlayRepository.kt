@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.biliapi.repositories
+package dev.frost819.newbv.biliapi.repositories
 
 import bilibili.app.playerunite.v1.PlayerGrpcKt
 import bilibili.app.playerunite.v1.playViewUniteReq
@@ -20,6 +20,7 @@ import dev.frost819.newbv.biliapi.entity.video.VideoShot
 import dev.frost819.newbv.biliapi.grpc.utils.handleGrpcException
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.entity.danmaku.DanmakuData
+import dev.frost819.newbv.biliapi.util.BiliLogger
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -31,6 +32,9 @@ class VideoPlayRepository(
     private val authRepository: AuthRepository,
     private val channelRepository: ChannelRepository,
 ) {
+    /** 模块内统一日志入口（见 [BiliLogger]），避免直接使用裸 [println]。 */
+    private val logger = BiliLogger
+
     private val playerStub
         get() =
             runCatching {
@@ -100,11 +104,10 @@ class VideoPlayRepository(
                                             // dont throw
                                             runSuspendCatching { handleGrpcException(it) }
                                                 .onFailure {
-                                                    println(
+                                                    logger.error(it) {
                                                         "get play data failed: " +
-                                                            "[aid=$aid, cid=$cid, codec=$codecType, api=$preferApiType]",
-                                                    )
-                                                    it.printStackTrace()
+                                                            "[aid=$aid, cid=$cid, codec=$codecType, api=$preferApiType]"
+                                                    }
                                                 }
                                         }.getOrNull()
                                     playUniteReply
@@ -129,10 +132,10 @@ class VideoPlayRepository(
         preferCodec: CodeType = CodeType.NoCode,
         preferApiType: ApiType,
     ): PlayData {
-        println(
+        logger.debug {
             "get pgc play data: " +
-                "[aid=$aid, cid=$cid, epid=$epid, preferCodec=$preferCodec, preferApiType=$preferApiType]",
-        )
+                "[aid=$aid, cid=$cid, epid=$epid, preferCodec=$preferCodec, preferApiType=$preferApiType]"
+        }
         return when (preferApiType) {
             ApiType.Web -> {
                 val playUrlData =
@@ -182,11 +185,10 @@ class VideoPlayRepository(
                                             // dont throw
                                             runSuspendCatching { handleGrpcException(it) }
                                                 .onFailure {
-                                                    println(
+                                                    logger.error(it) {
                                                         "get pgc play data failed: " +
-                                                            "[aid=$aid, cid=$cid, epid=$epid, codec=$codecType]",
-                                                    )
-                                                    it.printStackTrace()
+                                                            "[aid=$aid, cid=$cid, epid=$epid, codec=$codecType]"
+                                                    }
                                                 }
                                         }.getOrNull()
                                     playReply
@@ -280,7 +282,7 @@ class VideoPlayRepository(
                         accessKey = authRepository.accessToken,
                     )
             }
-        println("send heartbeat result: $result")
+        logger.debug { "send heartbeat result: $result" }
     }
 
     /**

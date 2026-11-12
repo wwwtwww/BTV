@@ -9,9 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.app.util.ToastUtils
 import dev.frost819.newbv.biliapi.entity.ApiType
 import dev.frost819.newbv.biliapi.repositories.ToViewRepository
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -56,7 +56,7 @@ class WatchLaterViewModel
             bvid: String? = null,
         ) {
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     toViewRepository.addToView(
                         aid = aid,
                         bvid = bvid,
@@ -65,7 +65,6 @@ class WatchLaterViewModel
                 }.onSuccess {
                     _effect.emit(WatchLaterEffect.ShowToast("已添加到稍后再看"))
                 }.onFailure { error ->
-                    if (error is CancellationException) throw error
                     logger.error(error) { "Failed to add to view" }
                     _effect.emit(WatchLaterEffect.ShowToast("添加失败: ${error.message ?: "未知错误"}"))
                 }
@@ -79,7 +78,7 @@ class WatchLaterViewModel
          */
         fun delToView(aid: Long) {
             viewModelScope.launch {
-                runCatching {
+                runSuspendCatching {
                     toViewRepository.delToView(
                         aid = aid,
                         viewed = false,
@@ -88,7 +87,6 @@ class WatchLaterViewModel
                 }.onSuccess {
                     _effect.emit(WatchLaterEffect.ShowToast("已移除稍后再看"))
                 }.onFailure { error ->
-                    if (error is CancellationException) throw error
                     logger.error(error) { "Failed to delete to view" }
                     _effect.emit(WatchLaterEffect.ShowToast("移除失败: ${error.message ?: "未知错误"}"))
                 }

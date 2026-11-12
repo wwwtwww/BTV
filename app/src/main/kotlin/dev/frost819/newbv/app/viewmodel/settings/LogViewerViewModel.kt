@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.frost819.newbv.app.network.HttpServer
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.CrashHandler
 import dev.frost819.newbv.core.log.Loggers
 import kotlinx.coroutines.Dispatchers
@@ -124,7 +125,7 @@ class LogViewerViewModel
          * @return IPv4 地址字符串，获取失败返回空字符串。
          */
         private fun getLocalIpAddress(): String =
-            runCatching {
+            runSuspendCatching {
                 NetworkInterface
                     .getNetworkInterfaces()
                     .toList()

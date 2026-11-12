@@ -3,7 +3,9 @@ package dev.frost819.newbv.app.viewmodel.user
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.repository.AccountRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +28,15 @@ enum class LockInputPhase {
 
     /** 密码已成功写入持久化阶段。 */
     SaveSuccess,
+
+    /**
+     * 密码写入失败阶段。
+     *
+     * 由保存流程在数据库写入抛出异常时进入；异常详情只记录到日志，不向大屏用户暴露，
+     * 界面文案固定由 `R.string.lock_save_failed` 呈现；
+     * 按确认键可复用待写入密码重试，按方向键则回到发起保存前的阶段继续编辑。
+     */
+    SaveFailed,
 }
 
 /**
@@ -67,7 +78,24 @@ class UserLockViewModel
         private val _uiState = MutableStateFlow(UserLockUiState())
         val uiState: StateFlow<UserLockUiState> = _uiState.asStateFlow()
 
+        private val logger = Loggers.get("UserLockViewModel")
+
         private var existingLockPassword = ""
+
+        /**
+         * 发起本次保存时所处的阶段。
+         *
+         * 保存失败进入 [LockInputPhase.SaveFailed] 后，用户重新输入时回到该阶段，
+         * 避免失败态把输入流程卡死在无法继续的分支上。
+         */
+        private var saveSourcePhase = LockInputPhase.InputNew
+
+        /**
+         * 最近一次待写入的密码串，`null` 表示没有等待重试的保存操作。
+         *
+         * [LockInputPhase.SaveFailed] 下按确认键时直接复用该值重试，无需用户重新输入。
+         */
+        private var pendingLock: String? = null
 
         /**
          * 初始化用户锁状态。
@@ -106,6 +134,8 @@ class UserLockViewModel
          */
         fun appendDirection(direction: String) {
             if (_uiState.value.isSaving || _uiState.value.phase == LockInputPhase.SaveSuccess) return
+            // 失败态下继续输入视为放弃重试，回到发起保存前的阶段重新编辑
+            restorePhaseIfSaveFailed()
             _uiState.update {
                 it.copy(
                     inputPassword = it.inputPassword + direction,
@@ -121,6 +151,7 @@ class UserLockViewModel
          */
         fun deleteLastDirection() {
             if (_uiState.value.isSaving || _uiState.value.phase == LockInputPhase.SaveSuccess) return
+            restorePhaseIfSaveFailed()
             _uiState.update {
                 it.copy(
                     inputPassword = it.inputPassword.dropLast(1),
@@ -135,7 +166,8 @@ class UserLockViewModel
          * 根据当前所处阶段执行校验或持久化：
          * 1. [LockInputPhase.VerifyOld]：核对原密码，核对通过进入 [LockInputPhase.InputNew]，否则提示错误并清空；
          * 2. [LockInputPhase.InputNew]：若输入为空则清除密码锁，否则暂存并进入 [LockInputPhase.ConfirmNew]；
-         * 3. [LockInputPhase.ConfirmNew]：核对与新密码是否一致，一致则异步持久化并在完成后进入 [LockInputPhase.SaveSuccess]。
+         * 3. [LockInputPhase.ConfirmNew]：核对与新密码是否一致，一致则异步持久化并在完成后进入 [LockInputPhase.SaveSuccess]；
+         * 4. [LockInputPhase.SaveFailed]：复用上次的密码串重试写入。
          */
         fun confirm() {
             val state = _uiState.value
@@ -165,7 +197,7 @@ class UserLockViewModel
                     val input = state.inputPassword
                     if (input.isEmpty()) {
                         // 清空密码锁
-                        saveLockInternal(state.currentUid, "")
+                        saveLockInternal(state.currentUid, "", LockInputPhase.InputNew)
                     } else {
                         _uiState.update {
                             it.copy(
@@ -180,7 +212,7 @@ class UserLockViewModel
 
                 LockInputPhase.ConfirmNew -> {
                     if (state.inputPassword == state.newPassword) {
-                        saveLockInternal(state.currentUid, state.inputPassword)
+                        saveLockInternal(state.currentUid, state.inputPassword, LockInputPhase.ConfirmNew)
                     } else {
                         _uiState.update {
                             it.copy(
@@ -196,6 +228,8 @@ class UserLockViewModel
                 LockInputPhase.SaveSuccess -> {
                     // 已完成，忽略
                 }
+
+                LockInputPhase.SaveFailed -> retrySave()
             }
         }
 
@@ -207,6 +241,13 @@ class UserLockViewModel
         fun onBack(): Boolean {
             val state = _uiState.value
             if (state.isSaving) return true
+
+            // SaveFailed 阶段一次 Back 即回退原阶段并清空输入，避免用户需多次 Back 才退出
+            if (state.phase == LockInputPhase.SaveFailed) {
+                restorePhaseIfSaveFailed()
+                _uiState.update { it.copy(inputPassword = "") }
+                return true
+            }
 
             if (state.inputPassword.isNotEmpty()) {
                 deleteLastDirection()
@@ -229,21 +270,70 @@ class UserLockViewModel
         }
 
         /**
-         * 异步写入数据库并在完成之后更新为 [LockInputPhase.SaveSuccess]。
+         * 异步写入数据库，完成后进入 [LockInputPhase.SaveSuccess]，失败则进入 [LockInputPhase.SaveFailed]。
+         *
+         * 取消信号必须原样重抛以保持结构化并发语义；[UserLockUiState.isSaving]
+         * 在 `finally` 中无条件清除，否则异常会让 UI 永久停在“保存中”而无法再次交互。
+         *
+         * 失败时不将异常 `message` 写入 UI 状态（底层异常文本对电视用户不可读且可能含实现细节），
+         * 只记录日志；展示文案由 UI 侧固定字符串资源提供。
+         *
+         * @param uid 目标用户 UID。
+         * @param lock 待写入的密码串，空字符串表示清除用户锁。
+         * @param sourcePhase 发起保存时所处阶段，供失败后回退使用。
          */
         private fun saveLockInternal(
             uid: Long,
             lock: String,
+            sourcePhase: LockInputPhase,
         ) {
-            _uiState.update { it.copy(isSaving = true) }
+            saveSourcePhase = sourcePhase
+            pendingLock = lock
+            _uiState.update { it.copy(isSaving = true, message = "") }
             viewModelScope.launch {
-                accountRepository.updateUserLock(uid, lock)
-                _uiState.update {
-                    it.copy(
-                        isSaving = false,
-                        phase = LockInputPhase.SaveSuccess,
-                    )
+                try {
+                    accountRepository.updateUserLock(uid, lock)
+                    pendingLock = null
+                    _uiState.update { it.copy(phase = LockInputPhase.SaveSuccess) }
+                } catch (e: CancellationException) {
+                    // 仅超时等外部取消才走这里，吞掉会破坏协程取消语义，必须重抛
+                    throw e
+                } catch (e: Exception) {
+                    logger.error(e) { "updateUserLock failed" }
+                    _uiState.update { it.copy(phase = LockInputPhase.SaveFailed) }
+                } finally {
+                    _uiState.update { it.copy(isSaving = false) }
                 }
+            }
+        }
+
+        /**
+         * 在 [LockInputPhase.SaveFailed] 下重试写入。
+         *
+         * 若待写入上下文已丢失（例如进程重建），则仅回退到发起保存前的阶段。
+         */
+        private fun retrySave() {
+            val lock = pendingLock
+            if (lock == null) {
+                restorePhaseIfSaveFailed()
+                return
+            }
+            saveLockInternal(_uiState.value.currentUid, lock, saveSourcePhase)
+        }
+
+        /**
+         * 若当前处于 [LockInputPhase.SaveFailed]，则回退到发起保存前的阶段并清除错误提示。
+         *
+         * 非失败态时为空操作，以便在各输入入口无条件调用。
+         */
+        private fun restorePhaseIfSaveFailed() {
+            if (_uiState.value.phase != LockInputPhase.SaveFailed) return
+            pendingLock = null
+            _uiState.update {
+                it.copy(
+                    phase = saveSourcePhase,
+                    message = "",
+                )
             }
         }
     }

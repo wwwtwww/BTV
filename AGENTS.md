@@ -32,7 +32,6 @@ BTV 是基于 [BV](https://github.com/aaa1115910/bv)（源码在 `bv/` 目录）
 | 单 Activity + Navigation-Compose | 禁止新增 Activity（除系统必需） |
 | Hilt DI | 禁止使用 Koin 或手动 `object` 单例做 DI |
 | 仅 Media3 播放器 | 不接入 VLC，播放器抽象支持 VOD + Live |
-| 代理功能完全删除 | 不引入任何代理/ProxyArea/Ali CDN 逻辑 |
 | 无 Firebase | 崩溃监控用本地 + 可选自建上报 |
 | minSdk 21 | 不允许使用仅 API 22+ 的 API 而不做兼容 |
 | Kotlin 2.4.10 / KSP 2.3.10 / Java 17 | 版本锁定，不擅自升级 |
@@ -308,7 +307,6 @@ dev.frost819.newbv/
 - 保留原版的接口签名逻辑（WBI `w_rid`、App `sign` MD5）——这是接口可用的关键
 - 保留原版的 UA 设置（Web UA / App UA）——风控相关
 - 保留原版的 buvid 生成算法
-- **删除**所有代理相关代码（`BiliHttpProxyApi`、`ProxyArea`、`proxyChannel`、Ali CDN 替换）
 - **删除** Firebase 相关
 - 包名从 `dev.aaa1115910.biliapi` 改为 `dev.frost819.newbv.biliapi`
 
@@ -932,7 +930,6 @@ items(detail.tags) { tag ->
 | 禁止 | 原因 |
 |---|---|
 | 引入 Firebase / Google Services | 国内不可用 |
-| 引入代理相关代码 | PRD 决策完全删除 |
 | 引入 VLC | PRD 决策仅 Media3 |
 | 使用 Koin | PRD 决策用 Hilt |
 | 新增 Activity | PRD 决策单 Activity |

@@ -101,43 +101,28 @@ class SearchHistoryRepositoryImplTest {
     // ===== addHistory =====
 
     @Test
-    fun `addHistory inserts new keyword when not incognito`() =
+    fun `addHistory upserts keyword atomically without find`() =
         runTest {
-            coEvery { searchHistoryDao.findHistory("new keyword") } returns null
-
+            // 新实现不再 find→insert/update 双步，直接单条 upsert 消除 TOCTOU
             repository.addHistory("new keyword")
 
-            coVerify(exactly = 1) {
-                searchHistoryDao.insert(any<SearchHistoryEntity>())
-            }
+            coVerify(exactly = 1) { searchHistoryDao.upsert(any()) }
+            coVerify(exactly = 0) { searchHistoryDao.findHistory(any()) }
+            coVerify(exactly = 0) { searchHistoryDao.insert(any()) }
             coVerify(exactly = 0) { searchHistoryDao.update(any()) }
         }
 
     @Test
-    fun `addHistory updates existing keyword when not incognito`() =
+    fun `addHistory passes entity with matching keyword and current searchDate`() =
         runTest {
-            val existing = SearchHistoryEntity(id = 1, keyword = "existing", searchDate = Date(1000))
-            coEvery { searchHistoryDao.findHistory("existing") } returns existing
+            val before = Date().time
 
-            repository.addHistory("existing")
-
-            coVerify(exactly = 0) {
-                searchHistoryDao.insert(any<SearchHistoryEntity>())
-            }
-            coVerify(exactly = 1) { searchHistoryDao.update(any()) }
-        }
-
-    @Test
-    fun `addHistory updates searchDate of existing keyword`() =
-        runTest {
-            val oldDate = Date(1000)
-            val existing = SearchHistoryEntity(id = 1, keyword = "existing", searchDate = oldDate)
-            coEvery { searchHistoryDao.findHistory("existing") } returns existing
-
-            repository.addHistory("existing")
+            repository.addHistory("hello")
 
             coVerify {
-                searchHistoryDao.update(match { it.searchDate.time > oldDate.time })
+                searchHistoryDao.upsert(
+                    match { it.keyword == "hello" && it.searchDate.time >= before },
+                )
             }
         }
 
@@ -148,22 +133,19 @@ class SearchHistoryRepositoryImplTest {
 
             repository.addHistory("any keyword")
 
+            coVerify(exactly = 0) { searchHistoryDao.upsert(any()) }
             coVerify(exactly = 0) { searchHistoryDao.findHistory(any()) }
-            coVerify(exactly = 0) {
-                searchHistoryDao.insert(any<SearchHistoryEntity>())
-            }
+            coVerify(exactly = 0) { searchHistoryDao.insert(any()) }
             coVerify(exactly = 0) { searchHistoryDao.update(any()) }
         }
 
     @Test
-    fun `addHistory with empty keyword when not incognito inserts`() =
+    fun `addHistory with empty keyword still upserts`() =
         runTest {
-            coEvery { searchHistoryDao.findHistory("") } returns null
-
             repository.addHistory("")
 
             coVerify(exactly = 1) {
-                searchHistoryDao.insert(any<SearchHistoryEntity>())
+                searchHistoryDao.upsert(match { it.keyword == "" })
             }
         }
 

@@ -1,6 +1,7 @@
 package dev.frost819.newbv.biliapi.entity.video
 
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
+import dev.frost819.newbv.biliapi.util.BiliLogger
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -18,6 +19,9 @@ data class VideoShot(
     val imageHeight: Int,
 ) {
     companion object {
+        /** 模块内统一日志入口（见 [BiliLogger]），避免直接使用裸 [println]。 */
+        private val logger = BiliLogger
+
         suspend fun fromVideoShot(videoShot: dev.frost819.newbv.biliapi.http.entity.video.VideoShot): VideoShot? =
             withContext(Dispatchers.IO) {
                 val images =
@@ -30,7 +34,7 @@ data class VideoShot(
                             }
                         }.awaitAll()
                 if (images.contains(null)) {
-                    println("download video shot images failed")
+                    logger.warn { "download video shot images failed" }
                     return@withContext null
                 }
 
@@ -40,7 +44,7 @@ data class VideoShot(
                             videoShot.pvData ?: throw IllegalStateException("pvData is null"),
                         )
                     }.onFailure {
-                        println("download video shot times binary failed: ${it.stackTraceToString()}")
+                        logger.error(it) { "download video shot times binary failed" }
                         return@withContext null
                     }.getOrNull()
 
@@ -53,7 +57,7 @@ data class VideoShot(
                         }
                     }
                 }.onFailure {
-                    println("parse video shot times binary failed: ${it.stackTraceToString()}")
+                    logger.error(it) { "parse video shot times binary failed" }
                     return@withContext null
                 }
 

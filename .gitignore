@@ -49,6 +49,12 @@ signing.properties
 crash-report.properties
 
 # ========================================
+# Build / test output artifacts (临时诊断文件，不应入库)
+# ========================================
+androidtest-compile.txt
+test-output.txt
+
+# ========================================
 # Logs
 # ========================================
 *.log

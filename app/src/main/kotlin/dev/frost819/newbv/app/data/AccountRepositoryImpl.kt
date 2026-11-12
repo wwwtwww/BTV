@@ -5,6 +5,7 @@ import dev.frost819.newbv.biliapi.http.entity.user.MyInfoData
 import dev.frost819.newbv.biliapi.repositories.AuthRepository
 import dev.frost819.newbv.biliapi.repositories.ChannelRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
+import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.data.db.dao.UserDao
 import dev.frost819.newbv.data.db.entity.UserEntity
@@ -37,6 +38,8 @@ class AccountRepositoryImpl
         private val authRepository: AuthRepository,
         private val channelRepository: ChannelRepository,
     ) : AccountRepository {
+        private val logger = Loggers.get("AccountRepository")
+
         /** UI 状态：当前登录用户信息。 */
         private val _uiState = MutableStateFlow(AccountUiState())
         val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
@@ -109,13 +112,27 @@ class AccountRepositoryImpl
 
         override suspend fun findUserByUid(uid: Long): UserEntity? = userDao.findUserByUid(uid)
 
+        /**
+         * 写入/更新账户，仅同步远端字段（用户名、头像、凭证），保留本地 `lock`。
+         *
+         * 借 [UserDao.upsertRemoteFields] 的 `INSERT ... ON CONFLICT(uid) DO UPDATE` 单条 SQL
+         * 完成 upsert，彻底消除旧实现的两类问题：
+         * 1. find→insert TOCTOU 竞态：并发下 `findUserByUid` 误返 null 走 REPLACE 分支，
+         *    传入的 `lock=""` 会删旧插新把用户锁静默清空；
+         * 2. Room `@Update` 按自增主键 `id` 匹配，而 [UserEntity] 构造时 `id` 为 null 会静默失败
+         *    （见 AGENTS.md §11.7.2）。
+         *
+         * ON CONFLICT 只更新 username/avatar/auth，绝不触碰 `lock`——用户锁只能经
+         * [updateUserLock] 独立修改。冲突时传入的 username/avatar 可能为空，
+         * 但调用方（如 [addUser]）随后会执行 [refreshUserInfo] 从网络回填。
+         */
         override suspend fun upsertUser(user: UserEntity) {
-            val existing = userDao.findUserByUid(user.uid)
-            if (existing != null) {
-                userDao.update(existing.copy(auth = user.auth))
-            } else {
-                userDao.insert(user)
-            }
+            userDao.upsertRemoteFields(
+                uid = user.uid,
+                username = user.username,
+                avatar = user.avatar,
+                auth = user.auth,
+            )
         }
 
         override suspend fun deleteUser(user: UserEntity) {
@@ -214,6 +231,8 @@ class AccountRepositoryImpl
                         nextExp = response.levelExp.nextExp,
                     )
                 }
+            }.onFailure { e ->
+                logger.warn(e) { "refreshUserInfo failed for uid=${Prefs.uid}" }
             }
         }
 
@@ -266,12 +285,18 @@ class AccountRepositoryImpl
          *
          * @param uid 用户 UID。
          * @param lock 锁密码字符串（空字符串表示取消锁）。
+         * @throws IllegalStateException 当 [uid] 对应用户不存在时抛出，避免调用方误判为保存成功。
          */
         override suspend fun updateUserLock(
             uid: Long,
             lock: String,
         ) {
-            val user = userDao.findUserByUid(uid) ?: return
+            // 用户不存在时必须显式抛错：若沿用旧的 `?: return` 静默返回，
+            // UserLockViewModel.saveLockInternal 的 try/catch 捕获不到失败，会误走
+            // SaveSuccess 分支，导致「用户锁」这一安全功能假报成功。
+            val user =
+                userDao.findUserByUid(uid)
+                    ?: throw IllegalStateException("User uid=$uid not found, cannot update lock")
             userDao.update(user.copy(lock = lock))
         }
 

@@ -34,7 +34,6 @@
 | 架构 | 单 Activity + Navigation-Compose（类型安全路由） |
 | 依赖注入 | Hilt（替换原版 Koin） |
 | 播放器引擎 | 仅 Media3/ExoPlayer，兼容 VOD + Live 双模式（不接入 VLC） |
-| 代理功能 | **完全删除**所有代理相关功能 |
 | 崩溃监控 | 本地为主 + 可选自建上报（移除 Firebase Crashlytics） |
 | 诊断日志 | Core Logger 输出 Logcat，崩溃/手动日志由 Ktor 网页端查看 |
 | minSdk | 21（Android 5.0+，与原版一致） |
@@ -63,7 +62,6 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 - 拆分巨型 ViewModel，建立清晰的模块分层
 - 新增直播观看、评论浏览、触屏适配等核心缺失功能
 - 建立本地为主的崩溃监控与诊断日志体系，不依赖国内不可用的云端服务
-- 移除所有代理相关功能，简化产品形态
 - 支持黑夜/白天主题切换，提升用户体验
 
 ### 1.2 目标用户与使用场景
@@ -85,7 +83,6 @@ BV 是一款基于 Jetpack Compose 开发的哔哩哔哩第三方 Android TV 应
 | 依赖注入 | Koin 4.0 + annotations + KSP | Hilt |
 | 导航 | Intent 跳转 + companion 函数 | Navigation-Compose 类型安全路由 |
 | 播放器 | Media3（VLC 代码休眠未接入） | Media3，兼容 VOD + Live |
-| 代理 | HTTP 代理 + gRPC 代理 + ProxyArea + Ali CDN | **完全删除** |
 | 崩溃监控 | Firebase Crashlytics（可选） | 本地为主 + 可选自建上报 |
 | 主题 | 固定深色 | 黑夜/白天可切换 |
 | 触屏 | 仅 D-pad | D-pad + 触屏双模式 |
@@ -358,9 +355,9 @@ Composable (UI) ──事件──▶ ViewModel (State Holder)
 
 ### 2.6 接口层设计
 
-#### 2.6.1 接口分层（移除代理层）
+#### 2.6.1 接口分层
 
-原版 BV 的接口层包含 Web HTTP、App gRPC、代理三层。BTV **完全删除代理层**，保留 Web 与 App 双接口：
+原版 BV 的接口层包含 Web HTTP、App gRPC、代理三层。BTV 保留 Web 与 App 双接口：
 
 ```
 ┌─────────────────────────────────────┐
@@ -387,14 +384,6 @@ Composable (UI) ──事件──▶ ViewModel (State Holder)
                ▼
        api.bilibili.com / grpc.biliapi.net / app.bilibili.com
 ```
-
-**移除的内容**：
-- `BiliHttpProxyApi`（代理 HTTP 接口）
-- `ProxyArea`（区域代理判断：港/台）
-- gRPC `proxyChannel`（代理 gRPC 通道）
-- `replaceUrlDomainWithAliCdn`（Ali CDN 域名替换）
-- `preferOfficialCdn` 设置项与相关 CDN 过滤逻辑
-- 所有 `proxyHttpServer` / `proxyGRPCServer` 配置
 
 **接口选择策略**：
 
@@ -510,7 +499,7 @@ sealed interface PlaybackState {
 
 #### 2.7.3 编解码选择策略
 
-继承原版逻辑，无代理干扰：
+继承原版逻辑：
 
 ```
 画质选择:
@@ -530,7 +519,6 @@ CDN 选择 [简化]:
   1. 过滤 P2P MCDN (.mcdn.bilivideo.) 与 .szbdyd.com
   2. 过滤纯 IP URL
   3. 选首个有效 URL
-  （注：移除 Ali CDN 替换与代理逻辑）
 ```
 
 **支持的编码**：
@@ -589,8 +577,6 @@ MainActivity (SplashScreen)
 ```
 
 **与原版差异**：
-- 移除 `BVApp.initProxy()`（代理初始化）
-- 移除 `BVApp.initDeviceInfo()` 中的代理设备信息
 - 新增全局未捕获异常处理器（写本地崩溃日志）
 - 新增统一诊断日志初始化
 
@@ -1218,8 +1204,6 @@ VideoPlayerScreen
 
 **移除项**：
 - ~~官方 CDN 优先设置~~
-- ~~Ali CDN 域名替换~~
-- ~~代理 URL 域名替换~~
 
 **保留逻辑**：
 - 过滤 P2P MCDN URL（`.mcdn.bilivideo.`）
@@ -1362,7 +1346,6 @@ SearchInputContent (Row)
 **移除的设置项**：
 - ~~Cookies 导入/导出~~
 - ~~FPS 显示开关~~
-- ~~代理设置（启用代理/HTTP代理服务器/gRPC代理服务器）~~
 - ~~官方 CDN 优先（PCDN）~~
 - ~~播放器类型（PlayerType，原版仅 Media3 可选）~~
 
@@ -1439,7 +1422,7 @@ SearchInputContent (Row)
 
 **功能描述**：检测到区域封锁时显示提示页。
 
-> 注：移除代理后，区域封锁内容无法访问。显示明确提示"此内容受区域限制，当前版本不支持访问"。
+> 注：Bili 侧网络代理（BiliHttpProxyApi/ProxyArea/gRPC proxyChannel/Ali CDN 替换）未实现，区域封锁内容无法访问；OTA 下载保留 ghfast.top 镜像。显示明确提示“此内容受区域限制，当前版本不支持访问”。
 
 ---
 
@@ -1982,7 +1965,6 @@ CompositionLocalProvider(LocalInteractionTracker provides tracker) {
 - WBI 签名正确实现（mixin key 置换 + w_rid MD5）
 - App gRPC 正确设置 access_key 和设备 metadata
 - 不做 UA 轮换和跨接口自动降级，避免隐藏请求行为
-- 不暴露代理配置给用户（移除代理功能简化风控面）
 
 #### 5.4.3 隐私合规
 
@@ -2208,7 +2190,6 @@ CompositionLocalProvider(LocalInteractionTracker provides tracker) {
 |---|---|
 | Cookies 导入/导出 | 简化，不再需要手动 Cookie 管理 |
 | FPS 显示开关 | 调试用，非用户功能 |
-| 启用代理 / HTTP 代理服务器 / gRPC 代理服务器 | 代理功能完全删除 |
 | 官方 CDN 优先 (PCDN) | 改为内部自动策略 |
 | 播放器类型 (PlayerType) | 仅 Media3，无需选择 |
 
@@ -2417,7 +2398,7 @@ App 模式下接口分三种实现方式：**App gRPC**（grpc.biliapi.net）、
 - 主题系统（黑夜/白天/跟随系统）
 - 交互模式抽象（D-pad / Touch）
 - Room + DataStore 基础
-- bili-api 模块迁移（移除代理、移除 Firebase）
+- bili-api 模块迁移（移除 Firebase）
 - 播放器引擎抽象（VOD）
 
 #### Milestone 2: 核心功能 (P0)
@@ -2482,7 +2463,7 @@ App 模式下接口分三种实现方式：**App gRPC**（grpc.biliapi.net）、
 
 | 风险 | 影响 | 概率 | 对策 |
 |---|---|---|---|
-| 区域限制内容无法访问 | 部分内容不可用 | 高 | 明确提示，移除代理后已知限制 |
+| 区域限制内容无法访问 | 部分内容不可用 | 高 | 明确提示；Bili 侧网络代理（BiliHttpProxyApi/ProxyArea/gRPC proxyChannel/Ali CDN 替换）未实现，OTA 下载保留 ghfast.top 镜像 |
 | B 站账号封禁 | 用户无法使用 | 中 | 无痕模式 + 风控规避 + 提示谨慎使用 |
 | 第三方客户端法律风险 | 项目下架 | 低 | 不商业化，开源，明确"不支持中国大陆使用" |
 | 用户隐私担忧 | 用户流失 | 低 | 透明日志政策，默认不上报，无第三方 SDK |
@@ -2514,7 +2495,7 @@ App 模式下接口分三种实现方式：**App gRPC**（grpc.biliapi.net）、
 | ViewModel | `viewmodel/` | `VideoPlayerV3ViewModel`(1417行), `VideoInfoViewModel`, `MainViewModel` |
 | Repository | `repository/` | `UserRepository`, `VideoInfoRepository` |
 | DAO | `dao/` | `AppDatabase`, `UserDao`, `SearchHistoryDao` |
-| bili-api | `bili-api/src/main/kotlin/dev/aaa1115910/biliapi/` | `BiliHttpApi`, `BiliHttpProxyApi`(删除), `BiliPassportHttpApi`, `BiliLiveHttpApi` |
+| bili-api | `bili-api/src/main/kotlin/dev/aaa1115910/biliapi/` | `BiliHttpApi`, `BiliHttpProxyApi`, `BiliPassportHttpApi`, `BiliLiveHttpApi` |
 | 播放器引擎 | `bv-player/src/main/kotlin/.../player/` | `AbstractVideoPlayer`, `ExoMediaPlayer`, `BvVideoPlayer` |
 | 字幕 | `bili-subtitle/` | `SubtitleParser`, `SubtitleEncoder` |
 | 构建配置 | `buildSrc/src/main/kotlin/` | `AppConfiguration`, `ProtobufConfiguration` |
@@ -2524,10 +2505,6 @@ App 模式下接口分三种实现方式：**App gRPC**（grpc.biliapi.net）、
 | 移除项 | 原版位置 | 原因 |
 |---|---|---|
 | Firebase Crashlytics / Analytics | `app/build.gradle.kts`, `BVApp.kt` | 国内不可用 |
-| 代理 HTTP API | `bili-api/http/BiliHttpProxyApi.kt` | 代理功能完全删除 |
-| ProxyArea 区域代理 | `app/entity/proxy/ProxyArea.kt` | 代理功能完全删除 |
-| gRPC 代理通道 | `bili-api/repositories/ChannelRepository.kt` | 代理功能完全删除 |
-| Ali CDN 替换 | `VideoPlayerV3ViewModel.kt` `replaceUrlDomainWithAliCdn` | 代理功能完全删除 |
 | 官方 CDN 优先设置 | `Prefs.kt` `preferOfficialCdn`, `NetworkSetting.kt` | 改内部自动策略 |
 | Cookies 导入导出 | `component/settings/CookiesDialog.kt` | 简化 |
 | FPS 显示 | `Prefs.kt` `showFps`, `component/FpsMonitor.kt` | 调试功能 |

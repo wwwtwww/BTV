@@ -15,6 +15,7 @@ import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.http.entity.user.FollowAction
 import dev.frost819.newbv.biliapi.http.entity.user.FollowActionSource
 import dev.frost819.newbv.biliapi.http.entity.user.RelationType
+import dev.frost819.newbv.biliapi.util.BiliLogger
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -92,6 +93,9 @@ open class UserRepositoryImpl(
     private val authRepository: AuthRepository,
     private val channelRepository: ChannelRepository,
 ) : UserRepository {
+    /** 模块内统一日志入口（见 [BiliLogger]），避免直接使用裸 printStackTrace 输出。 */
+    private val logger = BiliLogger
+
     private val dynamicStub
         get() =
             runCatching {
@@ -144,7 +148,7 @@ open class UserRepositoryImpl(
                 RelationType.BothFollowed,
             ).contains(response.relation.attribute)
         }.onFailure {
-            it.printStackTrace()
+            logger.warn(it) { "check is following failed: [mid=$mid]" }
         }.getOrNull()
     }
 
@@ -166,7 +170,7 @@ open class UserRepositoryImpl(
                 }.getResponseData()
             response.following
         }.onFailure {
-            it.printStackTrace()
+            logger.warn(it) { "get following up count failed: [mid=$mid, api=$preferApiType]" }
         }.getOrNull() ?: 0
     }
 

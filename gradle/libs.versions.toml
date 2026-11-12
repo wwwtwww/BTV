@@ -68,6 +68,7 @@ androidx-test-runner = "1.6.1"
 androidx-test-rules = "1.6.1"
 espresso = "3.5.1"
 leakcanary = "2.14"
+sqlite-jdbc = "3.45.1.0"
 
 [libraries]
 # === AndroidX - Core ===
@@ -172,6 +173,7 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidx-test-rules" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

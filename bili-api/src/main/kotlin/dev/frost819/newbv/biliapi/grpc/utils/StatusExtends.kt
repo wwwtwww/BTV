@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.biliapi.grpc.utils
+package dev.frost819.newbv.biliapi.grpc.utils
 
 import bilibili.rpc.Status
 import com.google.protobuf.Message

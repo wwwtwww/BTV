@@ -181,6 +181,17 @@ class PlayerViewModel
         private var previewTipCountdownJob: Job? = null
         private var onlineWatchJob: Job? = null
         private var bufferingWatchdogJob: Job? = null
+
+        /**
+         * cid==0 路径的详情补齐协程。
+         *
+         * 该协程负责：加载详情补齐 cid（写回 [uiState]）→ 发起资源加载。
+         * 切换事件已在 [playNewVideo] 中以 cid==0 立即广播用于清空旧弹幕/字幕，
+         * 本协程不再重复广播，实际加载由 UI 层观察 [uiState] 的 cid 补齐后驱动。
+         * 必须保存为可取消的 Job，否则快速切集时陈旧协程仍会以过期的 aid 发起多余的
+         * [loadVideoWithResources]，由 [cancelPlaybackScopedJobs] 统一取消。
+         */
+        private var deferredDetailJob: Job? = null
         private var appContext: Context? = null
 
         /** 标记是否已在本次播放会话中跳转到历史进度，避免暂停恢复时重复跳转。 */
@@ -189,8 +200,11 @@ class PlayerViewModel
         /**
          * 切换视频事件。
          *
+         * UI 层收到后立即清空旧弹幕/字幕；[cid] 为有效值时同步加载新资源，
+         * 为 0 时视为 pending 标记（详情尚未补齐 cid），加载延后到 uiState.cid 补齐后。
+         *
          * @param aid 新视频 AV 号
-         * @param cid 新视频 CID
+         * @param cid 新视频 CID；0 表示 cid 待详情补齐（pending）
          */
         data class VideoSwitchEvent(
             val aid: Long,
@@ -820,37 +834,57 @@ class PlayerViewModel
             }
             resetDecodeFallbackState()
 
-            // 通知 UI 层重载弹幕/字幕（非阻塞，避免卡住 playNewVideo）
+            // 通知 UI 层切换视频（非阻塞，避免卡住 playNewVideo）。
+            // 无条件立即广播：cid 有效时 UI 直接清空并加载弹幕/字幕；
+            // cid==0 时以 cid=0 作为 pending 标记，UI 收到后立即清空旧覆盖层，
+            // 实际加载交由下方详情协程补齐 cid 后由 UI 观察 uiState.cid 驱动，
+            // 避免旧视频弹幕在补齐期间（最长 5s）继续叠画。
             viewModelScope.launch { _videoSwitchEvent.emit(VideoSwitchEvent(newVideo.aid, newVideo.cid)) }
 
             // 加载详情：cid==0 时同步等待补齐（loadVideoWithResources 依赖 cid），否则异步
+            // deferredResourceLoad=true 表示资源加载已移交详情协程，确保 cid 写入 happen-before 读取
+            var deferredResourceLoad = false
             if (shouldUpdateDetail) {
                 if (newVideo.cid == 0L) {
                     // cid 缺失时必须先拿到详情补齐，再发起资源加载
-                    viewModelScope.launch(ioDispatcher) {
-                        try {
-                            withTimeout(5_000L) {
-                                videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                    deferredDetailJob =
+                        viewModelScope.launch(ioDispatcher) {
+                            try {
+                                withTimeout(5_000L) {
+                                    videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                                }
+                                val detail = videoInfoRepository.videoDetail.value
+                                if (detail != null && _uiState.value.cid == 0L) {
+                                    _uiState.update { it.copy(cid = detail.cid) }
+                                }
+                                // 详情返回后应用历史进度（仅一次性）
+                                val sharedState = videoInfoRepository.videoSharedState.value
+                                val historyCid = sharedState?.lastPlayedCid ?: 0L
+                                val historyTime = sharedState?.lastPlayedTime ?: 0
+                                val resolvedCid = _uiState.value.cid
+                                if (historyCid == resolvedCid && historyTime > 0 && !hasSeekToHistoryPosition) {
+                                    _uiState.update { it.copy(lastPlayed = historyTime) }
+                                    hasSeekToHistoryPosition = true
+                                }
+                            } catch (e: TimeoutCancellationException) {
+                                logger.warn { "fetchVideoDetail timeout for aid=${newVideo.aid}" }
+                            } catch (e: CancellationException) {
+                                // 取消信号必须重抛：快速切集/detach 时本协程被 cancelPlaybackScopedJobs 取消，
+                                // 若吞掉则会继续执行下面的资源加载
+                                throw e
+                            } catch (e: Exception) {
+                                logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                             }
-                            val detail = videoInfoRepository.videoDetail.value
-                            if (detail != null && _uiState.value.cid == 0L) {
-                                _uiState.update { it.copy(cid = detail.cid) }
-                            }
-                            // 详情返回后应用历史进度（仅一次性）
-                            val sharedState = videoInfoRepository.videoSharedState.value
-                            val historyCid = sharedState?.lastPlayedCid ?: 0L
-                            val historyTime = sharedState?.lastPlayedTime ?: 0
-                            val resolvedCid = _uiState.value.cid
-                            if (historyCid == resolvedCid && historyTime > 0 && !hasSeekToHistoryPosition) {
-                                _uiState.update { it.copy(lastPlayed = historyTime) }
-                                hasSeekToHistoryPosition = true
-                            }
-                        } catch (e: TimeoutCancellationException) {
-                            logger.warn { "fetchVideoDetail timeout for aid=${newVideo.aid}" }
-                        } catch (e: Exception) {
-                            logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
+                            // 陈旧性守卫：详情加载期间已切到其他视频（或已卸载）时，本协程已过期，直接退出
+                            if (_uiState.value.aid != newVideo.aid) return@launch
+                            // 详情已尽量补齐 cid（协程内顺序保证：写入 _uiState happen-before 此处的读取）
+                            // 超时/异常降级时以当前能拿到的最好 cid（可能为 0 兜底）继续发起资源加载
+                            // 切换事件已在 playNewVideo 立即广播（cid=0 清空信号），此处不再重复；
+                            // UI 层通过观察 uiState.cid 从 0 变为有效值来加载弹幕/字幕
+                            loadVideoWithResources()
                         }
-                    }
+                    // cid==0 路径的资源加载已移交协程，跳过函数末尾的同步调用
+                    deferredResourceLoad = true
                 } else {
                     viewModelScope.launch(ioDispatcher) {
                         runSuspendCatching {
@@ -873,7 +907,10 @@ class PlayerViewModel
                 videoInfoRepository.updateVideoList(listOf(newVideo))
             }
 
-            loadVideoWithResources()
+            // cid==0 路径已在详情协程内加载，避免以未补齐的 cid=0 起播（多 P 会播错分 P）
+            if (!deferredResourceLoad) {
+                loadVideoWithResources()
+            }
         }
 
         /** 在应用级作用域中同步当前播放进度（用于页面离开组合时保存，不销毁播放器）。 */
@@ -1856,6 +1893,8 @@ class PlayerViewModel
             playNextCountdownJob?.cancel()
             shortcutTipJob?.cancel()
             previewTipCountdownJob?.cancel()
+            // cid==0 的详情协程持有旧 newVideo 引用，切集/卸载时必须取消，避免陈旧的资源加载
+            deferredDetailJob?.cancel()
         }
 
         /** 将 DataApiType 映射为 bili-api 的 ApiType。 */

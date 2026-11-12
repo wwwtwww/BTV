@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.biliapi.repositories
+package dev.frost819.newbv.biliapi.repositories
 
 import bilibili.app.view.v1.ViewGrpcKt
 import bilibili.app.view.v1.viewReq

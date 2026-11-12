@@ -24,6 +24,12 @@ sourceSets["main"].proto {
     ProtobufConfiguration.excludeProtoFiles.forEach(::exclude)
 }
 
+// protoc 生成的 Java 源码内含中文注释（UTF-8），Windows 下 javac 默认按平台字符集（GBK）
+// 解码会报“不可映射字符”，因此固定使用 UTF-8 编译（与 gradle.properties 的 file.encoding 一致）
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+}
+
 protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:3.25.5"

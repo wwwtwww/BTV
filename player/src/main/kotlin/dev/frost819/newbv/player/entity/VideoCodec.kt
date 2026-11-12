@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.player.entity
+package dev.frost819.newbv.player.entity
 
 import dev.frost819.newbv.biliapi.entity.CodeType
 

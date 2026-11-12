@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.app.viewmodel.detail
+package dev.frost819.newbv.app.viewmodel.detail
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

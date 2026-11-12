@@ -36,10 +36,11 @@ import dev.frost819.newbv.data.datastore.Prefs
 /**
  * 用户锁设置页面。
  *
- * 遵循三阶段状态机流转：
+ * 遵循多阶段状态机流转：
  * 1. [LockInputPhase.VerifyOld]（用户已有密码时）：强制验证原密码；
  * 2. [LockInputPhase.InputNew]：输入新密码（若直接确认则视为清除密码）；
- * 3. [LockInputPhase.ConfirmNew]：二次确认新密码。
+ * 3. [LockInputPhase.ConfirmNew]：二次确认新密码；
+ * 4. [LockInputPhase.SaveFailed]：写入失败后提示固定重试文案（异常详情仅记日志），确认键重试、方向键回到上一阶段。
  *
  * 密码为 D-Pad 方向按键序列（u/d/l/r），DirectionCenter 确认，Back 回退上一位。
  *
@@ -131,6 +132,8 @@ fun UserLockSettingsScreen(
                             LockInputPhase.InputNew -> stringResource(R.string.lock_set_new)
                             LockInputPhase.ConfirmNew -> stringResource(R.string.lock_confirm_new)
                             LockInputPhase.SaveSuccess -> ""
+                            // 失败态只展示固定文案（含重试提示），异常详情仅记录在日志
+                            LockInputPhase.SaveFailed -> stringResource(R.string.lock_save_failed)
                         },
                     style = MaterialTheme.typography.displaySmall,
                 )

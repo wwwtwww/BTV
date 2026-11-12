@@ -144,23 +144,59 @@ fun VideoPlayerScreen(
         }
     }
 
-    // 切换视频事件：协调弹幕/字幕/蒙版重载
-    LaunchedEffect(Unit) {
-        playerViewModel.videoSwitchEvent.collect { event ->
-            // 同步当前 aid 到 VideoListViewModel，驱动相关视频响应式过滤
-            videoListViewModel.setCurrentAid(event.aid)
-            danmakuViewModel.clearDanmaku()
+    // cid==0 延迟切换协调：pendingCidLoad 标记是否有待补齐 cid 的切换；
+    // lastLoadedCid 记录最近已加载的 cid，用于去重防御（详见下方观察者）。
+    var pendingCidLoad by remember { mutableStateOf(false) }
+    var lastLoadedCid by remember { mutableStateOf(0L) }
+
+    /**
+     * 切集时协调弹幕/字幕/蒙版。
+     *
+     * 立即清空旧视频覆盖层（消除 cid==0 延迟期间的弹幕叠画）；
+     * 仅当 [cid] 有效（非 0）时真正加载。[cid]==0 时置 [pendingCidLoad]，
+     * 待 uiState.cid 由详情协程补齐后由下方 LaunchedEffect 触发加载。
+     */
+    fun switchOverlays(
+        aid: Long,
+        cid: Long,
+    ) {
+        // 同步当前 aid 到 VideoListViewModel，驱动相关视频响应式过滤
+        videoListViewModel.setCurrentAid(aid)
+        danmakuViewModel.clearDanmaku()
+        subtitleViewModel.clearSubtitle()
+        if (cid != 0L) {
             // 切集瞬间历史进度尚未异步加载，通常从第 1 段开始；
             // 断点续播 seek 后由下方进度同步驱动目标段加载
             danmakuViewModel.loadDanmaku(
-                aid = event.aid,
-                cid = event.cid,
+                aid = aid,
+                cid = cid,
                 initialPositionMs = uiState.lastPlayed.toLong() * 1000,
             )
-            danmakuViewModel.loadDanmakuMask(event.aid, event.cid)
-            subtitleViewModel.clearSubtitle()
-            subtitleViewModel.loadSubtitleList(event.aid, event.cid)
+            danmakuViewModel.loadDanmakuMask(aid, cid)
+            subtitleViewModel.loadSubtitleList(aid, cid)
+            lastLoadedCid = cid
+            pendingCidLoad = false
+        } else {
+            // cid==0：事件仅作“清空”信号，加载交由 uiState.cid 补齐后的观察者驱动
+            pendingCidLoad = true
         }
+    }
+
+    // 切换视频事件：立即清空旧弹幕/字幕；cid 有效时同步加载，cid==0 延迟到 uiState.cid 补齐
+    LaunchedEffect(Unit) {
+        playerViewModel.videoSwitchEvent.collect { event ->
+            switchOverlays(event.aid, event.cid)
+        }
+    }
+
+    // cid==0 延迟切换：详情协程补齐 cid 后（0 → 有效值）触发弹幕/字幕加载。
+    // pendingCidLoad 仅由 cid==0 切换事件置位，故初次进入与非 0 直切均不会在此重复加载；
+    // lastLoadedCid 作为去重防御，避免同一 cid 重复加载。
+    LaunchedEffect(uiState.cid) {
+        val cid = uiState.cid
+        if (cid == 0L || !pendingCidLoad || cid == lastLoadedCid) return@LaunchedEffect
+        pendingCidLoad = false
+        switchOverlays(uiState.aid, cid)
     }
 
     // 弹幕时间轴同步：喂入视频位置，VM 内驱动分段加载并按位置跳变自动对齐引擎时钟

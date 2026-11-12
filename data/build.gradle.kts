@@ -71,6 +71,8 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
+    // 内存 SQLite（JDBC），供 Migration4To5Test 在 JVM 上执行 Room 迁移 SQL
+    testImplementation(libs.sqlite.jdbc)
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
     testImplementation("androidx.test:core:1.6.1")
 

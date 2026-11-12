@@ -102,7 +102,7 @@ class PrefDelegate<T, P>(
  * - [init] 自动检查并生成 buvid / buvid3（若缺失）。
  *
  * 已删除（相对原版 BV）的偏好项：
- * - 代理相关：`enableProxy`、`proxyHttpServer`、`proxyGRPCServer`、`preferOfficialCdn`
+ * - bili 侧代理设置（`enableProxy`/`proxyHttpServer`/`proxyGRPCServer`）未实现，字段已移除
  * - 播放器类型：`playerType`（仅 Media3，无需选择）
  * - FPS 显示：`showFps`（调试用，非用户功能）
  *

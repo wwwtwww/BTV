@@ -1,4 +1,4 @@
-﻿package dev.frost819.newbv.app.ui.screen.pgc
+package dev.frost819.newbv.app.ui.screen.pgc
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement

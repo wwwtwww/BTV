@@ -1,6 +1,7 @@
 package dev.frost819.newbv.app
 
 import android.app.Application
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import coil3.ImageLoader
@@ -9,12 +10,16 @@ import coil3.disk.DiskCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import dagger.hilt.android.HiltAndroidApp
+import dev.frost819.newbv.BuildConfig
 import dev.frost819.newbv.app.di.ApplicationScope
 import dev.frost819.newbv.app.network.HttpServer
 import dev.frost819.newbv.app.util.CacheManager
 import dev.frost819.newbv.biliapi.http.BiliHttpApi
 import dev.frost819.newbv.biliapi.repositories.AuthRepository
 import dev.frost819.newbv.biliapi.repositories.ChannelRepository
+import dev.frost819.newbv.biliapi.util.BiliLogLevel
+import dev.frost819.newbv.biliapi.util.BiliLogSink
+import dev.frost819.newbv.biliapi.util.BiliLogger
 import dev.frost819.newbv.core.log.CrashHandler
 import dev.frost819.newbv.core.log.CrashUploader
 import dev.frost819.newbv.core.log.Loggers
@@ -31,9 +36,10 @@ import javax.inject.Inject
  *
  * 初始化顺序：
  * 1. Hilt 依赖注入（由 [HiltAndroidApp] 自动处理）
- * 2. [Prefs] 偏好设置初始化（阻塞读取 DataStore 首帧）
- * 3. [CrashHandler] 全局崩溃处理（通过 Hilt 注入，构造时自动 install）
- * 4. [HttpServer] 本地日志管理服务器（通过 Hilt 注入，按需启动）
+ * 2. [BiliLogger] Logcat 输出接入（`:bili-api` 为纯 JVM 模块，默认只写 stdout）
+ * 3. [Prefs] 偏好设置初始化（阻塞读取 DataStore 首帧）
+ * 4. [CrashHandler] 全局崩溃处理（通过 Hilt 注入，构造时自动 install）
+ * 5. [HttpServer] 本地日志管理服务器（通过 Hilt 注入，按需启动）
  */
 @HiltAndroidApp
 class BVApplication : Application() {
@@ -63,6 +69,9 @@ class BVApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // 必须最先执行，否则后续接口调用日志仅输出到 stdout（不进 Logcat）
+        installBiliApiLogSink()
 
         Prefs.init(dataStore)
 
@@ -153,5 +162,39 @@ class BVApplication : Application() {
         applicationScope.launch {
             CacheManager(this@BVApplication).checkCache()
         }
+    }
+
+    /**
+     * 将 `:bili-api` 的日志输出接到 Logcat。
+     *
+     * `:bili-api` 是纯 JVM 模块，不能依赖 [android.util.Log]，其 [BiliLogger] 默认 sink
+     * 只写 `System.out`——在 Android 上不会进入 Logcat，[CrashHandler] 也无法采集，
+     * 接口层失败原因（签名过期、风控、gRPC 错误）在大屏端完全不可见。
+     * 因此这里替换为 Logcat 实现，并在 release 包中只保留 INFO 及以上级别。
+     */
+    private fun installBiliApiLogSink() {
+        BiliLogger.minimumLevel = if (BuildConfig.DEBUG) BiliLogLevel.Debug else BiliLogLevel.Info
+        BiliLogger.sink =
+            BiliLogSink { level, tag, message, throwable ->
+                val priority =
+                    when (level) {
+                        BiliLogLevel.Error -> Log.ERROR
+                        BiliLogLevel.Warn -> Log.WARN
+                        BiliLogLevel.Info -> Log.INFO
+                        BiliLogLevel.Debug -> Log.DEBUG
+                    }
+                // 堆栈并入正文，与消息一起分段输出：Logcat 单条消息上限约 4KB，
+                // 直接写入会被截断并静默丢弃尾部内容
+                val text =
+                    throwable?.let { "$message\n${Log.getStackTraceString(it)}" } ?: message
+                text.chunked(LOGCAT_MAX_MESSAGE_LENGTH).forEach { segment ->
+                    Log.println(priority, tag, segment)
+                }
+            }
+    }
+
+    companion object {
+        /** Logcat 单条消息安全长度（系统上限约 4076 字节，留出余量避免截断）。 */
+        private const val LOGCAT_MAX_MESSAGE_LENGTH = 3000
     }
 }

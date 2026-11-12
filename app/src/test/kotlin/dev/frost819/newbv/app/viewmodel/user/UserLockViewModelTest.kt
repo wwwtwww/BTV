@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 /**
  * [UserLockViewModel] 的单元测试。
  *
- * 验证三阶段状态机流转、旧密码强校验、正向回退删除、异步写入防竞态。
+ * 验证三阶段状态机流转、旧密码强校验、正向回退删除、异步写入防竞态与写入失败恢复。
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserLockViewModelTest {
@@ -208,5 +208,112 @@ class UserLockViewModelTest {
             val consumed3 = viewModel.onBack()
             assertThat(consumed3).isTrue()
             assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.InputNew)
+        }
+
+    @Test
+    fun `save failure enters SaveFailed and always releases isSaving`() =
+        runTest(testDispatcher) {
+            val user = UserEntity(uid = 1002L, username = "test", avatar = "", auth = "{}", lock = "")
+            coEvery { accountRepository.findUserByUid(1002L) } returns user
+            // Given：写入抛出异常
+            coEvery { accountRepository.updateUserLock(any(), any()) } throws
+                IllegalStateException("db down")
+            viewModel.init(1002L)
+            advanceUntilIdle()
+
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            advanceUntilIdle()
+
+            // Then：finally 保证 isSaving 复位，UI 不会永久卡住
+            val state = viewModel.uiState.value
+            assertThat(state.phase).isEqualTo(LockInputPhase.SaveFailed)
+            assertThat(state.isSaving).isFalse()
+            // 异常详情只记日志，不写入 UI 状态（展示文案由 UI 侧固定字符串资源提供）
+            assertThat(state.message).isEmpty()
+        }
+
+    @Test
+    fun `confirm in SaveFailed retries the pending write and succeeds`() =
+        runTest(testDispatcher) {
+            val user = UserEntity(uid = 1002L, username = "test", avatar = "", auth = "{}", lock = "")
+            coEvery { accountRepository.findUserByUid(1002L) } returns user
+            coEvery { accountRepository.updateUserLock(any(), any()) } throws
+                IllegalStateException("db down")
+            viewModel.init(1002L)
+            advanceUntilIdle()
+
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.SaveFailed)
+
+            // Given：故障恢复
+            coEvery { accountRepository.updateUserLock(any(), any()) } returns Unit
+
+            // When：失败态下直接按确认键重试，无需重新输入密码
+            viewModel.confirm()
+            advanceUntilIdle()
+
+            // Then
+            coVerify(exactly = 2) { accountRepository.updateUserLock(1002L, "uudd") }
+            val state = viewModel.uiState.value
+            assertThat(state.phase).isEqualTo(LockInputPhase.SaveSuccess)
+            assertThat(state.isSaving).isFalse()
+            assertThat(state.message).isEmpty()
+        }
+
+    @Test
+    fun `appendDirection in SaveFailed falls back to the phase before saving`() =
+        runTest(testDispatcher) {
+            val user = UserEntity(uid = 1002L, username = "test", avatar = "", auth = "{}", lock = "")
+            coEvery { accountRepository.findUserByUid(1002L) } returns user
+            coEvery { accountRepository.updateUserLock(any(), any()) } throws
+                IllegalStateException("db down")
+            viewModel.init(1002L)
+            advanceUntilIdle()
+
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            "uudd".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+            advanceUntilIdle()
+
+            // When：失败态下继续输入，视为放弃重试、回到 ConfirmNew 编辑
+            viewModel.appendDirection("l")
+
+            // Then
+            val state = viewModel.uiState.value
+            assertThat(state.phase).isEqualTo(LockInputPhase.ConfirmNew)
+            assertThat(state.message).isEmpty()
+            assertThat(state.inputPassword).isEqualTo("uuddl")
+        }
+
+    @Test
+    fun `clearing lock in InputNew enters SaveFailed when repository throws`() =
+        runTest(testDispatcher) {
+            val user = UserEntity(uid = 1001L, username = "test", avatar = "", auth = "{}", lock = "udlr")
+            coEvery { accountRepository.findUserByUid(1001L) } returns user
+            viewModel.init(1001L)
+            advanceUntilIdle()
+
+            // 先验证旧密码进入 InputNew
+            "udlr".forEach { viewModel.appendDirection(it.toString()) }
+            viewModel.confirm()
+
+            // Given：清锁（空密码确认）写入失败
+            coEvery { accountRepository.updateUserLock(any(), any()) } throws
+                IllegalStateException("db down")
+            viewModel.confirm()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.phase).isEqualTo(LockInputPhase.SaveFailed)
+            assertThat(state.isSaving).isFalse()
+            assertThat(state.message).isEmpty()
         }
 }

@@ -141,26 +141,45 @@ class AccountRepositoryImplTest {
         }
 
     @Test
-    fun `upsertUser updates auth when user exists`() =
+    fun `upsertUser writes remote fields atomically and never touches lock`() =
         runTest {
-            val existing = UserEntity(id = 1, uid = 100L, username = "old", avatar = "old_url", auth = "{}")
-            val updated = UserEntity(id = null, uid = 100L, username = "", avatar = "", auth = "new_auth")
-            coEvery { userDao.findUserByUid(100L) } returns existing
+            // 无论用户是否已存在，均走单条 ON CONFLICT 原子写入：只传 uid/username/avatar/auth，
+            // 从不传 lock，从根本上保证并发下 lock 不被 REPLACE 静默清空。
+            val user = UserEntity(id = null, uid = 100L, username = "new", avatar = "new_url", auth = "new_auth")
 
-            repository.upsertUser(updated)
+            repository.upsertUser(user)
 
-            coVerify { userDao.update(existing.copy(auth = "new_auth")) }
+            coVerify(exactly = 1) {
+                userDao.upsertRemoteFields(
+                    uid = 100L,
+                    username = "new",
+                    avatar = "new_url",
+                    auth = "new_auth",
+                )
+            }
+            // 旧的 REPLACE 语义 upsert 与 find→update 双分支均不应再被调用
+            coVerify(exactly = 0) { userDao.upsert(any()) }
+            coVerify(exactly = 0) { userDao.update(any()) }
         }
 
     @Test
-    fun `upsertUser inserts when user does not exist`() =
+    fun `upsertUser does not depend on findUserByUid result`() =
         runTest {
-            val newUser = UserEntity(uid = 200L, username = "fresh", avatar = "", auth = "{}")
+            // upsertUser 已不再先 findUserByUid 再分支，消除 TOCTOU 竞态窗口
+            val user = UserEntity(uid = 200L, username = "fresh", avatar = "", auth = "{}")
             coEvery { userDao.findUserByUid(200L) } returns null
 
-            repository.upsertUser(newUser)
+            repository.upsertUser(user)
 
-            coVerify { userDao.insert(newUser) }
+            coVerify(exactly = 0) { userDao.findUserByUid(200L) }
+            coVerify(exactly = 1) {
+                userDao.upsertRemoteFields(
+                    uid = 200L,
+                    username = "fresh",
+                    avatar = "",
+                    auth = "{}",
+                )
+            }
         }
 
     @Test
@@ -241,7 +260,8 @@ class AccountRepositoryImplTest {
 
             repository.addUser(authData)
 
-            coVerify { userDao.insert(any()) }
+            // addUser 内部走 upsertUser，统一调用 upsertRemoteFields 原子写入远端字段
+            coVerify { userDao.upsertRemoteFields(uid = 200L, username = any(), avatar = any(), auth = any()) }
             assertThat(Prefs.isLogin).isTrue()
             assertThat(Prefs.uid).isEqualTo(200L)
             assertThat(authRepository.mid).isEqualTo(200L)
@@ -522,12 +542,27 @@ class AccountRepositoryImplTest {
     }
 
     @Test
-    fun `updateUserLock does nothing when user not found`() =
+    fun `updateUserLock throws IllegalStateException when user not found`() =
         runTest {
+            // Issue 2：用户不存在时必须显式抛错，避免上层误走 SaveSuccess 假报成功
             coEvery { userDao.findUserByUid(999L) } returns null
 
-            repository.updateUserLock(999L, "udlr")
+            // 直接在 runTest 挂起上下文内捕获，避免嵌套 runBlocking 引发时间不稳定
+            val error = runCatching { repository.updateUserLock(999L, "udlr") }.exceptionOrNull()
+            assertThat(error).isInstanceOf(IllegalStateException::class.java)
+            assertThat(error?.message).contains("999")
 
+            // 既然未找到用户，不应发生任何更新写入
             coVerify(exactly = 0) { userDao.update(any()) }
+        }
+
+    @Test
+    fun `updateUserLock does not throw when user exists`() =
+        runTest {
+            val user = UserEntity(uid = 100L, username = "test", avatar = "", auth = "{}")
+            coEvery { userDao.findUserByUid(100L) } returns user
+
+            val error = runCatching { repository.updateUserLock(100L, "udlr") }.exceptionOrNull()
+            assertThat(error).isNull()
         }
 }

@@ -162,6 +162,64 @@ class UserDaoTest {
             assertThat(result!!.lock).isEmpty()
         }
 
+    // ── upsertRemoteFields（Issue 1：lock 不被 REPLACE 清空回归）──────────────
+
+    @Test
+    fun upsertRemoteFields_preserves_lock_on_conflict() =
+        runTest {
+            // 先插入一个已设置用户锁的账户
+            dao.insert(
+                UserEntity(
+                    uid = 100L,
+                    username = "old",
+                    avatar = "old_url",
+                    auth = "old_auth",
+                    lock = "1234",
+                ),
+            )
+
+            // 模拟（并发）重新登录：只传远端字段，ON CONFLICT 不得触碰 lock
+            dao.upsertRemoteFields(
+                uid = 100L,
+                username = "new",
+                avatar = "new_url",
+                auth = "new_auth",
+            )
+
+            val result = dao.findUserByUid(100L)
+            assertThat(result).isNotNull()
+            assertThat(result!!.username).isEqualTo("new")
+            assertThat(result.avatar).isEqualTo("new_url")
+            assertThat(result.auth).isEqualTo("new_auth")
+            // 关键断言：lock 必须保留，绝不被静默清空
+            assertThat(result.lock).isEqualTo("1234")
+        }
+
+    @Test
+    fun upsertRemoteFields_inserts_new_user_with_empty_lock() =
+        runTest {
+            dao.upsertRemoteFields(uid = 500L, username = "fresh", avatar = "url", auth = "auth")
+
+            val result = dao.findUserByUid(500L)
+            assertThat(result).isNotNull()
+            assertThat(result!!.uid).isEqualTo(500L)
+            assertThat(result.username).isEqualTo("fresh")
+            assertThat(result.lock).isEmpty()
+        }
+
+    @Test
+    fun upsertRemoteFields_does_not_duplicate_row_on_conflict() =
+        runTest {
+            dao.insert(UserEntity(uid = 100L, username = "old", avatar = "old", auth = "old"))
+
+            dao.upsertRemoteFields(uid = 100L, username = "new", avatar = "new", auth = "new")
+
+            // uid 唯一索引命中，更新而非新增，表内仍只有一行
+            val all = dao.getAll()
+            assertThat(all).hasSize(1)
+            assertThat(all[0].username).isEqualTo("new")
+        }
+
     @Test
     fun getAll_on_empty_table_returns_empty() =
         runTest {
