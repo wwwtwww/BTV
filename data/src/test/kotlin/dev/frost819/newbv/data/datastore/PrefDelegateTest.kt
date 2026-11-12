@@ -12,7 +12,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -240,6 +242,24 @@ class PrefDelegateTest {
     @Test
     fun `custom buvid3 is preserved across reinit`() =
         runBlocking {
+            // 先以 DataStore 实际内容为准，等待 setUp 遗留的 checkAndInitBuvid 异步 persist 全部落地。
+            // 哨兵/mutex 等待存在“已提交未 acquire”的调度窗口，无法严格保证顺序；
+            // 而轮询结果（buvid/buvid3 均已非空）能 100% 保证旧快照不会再覆盖后续写入，
+            // 消除 CI 上遗留 persist 在下方 dataStore.edit 之后落地导致断言失败的竞态。
+            val persistDone =
+                withTimeoutOrNull(5_000) {
+                    var done = false
+                    while (!done) {
+                        val prefs = dataStore.data.first()
+                        done =
+                            prefs[PrefKeys.buvid3]?.isNotEmpty() == true &&
+                            prefs[PrefKeys.buvid]?.isNotEmpty() == true
+                        if (!done) delay(10)
+                    }
+                    done
+                } ?: false
+            assertThat(persistDone).isTrue()
+
             // 直接向 DataStore 写入自定义 buvid3，绕过异步 persist 竞态
             dataStore.edit { prefs ->
                 prefs[PrefKeys.buvid3] = "custom_buvid3_value"
