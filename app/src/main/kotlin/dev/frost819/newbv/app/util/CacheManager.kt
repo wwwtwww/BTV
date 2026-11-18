@@ -121,6 +121,42 @@ class CacheManager(
         /** 自动清理关闭时 Coil 磁盘缓存的 maxSizeBytes（1TB，实际等同不限制）。 */
         const val UNLIMITED_DISK_CACHE_BYTES: Long = 1L shl 40
 
+        /** 低内存设备（isLowRamDevice）图片内存缓存上限。 */
+        const val LOW_RAM_MEMORY_CACHE_BYTES: Long = 24L * BYTES_PER_MB
+
+        /** 小堆设备判定阈值（堆上限 ≤ 192MB 的低配盒子）。 */
+        const val SMALL_HEAP_MAX_BYTES: Long = 192L * BYTES_PER_MB
+
+        /** 小堆设备图片内存缓存上限。 */
+        const val SMALL_HEAP_MEMORY_CACHE_BYTES: Long = 32L * BYTES_PER_MB
+
+        /** 常规设备图片内存缓存上限。 */
+        const val DEFAULT_MEMORY_CACHE_BYTES: Long = 64L * BYTES_PER_MB
+
+        /**
+         * 计算图片内存缓存上限（字节）（OOM 防护）。
+         *
+         * TV 设备内存差异极大（512MB~4GB），Coil 默认按「应用可用内存的 25%」分配
+         * 内存缓存，高配设备上可达上百 MB，与弹幕/播放器并存时有 OOM 风险。
+         * 本项目图片以 960x540 海报为主，显式分档上限足以维持流畅回滑体验：
+         * - 低内存设备（[isLowRamDevice] 为 true）：24MB；
+         * - 堆上限不超过 [SMALL_HEAP_MAX_BYTES]（低配盒子）：32MB；
+         * - 其余设备：64MB。
+         *
+         * @param maxHeapBytes 应用堆上限（`Runtime.getRuntime().maxMemory()`）。
+         * @param isLowRamDevice 系统低内存设备标记（`ActivityManager.isLowRamDevice`）。
+         * @return 内存缓存上限字节数。
+         */
+        fun memoryCacheMaxBytes(
+            maxHeapBytes: Long,
+            isLowRamDevice: Boolean,
+        ): Long =
+            when {
+                isLowRamDevice -> LOW_RAM_MEMORY_CACHE_BYTES
+                maxHeapBytes <= SMALL_HEAP_MAX_BYTES -> SMALL_HEAP_MEMORY_CACHE_BYTES
+                else -> DEFAULT_MEMORY_CACHE_BYTES
+            }
+
         /**
          * 递归统计目录内所有文件的总大小（字节）。
          *

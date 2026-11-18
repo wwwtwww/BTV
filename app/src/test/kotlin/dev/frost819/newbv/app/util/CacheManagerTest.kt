@@ -284,4 +284,54 @@ class CacheManagerTest {
         assertThat(dirA.exists()).isTrue()
         assertThat(dirB.exists()).isTrue()
     }
+
+    // ===== 内存缓存分档（OOM 防护）=====
+
+    @Test
+    fun `memoryCacheMaxBytes returns low ram budget on low ram device`() {
+        // Given: 低内存设备标记为 true（堆大小不影响结果）
+
+        // When
+        val bytes =
+            CacheManager
+                .memoryCacheMaxBytes(
+                    maxHeapBytes = 512L * CacheManager.BYTES_PER_MB,
+                    isLowRamDevice = true,
+                )
+
+        // Then: 取低内存档 24MB
+        assertThat(bytes).isEqualTo(CacheManager.LOW_RAM_MEMORY_CACHE_BYTES)
+    }
+
+    @Test
+    fun `memoryCacheMaxBytes returns small heap budget at heap threshold`() {
+        // Given: 非低内存设备，堆上限恰等于小堆判定阈值 192MB
+
+        // When
+        val bytes =
+            CacheManager
+                .memoryCacheMaxBytes(
+                    maxHeapBytes = CacheManager.SMALL_HEAP_MAX_BYTES,
+                    isLowRamDevice = false,
+                )
+
+        // Then: 边界值含阈值，取小堆档 32MB
+        assertThat(bytes).isEqualTo(CacheManager.SMALL_HEAP_MEMORY_CACHE_BYTES)
+    }
+
+    @Test
+    fun `memoryCacheMaxBytes returns default budget on regular device`() {
+        // Given: 非低内存设备，堆上限 256MB（大于小堆阈值）
+
+        // When
+        val bytes =
+            CacheManager
+                .memoryCacheMaxBytes(
+                    maxHeapBytes = 256L * CacheManager.BYTES_PER_MB,
+                    isLowRamDevice = false,
+                )
+
+        // Then: 取常规档 64MB
+        assertThat(bytes).isEqualTo(CacheManager.DEFAULT_MEMORY_CACHE_BYTES)
+    }
 }

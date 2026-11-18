@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.IOException
 
 /** [CommentViewModel] 的排序缓存、分页、楼中楼和点赞测试。 */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -343,6 +344,52 @@ class CommentViewModelTest {
                 val effect = awaitItem() as CommentUiEffect.ShowToast
                 assertThat(effect.message).contains("评论点赞失败")
             }
+        }
+
+    // ===== 边界场景（断网 / 空数据）=====
+
+    @Test
+    fun `load failure shows error state and refresh recovers`() =
+        runTest(dispatcher) {
+            var attempt = 0
+            coEvery { repository.getComments(100L, 1, 1, null, any()) } coAnswers {
+                attempt++
+                if (attempt == 1) throw IOException("network down")
+                page(listOf(comment(1L)), page = 1, total = 1, hasMore = false)
+            }
+
+            viewModel.load(100L)
+            advanceUntilIdle()
+
+            // Then: 首屏断网进入错误态，无半成品列表
+            assertThat(viewModel.uiState.value.error).isTrue()
+            assertThat(viewModel.uiState.value.loading).isFalse()
+            assertThat(viewModel.uiState.value.comments).isEmpty()
+
+            // When: 用户手动刷新
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            // Then: 恢复正常列表
+            assertThat(viewModel.uiState.value.error).isFalse()
+            assertThat(viewModel.uiState.value.comments).hasSize(1)
+        }
+
+    @Test
+    fun `load with no comments exposes empty loaded state not error`() =
+        runTest(dispatcher) {
+            coEvery { repository.getComments(100L, 1, 1, null, any()) } returns
+                page(emptyList(), page = 1, total = 0, hasMore = false)
+
+            viewModel.load(100L)
+            advanceUntilIdle()
+
+            // Then: 零评论视频展示空态而非错误态，且不再发起分页
+            assertThat(viewModel.uiState.value.error).isFalse()
+            assertThat(viewModel.uiState.value.loading).isFalse()
+            assertThat(viewModel.uiState.value.comments).isEmpty()
+            assertThat(viewModel.uiState.value.total).isEqualTo(0)
+            assertThat(viewModel.uiState.value.hasMore).isFalse()
         }
 
     private fun page(

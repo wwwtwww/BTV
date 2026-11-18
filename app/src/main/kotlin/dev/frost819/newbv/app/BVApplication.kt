@@ -1,5 +1,6 @@
 package dev.frost819.newbv.app
 
+import android.app.ActivityManager
 import android.app.Application
 import android.util.Log
 import androidx.datastore.core.DataStore
@@ -7,6 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import dagger.hilt.android.HiltAndroidApp
@@ -146,10 +148,25 @@ class BVApplication : Application() {
                 ).maxSizeBytes(diskCacheMaxBytes)
                 .build()
 
+        // 图片内存缓存上限（OOM 防护）：显式分档替代 Coil 默认的「可用内存 25%」策略，
+        // 高配 TV 上默认值可达上百 MB，与弹幕/播放器并存时有 OOM 风险。
+        val isLowRamDevice =
+            (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
+        val imageMemoryCache =
+            MemoryCache
+                .Builder()
+                .maxSizeBytes(
+                    CacheManager.memoryCacheMaxBytes(
+                        maxHeapBytes = Runtime.getRuntime().maxMemory(),
+                        isLowRamDevice = isLowRamDevice,
+                    ),
+                ).build()
+
         coil3.SingletonImageLoader.setSafe {
             ImageLoader
                 .Builder(this)
                 .crossfade(true)
+                .memoryCache(imageMemoryCache)
                 .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .diskCache(imageDiskCache)
