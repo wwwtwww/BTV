@@ -8,6 +8,30 @@ package dev.frost819.newbv.data.datastore
  *
  * 当 bili-api / player / danmaku 模块迁移完成后，部分枚举（ApiType / Resolution /
  * VideoCodec / Audio）可迁移至对应模块，data 层改为引用。
+ *
+ * ===== 枚举持久化约定 =====
+ *
+ * 项目中枚举持久化分为两套约定，混用会导致数组越界或返回错误值：
+ *
+ * 【按 code 持久化】存储枚举的 code 整数值，解码函数为 fromCode：
+ * - Resolution           code: 6/16/32/64/74/80/112/116/120/125/126/127（对应 B 站 qn 参数）
+ * - Audio                code: 30216/30232/30280/30250/30251（对应 B 站音频 ID）
+ * - PlaySpeed            code: 0/1/2/3/4
+ * - ActionAfterPlay      code: 0/1/2/3
+ * - ScreensaverTimeout   code: 0/1/2/3/4
+ * - HomeTopNavItem       code: 0/1/2
+ *
+ * 【按 ordinal 持久化】存储枚举的位置索引（ordinal），解码函数为 fromOrdinal：
+ * - VideoCodec               ordinal: 0=AVC, 1=HEVC, 2=AV1, 3=DVH1
+ * - LeftNaviItem             ordinal: 0~5
+ * - HomeHeroMode             ordinal: 0~3
+ * - ThemeMode                ordinal: 0~2
+ * - ApiType                  ordinal: 0=Web, 1=App
+ * - PersonalTopNavItem       ordinal: 0~3
+ * - DanmakuType              ordinal: 0~3（多选场景，按列表存储）
+ *
+ * 调用 SettingsRepositoryImpl 的 intEnumFlow 时，
+ * 必须确保 fromInt 参数与对应枚举的持久化方式匹配。
  */
 
 /**
@@ -26,7 +50,7 @@ enum class ApiType {
     ;
 
     companion object {
-        /** 从序号安全解析，越界返回 [Web]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [Web]。 */
         fun fromOrdinal(ordinal: Int): ApiType = entries.getOrElse(ordinal) { Web }
     }
 }
@@ -58,7 +82,7 @@ enum class Resolution(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [R1080P]。 */
+        /** code 持久化解码：按 B 站 qn 值还原枚举，未知 code 回退到 [R1080P]。 */
         fun fromCode(code: Int): Resolution = entries.find { it.code == code } ?: R1080P
     }
 }
@@ -84,7 +108,7 @@ enum class VideoCodec(
     ;
 
     companion object {
-        /** 从 ordinal 安全解析，越界返回 [AVC]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [AVC]。 */
         fun fromOrdinal(ordinal: Int): VideoCodec = entries.getOrElse(ordinal) { AVC }
 
         /** 从 codec string（如 `avc1.640028`、`hvc1.1.6.L153.90`）匹配编码，无匹配返回 null。 */
@@ -116,7 +140,7 @@ enum class ActionAfterPlay(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [PlayNext]。 */
+        /** code 持久化解码：按动作标识还原枚举，未知 code 回退到 [PlayNext]。 */
         fun fromCode(code: Int): ActionAfterPlay = entries.find { it.code == code } ?: PlayNext
     }
 }
@@ -142,7 +166,7 @@ enum class ScreensaverTimeout(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [ThreeMinutes]。 */
+        /** code 持久化解码：按超时编号还原枚举，未知 code 回退到 [ThreeMinutes]。 */
         fun fromCode(code: Int): ScreensaverTimeout = entries.find { it.code == code } ?: ThreeMinutes
     }
 }
@@ -167,7 +191,7 @@ enum class Audio(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [A192K]。 */
+        /** code 持久化解码：按 B 站音频 ID 还原枚举，未知 code 回退到 [A192K]。 */
         fun fromCode(code: Int): Audio = entries.find { it.code == code } ?: A192K
     }
 }
@@ -215,7 +239,7 @@ enum class PlaySpeed(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [X1]。 */
+        /** code 持久化解码：按速度标识还原枚举，未知 code 回退到 [X1]。 */
         fun fromCode(code: Int): PlaySpeed = entries.find { it.code == code } ?: X1
 
         /** 从倍速值匹配，无精确匹配返回 [X1]。 */
@@ -241,7 +265,7 @@ enum class LeftNaviItem : java.io.Serializable {
     ;
 
     companion object {
-        /** 从序号安全解析，越界返回 [Home]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [Home]。 */
         fun fromOrdinal(ordinal: Int): LeftNaviItem = entries.getOrElse(ordinal) { Home }
     }
 }
@@ -262,7 +286,7 @@ enum class HomeTopNavItem(
     ;
 
     companion object {
-        /** 从 code 安全解析，未知 code 返回 [Dynamics]。 */
+        /** code 持久化解码：按 Tab 编号还原枚举，未知 code 回退到 [Dynamics]。 */
         fun fromCode(code: Int): HomeTopNavItem = entries.find { it.code == code } ?: Dynamics
     }
 }
@@ -280,7 +304,7 @@ enum class PersonalTopNavItem {
     ;
 
     companion object {
-        /** 从序号安全解析，越界返回 [ToView]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [ToView]。 */
         fun fromOrdinal(ordinal: Int): PersonalTopNavItem = entries.getOrElse(ordinal) { ToView }
     }
 }
@@ -306,7 +330,7 @@ enum class ThemeMode {
     ;
 
     companion object {
-        /** 从序号安全解析，越界返回 [FollowSystem]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [FollowSystem]。 */
         fun fromOrdinal(ordinal: Int): ThemeMode = entries.getOrElse(ordinal) { FollowSystem }
     }
 }
@@ -332,7 +356,7 @@ enum class HomeHeroMode {
     ;
 
     companion object {
-        /** 从序号安全解析，越界返回 [Auto]。 */
+        /** ordinal 持久化解码：按位置索引还原枚举，越界回退到 [Auto]。 */
         fun fromOrdinal(ordinal: Int): HomeHeroMode = entries.getOrElse(ordinal) { Auto }
     }
 }

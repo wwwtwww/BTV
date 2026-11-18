@@ -6,6 +6,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /**
  * v4 → v5 迁移。
  *
+ * 当前唯一迁移路径：`DatabaseModule` 仅注册本迁移且不开启
+ * `fallbackToDestructiveMigration()`，因所有已发布版本 schema 均 >= v4，
+ * 无需更早版本的迁移链；若未来需支持 v4 以下升级，须在此补充 MIGRATION_3_4 等。
+ *
  * FIX-17 为 user 表和 search_history 表添加了唯一索引。
  * 迁移前需要先清理重复数据（保留每组中 id 最大的记录），
  * 否则创建唯一索引会因数据冲突而失败。
@@ -19,11 +23,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 同名索引则直接跳过，避免创建失败导致升级崩溃。
  *
  * 去重范围说明：去重对全表执行，不做 NULL / 空串过滤。唯一索引只按
- * 值是否相等判重，并不区分空串——多行相同空串同样会冲突；而 Room 的
- * [androidx.room.RoomDatabase.Builder.fallbackToDestructiveMigration]
- * 只在「找不到迁移路径」时生效，不会捕获 [migrate] 内部抛出的异常，
- * 因此漏删任意一类重复值都会让老用户升级直接崩溃。两组列在实体中均
- * 声明为非空（uid: Long / keyword: String），也不存在需要保留的 NULL 行。
+ * 值是否相等判重，并不区分空串——多行相同空串同样会冲突；[migrate] 内部
+ * 抛出的异常不会被 Room 的降级策略吞掉（`DatabaseModule` 已不再开启
+ * `fallbackToDestructiveMigration`，迁移失败直接抛异常），因此漏删任意一类
+ * 重复值都会让老用户升级直接崩溃。两组列在实体中均声明为非空
+ * （uid: Long / keyword: String），也不存在需要保留的 NULL 行。
  */
 val MIGRATION_4_5 =
     object : Migration(4, 5) {

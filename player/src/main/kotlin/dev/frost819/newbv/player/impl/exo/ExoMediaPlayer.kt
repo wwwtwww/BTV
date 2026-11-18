@@ -2,6 +2,7 @@ package dev.frost819.newbv.player.impl.exo
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -240,9 +241,11 @@ open class ExoMediaPlayer(
     /**
      * 重置播放器：停止播放、清空媒体项与 [mMediaSource]，并复位 BEHIND_LIVE_WINDOW 恢复计数。
      *
-     * 注意：当前仅由测试覆写使用，生产路径尚未接入。直播/点播切流实际走 [release] + 重建播放器实例，
-     * 因此本方法未来接入生产调用时需重新评估 [mPlayer] 的复用边界。
+     * 仅供测试使用：当前仅由测试覆写调用，生产路径未接入此方法 —— 直播/点播切流实际走
+     * [release] + 重建播放器实例。标注 [VisibleForTesting] 以防生产代码误用；
+     * 若未来需要接入生产调用，须重新评估 [mPlayer] 的复用边界。
      */
+    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     override fun reset() {
         mPlayer?.stop()
         mPlayer?.clearMediaItems()

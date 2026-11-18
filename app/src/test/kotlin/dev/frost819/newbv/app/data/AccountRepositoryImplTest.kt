@@ -140,6 +140,8 @@ class AccountRepositoryImplTest {
             assertThat(result).isNull()
         }
 
+    // 故意引用已废弃的 upsert：用于断言废弃的 REPLACE 语义路径不再被调用，故压制弃用告警
+    @Suppress("DEPRECATION")
     @Test
     fun `upsertUser writes remote fields atomically and never touches lock`() =
         runTest {

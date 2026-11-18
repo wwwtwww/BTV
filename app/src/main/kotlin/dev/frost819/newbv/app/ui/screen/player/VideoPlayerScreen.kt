@@ -16,22 +16,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
+import dev.frost819.newbv.app.MainActivity
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.component.comment.CommentDialogMode
 import dev.frost819.newbv.app.ui.component.comment.CommentsDialog
 import dev.frost819.newbv.app.ui.component.player.NetworkDiagnosticsDialog
-import dev.frost819.newbv.app.ui.component.player.ScreensaverOverlay
 import dev.frost819.newbv.app.ui.component.player.VideoInteractionDialog
 import dev.frost819.newbv.app.ui.component.player.VideoPlayerController
-import dev.frost819.newbv.app.ui.component.player.rememberScreensaverState
 import dev.frost819.newbv.app.ui.component.rememberDoublePressExit
 import dev.frost819.newbv.app.ui.component.videocard.VideoCardData
 import dev.frost819.newbv.app.ui.component.videocard.isPgc
@@ -52,7 +50,6 @@ import dev.frost819.newbv.danmaku.component.DanmakuPlayerCompose
 import dev.frost819.newbv.danmaku.util.DanmakuMaskFinder
 import dev.frost819.newbv.danmaku.util.calculateMaskDelay
 import dev.frost819.newbv.danmaku.util.danmakuMask
-import dev.frost819.newbv.data.datastore.Prefs
 import dev.frost819.newbv.player.BvVideoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
@@ -285,24 +282,33 @@ fun VideoPlayerScreen(
         )
     BackHandler { handleBack() }
 
-    // 防烧屏屏保状态（仅在主动暂停或播放结束时激活；错误态保留展示错误原因，避免全黑遮挡提示）
-    val isPausedOrEnded =
-        uiState.playerState == PlayerState.Paused ||
-            uiState.playerState == PlayerState.Ended
-    val screensaverState =
-        rememberScreensaverState(
-            isPausedOrEnded = isPausedOrEnded,
-            timeoutMs = Prefs.screensaverTimeout.timeoutMs,
-        )
+    // 屏保桥接：全局屏保由 MainActivity 根层 GlobalScreensaverOverlay 统一驱动，
+    // 本页只做「播放中抑制屏保 / 非播放允许屏保」的状态声明。
+    // 采用黑名单策略：仅 Paused/Ended 才允许屏保，其余状态（Ready/Loading/Buffering/Error）
+    // 一律抑制。否则视频加载失败或尚未起播时，3 分钟无操作的全黑屏保会遮挡错误提示与重试入口。
+    // isBuffering 仍需单独判断：暂停后缓冲看门狗可能仍置位（预加载/切清晰度），此时不应让屏保弹出。
+    // 转场竞态：新页 B 的 LaunchedEffect 可能先于旧页 A 的 onDispose 执行，若协调器只用单个布尔量，
+    // 最后写入者 A 的 release 会覆盖 B 的「播放中」声明。因此用 owner token 聚合：
+    // 每个页面实例携带自己的 token 注册/释放，互不覆盖。
+    // dispose 时（返回主页/关闭页面）必须 releaseContentPlaying，否则主页将失去屏保能力。
+    val screensaverCoordinator = (context as? MainActivity)?.screensaverCoordinator
+    val screensaverOwner = remember { Any() }
+    LaunchedEffect(uiState.playerState, uiState.isBuffering, screensaverCoordinator) {
+        val allowScreensaver =
+            (uiState.playerState == PlayerState.Paused || uiState.playerState == PlayerState.Ended) &&
+                !uiState.isBuffering
+        screensaverCoordinator?.setContentPlaying(screensaverOwner, !allowScreensaver)
+    }
+    DisposableEffect(screensaverCoordinator) {
+        onDispose {
+            screensaverCoordinator?.releaseContentPlaying(screensaverOwner)
+        }
+    }
 
     Box(
         modifier =
             Modifier
-                .fillMaxSize()
-                .onPreviewKeyEvent {
-                    screensaverState.onUserInteraction()
-                    false
-                },
+                .fillMaxSize(),
     ) {
         VideoPlayerController(
             modifier = Modifier.fillMaxSize(),
@@ -503,13 +509,6 @@ fun VideoPlayerScreen(
             NetworkDiagnosticsDialog(
                 currentCdnUrl = uiState.currentCdnUrl,
                 onDismiss = { showNetworkDiagnostics = false },
-            )
-        }
-
-        if (screensaverState.isScreensaverActive) {
-            ScreensaverOverlay(
-                title = uiState.title,
-                onDismiss = { screensaverState.dismissScreensaver() },
             )
         }
     }

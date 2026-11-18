@@ -97,15 +97,16 @@ private const val ONLINE_WATCH_REFRESH_MS = 60_000L
  * @param videoPlayRepository 播放数据仓库（URL、弹幕、字幕、蒙版、心跳、缩略图）
  * @param videoInfoRepository 视频信息共享仓库（分集列表、详情）
  * @param authRepository 鉴权仓库（会话凭证）
+ * @param exoPlayerFactory ExoPlayer 工厂
+ * @param videoCapabilityProvider 设备视频解码能力查询器（选流时过滤超能力组合）
  * @param likeRepository 视频点赞仓库
  * @param coinRepository 视频投币仓库
  * @param favoriteRepository 视频收藏仓库
  * @param oneClickTripleActionRepository 一键三连仓库
- * @param exoPlayerFactory ExoPlayer 工厂
- * @param videoCapabilityProvider 设备视频解码能力查询器（选流时过滤超能力组合）
  * @param cdnSelector CDN 测速选择器（开启自动选源时用于排序候选地址）
  * @param ioDispatcher IO 协程调度器（测试中可替换为 TestDispatcher）
  * @param mainDispatcher Main 协程调度器（测试中可替换为 TestDispatcher）
+ * @param applicationScope 应用级协程作用域（用于 detach 心跳、切集补报等超出 ViewModel 生命周期的任务）
  */
 @HiltViewModel
 class PlayerViewModel
@@ -158,7 +159,7 @@ class PlayerViewModel
         /** 当前视频共享状态（交互 + 历史）。 */
         val videoSharedState = videoInfoRepository.videoSharedState
 
-        private val _uiEffect = MutableSharedFlow<PlayerUiEffect>()
+        private val _uiEffect = MutableSharedFlow<PlayerUiEffect>(extraBufferCapacity = 1)
         val uiEffect = _uiEffect.asSharedFlow()
 
         /**
@@ -192,6 +193,35 @@ class PlayerViewModel
          * [loadVideoWithResources]，由 [cancelPlaybackScopedJobs] 统一取消。
          */
         private var deferredDetailJob: Job? = null
+
+        /**
+         * cid!=0 路径的详情加载协程（仅用于读取历史进度，不发起资源加载）。
+         *
+         * 与 [deferredDetailJob] 互为对称分支：cid==0 时走 [deferredDetailJob]（补齐 cid + 加载资源），
+         * cid!=0 时走本协程（只加载详情拿历史断点）。两条路径都会向 [uiState] 写入 lastPlayed，
+         * 都必须登记为可取消 Job 并施加 [playRequestId] 守卫，防止快速切集时旧协程以过期进度覆盖新请求。
+         */
+        private var detailJob: Job? = null
+
+        /**
+         * 播放请求序号，每次 [playNewVideo] 调用递增 1。
+         *
+         * 为什么不能用 aid 比对做陈旧性守卫：aid 只能区分「换了个视频」，无法区分
+         * 「同一视频换分P」（aid 相同、cid 不同）。[deferredDetailJob] 与 [detailJob] 在 IO 线程异步
+         * 补齐 cid 后再发起资源加载，期间用户可能再次切集；若只比对 aid，同 aid 的切集
+         * 会让旧协程误判自己仍是当前请求，从而以过期的 cid 起播（播错分P）。
+         * requestId 精确到每一次播放请求，只有最新发起的那次才能通过守卫。
+         *
+         * 与 [cancelPlaybackScopedJobs] 中的 `deferredDetailJob?.cancel()` + `detailJob?.cancel()` 互为双保险：
+         * cancel 只能作用于仍停在挂起点上的协程，而 requestId 比对覆盖「已过最后一个挂起点、
+         * 正在同步执行」以及跨线程调度导致的取消信号时序窗口。
+         *
+         * @Volatile 保证主线程写入后 IO 线程能立即读到最新值：在 ARM TV 弱内存序平台上，
+         * 处理器缓存可能导致读线程看到陈旧值，使 requestId 守卫静默失效；@Volatile
+         * 建立 happens-before 关系，覆盖 cancel() 无法中断的「已过最后一个挂起点、正在同步执行」窗口。
+         */
+        @Volatile
+        private var playRequestId = 0L
         private var appContext: Context? = null
 
         /** 标记是否已在本次播放会话中跳转到历史进度，避免暂停恢复时重复跳转。 */
@@ -510,6 +540,8 @@ class PlayerViewModel
         /** 释放播放器资源，同步进度到 B 站。 */
         fun detachPlayer() {
             hasInitializedSession = false
+            // 卸载同样作废在飞的播放请求：release 后不得再由 deferred 详情协程发起起播
+            playRequestId++
             cancelPlaybackScopedJobs()
             syncProgress(scope = applicationScope, isDetaching = true)
             videoPlayer?.release()
@@ -762,8 +794,16 @@ class PlayerViewModel
          *
          * 同步旧视频进度，更新 UI 状态，重新加载资源。
          * 通过 [videoSwitchEvent] 通知 UI 层协调弹幕/字幕重载。
+         *
+         * 每次调用都会作废上一个在飞的播放请求（递增 [playRequestId] +
+         * 取消 [deferredDetailJob] / [detailJob]），确保「同 aid 换分P」的快速切集不会
+         * 被旧详情协程以过期 cid 起播。
          */
         fun playNewVideo(newVideo: VideoListItem) {
+            // 本次播放请求的序号快照：异步详情协程凭它判断自己是否已被更新的请求取代
+            // （见 [playRequestId]，aid 比对无法覆盖「同 aid 换分P」的场景）
+            playRequestId++
+            val currentRequestId = playRequestId
             videoPlayer?.pause()
             hasSeekToHistoryPosition = false
             cancelPlaybackScopedJobs()
@@ -776,6 +816,11 @@ class PlayerViewModel
             val previousState = _uiState.value
             val currentPlayer = videoPlayer
             if (currentPlayer != null) {
+                // 切集必须先取消上一集仍在飞行中的心跳任务，否则它可能在 aid/cid 被覆写后
+                // 继续以过期参数上报。注意：本处补报任务刻意不赋值给 heartbeatJob
+                // （与 [syncProgress] 的写法不同），否则会在新集下一次 syncProgress 时被取消，
+                // 导致上一集进度丢失；因此这里只 cancel 旧任务、不接管新任务。
+                heartbeatJob?.cancel()
                 val currentTime = (currentPlayer.currentPosition.coerceAtLeast(0) / 1000).toInt()
                 val totalTime = (currentPlayer.duration.coerceAtLeast(0) / 1000).toInt()
                 val reportTime = if (totalTime > 0 && currentTime >= totalTime) -1 else currentTime
@@ -853,6 +898,9 @@ class PlayerViewModel
                                 withTimeout(5_000L) {
                                     videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
                                 }
+                                // 详情已返回但期间又发起了新的播放请求：本协程过期，
+                                // 不得再写回 cid / 历史进度标记，避免污染新请求的状态
+                                if (currentRequestId != playRequestId) return@launch
                                 val detail = videoInfoRepository.videoDetail.value
                                 if (detail != null && _uiState.value.cid == 0L) {
                                     _uiState.update { it.copy(cid = detail.cid) }
@@ -875,8 +923,10 @@ class PlayerViewModel
                             } catch (e: Exception) {
                                 logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                             }
-                            // 陈旧性守卫：详情加载期间已切到其他视频（或已卸载）时，本协程已过期，直接退出
-                            if (_uiState.value.aid != newVideo.aid) return@launch
+                            // 陈旧性守卫：详情加载期间已再次发起播放请求（或已卸载）时，本协程已过期，直接退出。
+                            // 必须按 [playRequestId] 比对而非 aid：同 aid 换分P 时 aid 比对会误判为
+                            // 「仍是当前视频」，让旧协程以过期 cid 起播（播错分P）。
+                            if (currentRequestId != playRequestId) return@launch
                             // 详情已尽量补齐 cid（协程内顺序保证：写入 _uiState happen-before 此处的读取）
                             // 超时/异常降级时以当前能拿到的最好 cid（可能为 0 兜底）继续发起资源加载
                             // 切换事件已在 playNewVideo 立即广播（cid=0 清空信号），此处不再重复；
@@ -886,21 +936,28 @@ class PlayerViewModel
                     // cid==0 路径的资源加载已移交协程，跳过函数末尾的同步调用
                     deferredResourceLoad = true
                 } else {
-                    viewModelScope.launch(ioDispatcher) {
-                        runSuspendCatching {
-                            videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
-                            // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
-                            val sharedState = videoInfoRepository.videoSharedState.value
-                            val historyCid = sharedState?.lastPlayedCid ?: 0L
-                            val historyTime = sharedState?.lastPlayedTime ?: 0
-                            if (historyCid == newVideo.cid && historyTime > 0 && !hasSeekToHistoryPosition) {
-                                _uiState.update { it.copy(lastPlayed = historyTime) }
-                                hasSeekToHistoryPosition = true
+                    val rid = playRequestId // 快照当前请求序号
+                    detailJob =
+                        viewModelScope.launch(ioDispatcher) {
+                            try {
+                                videoInfoRepository.loadVideoDetail(newVideo.aid, getApiType())
+                                // 陈旧性守卫：详情加载期间已再次发起播放请求时，本协程过期，
+                                // 不得以旧视频的进度覆盖当前 uiState.lastPlayed
+                                if (rid != playRequestId) return@launch
+                                // 仅当历史 cid 与当前播放 cid 一致时才应用断点续播
+                                val sharedState = videoInfoRepository.videoSharedState.value
+                                val historyCid = sharedState?.lastPlayedCid ?: 0L
+                                val historyTime = sharedState?.lastPlayedTime ?: 0
+                                if (historyCid == newVideo.cid && historyTime > 0 && !hasSeekToHistoryPosition) {
+                                    _uiState.update { it.copy(lastPlayed = historyTime) }
+                                    hasSeekToHistoryPosition = true
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                             }
-                        }.onFailure { e ->
-                            logger.warn(e) { "异步加载视频详情/历史进度异常: aid=${newVideo.aid}, cid=${newVideo.cid}" }
                         }
-                    }
                 }
             }
             if (shouldUpdateList) {
@@ -935,10 +992,13 @@ class PlayerViewModel
             val epid = state.epid
 
             loadVideoJob?.cancel()
+            // 快照当前请求序号：cancel 仅能中断仍停在挂起点的协程，
+            // requestId 守卫覆盖已过最后挂起点、正在同步执行的窗口（见 [playRequestId]）
+            val rid = playRequestId
             loadVideoJob =
                 viewModelScope.launch(ioDispatcher) {
                     try {
-                        resolveUrlsAndPlay(aid, cid, epid ?: 0)
+                        resolveUrlsAndPlay(aid, cid, epid ?: 0, expectedRequestId = rid)
                         launch { updateVideoShot() }
                         launch { updateVideoPages() }
                     } catch (e: CancellationException) {
@@ -1018,10 +1078,11 @@ class PlayerViewModel
             }
 
             loadVideoJob?.cancel()
+            val rid = playRequestId // 快照：覆盖 cancel 无法中断的同步执行窗口
             loadVideoJob =
                 viewModelScope.launch(ioDispatcher) {
                     try {
-                        resolveUrlsAndPlay(aid, cid, epid ?: 0)
+                        resolveUrlsAndPlay(aid, cid, epid ?: 0, expectedRequestId = rid)
                         if (currentMs > 0) {
                             withContext(mainDispatcher) {
                                 videoPlayer?.seekTo(currentMs)
@@ -1330,9 +1391,13 @@ class PlayerViewModel
             aid: Long,
             cid: Long,
             epid: Int = 0,
+            expectedRequestId: Long? = null,
         ) {
             try {
                 val mediaUrls = fetchMediaUrls(aid, cid, epid)
+                // requestId 守卫：若调用方传入快照，则比对当前 playRequestId；
+                // 不等说明已有新请求，cancel 可能未能及时中断本协程（已过最后挂起点），此处兜底丢弃
+                if (expectedRequestId != null && expectedRequestId != playRequestId) return
                 withContext(mainDispatcher) { executePlayback(mediaUrls) }
             } catch (e: CancellationException) {
                 throw e
@@ -1889,12 +1954,18 @@ class PlayerViewModel
 
         /** 统一取消播放相关的倒计时和提示任务。 */
         private fun cancelPlaybackScopedJobs() {
+            // cid!=0 路径的资源加载协程持有旧视频 aid/cid，切集时必须取消：
+            // 若不取消，旧协程完成 fetchMediaUrls 后将以过期结果调用 executePlayback（播错视频）。
+            // requestId 快照守卫是第二道保险，覆盖 cancel 尚未生效的同步执行窗口（见 [playRequestId]）。
+            loadVideoJob?.cancel()
             backToStartCountdownJob?.cancel()
             playNextCountdownJob?.cancel()
             shortcutTipJob?.cancel()
             previewTipCountdownJob?.cancel()
             // cid==0 的详情协程持有旧 newVideo 引用，切集/卸载时必须取消，避免陈旧的资源加载
             deferredDetailJob?.cancel()
+            // cid!=0 的详情协程同样持有旧 newVideo 引用，必须取消，避免以过期进度覆盖 lastPlayed
+            detailJob?.cancel()
         }
 
         /** 将 DataApiType 映射为 bili-api 的 ApiType。 */

@@ -6,6 +6,34 @@
 > - 发布新版本（如 `v0.4.12`）前，可将下方 `[Unreleased]` 标题改为 `## [v0.4.12] - YYYY-MM-DD`，CI 将优先提取该章节作为线上更新说明；
 > - 若发版时未在本文档中添加对应版本的章节，GitHub Actions 会自动汇总上一版本 Tag 至当前版本之间的 Git 提交记录生成中文更新说明。
 
+## [v0.6.0] - 2026-11-18
+
+> 功能升级版本：全局防烧屏屏保体系、播放页切集竞态三重防护、用户锁安全旁路修复与数据库安全默认值收紧。
+
+### ✨ 新功能
+- **全局防烧屏屏保 [P1]**：屏保从「仅播放页暂停时生效」升级为应用级全局能力——主页/搜索/详情/设置/个人中心/播放页（暂停·播放结束）在非播放状态下无操作超时后统一触发；新增 `ScreensaverCoordinator`（Hilt 单例）负责空闲计时与激活判定，`MainActivity` 根层 `GlobalScreensaverOverlay` 统一渲染，任意页面无需各自实现。
+- 屏保计时基准改用 `SystemClock.elapsedRealtime()` 单调时钟，不受系统时间/时区修改影响；后台恢复（onResume）视为一次交互重新计时，避免回前台即被历史空闲时长误触发；任意按键/触屏立即唤醒并从零重计。
+- 播放状态黑名单桥接：仅暂停/播放结束且非缓冲时允许屏保，播放/缓冲/加载/出错态一律抑制，避免全黑屏保遮挡错误提示与重试入口；页面转场采用 owner 引用计数聚合（`setContentPlaying`/`releaseContentPlaying`），新旧页注册互不覆盖，退出播放页后主页仍保有屏保能力。
+- 屏保超时设置（关闭/1/3/5/10 分钟，默认 3 分钟）经 `SettingsRepository` 响应式生效，修改后无需重启页面。
+
+### 🐛 问题修复
+- **播放页切集竞态三重防护 [P0]**：`PlayerViewModel` 新增 `@Volatile playRequestId` 请求序号守卫，修复「同一视频切换分P」时旧详情协程以过期 cid 起播（播错分P）——aid 比对无法区分同视频换分P，序号快照可精准判定；cid!=0 路径详情加载协程（`detailJob`）与 `loadVideoJob` 一并纳入统一取消；`resolveUrlsAndPlay` 增加序号兜底校验，切集时先取消上一集心跳上报任务避免进度丢失。
+- **用户锁安全旁路修复 [P0]**：状态机新增 `Initializing`/`InitFailed` 两相，堵住 Room 首查延迟窗口（100-300ms）内「空输入确认被误当清锁操作执行、绕过旧密码校验」的旁路；初始化查询失败时展示错误提示并支持确认键重试，期间拦截输入键防按键穿透。
+- **数据库安全默认值收紧 [P0]**：`DatabaseModule` 移除 `fallbackToDestructiveMigration` 兕底，缺失迁移路径时直接抛异常暴露问题——静默破坏式降级会清空账户与搜索历史（含用户锁），且让「漏写迁移」类错误逃过开发与 CI 阶段。
+- 播放器 UI 事件流 `_uiEffect` 增加缓冲容量（1），修复零缓冲 `MutableSharedFlow` 在无订阅者瞬间发射挂起导致事件丢失的问题。
+
+### 🔧 优化与调整
+- **屏保渲染组件瘦身**：`ScreensaverOverlay` 改为纯渲染组件（微光时钟+30秒防烧屏漂移），移除旧的页面局部状态机（`ScreensaverState`/`rememberScreensaverState`），同时移除屏保中的视频标题展示（全局能力不绑定具体播放内容）。
+- `UserDao.upsert`（REPLACE 语义会连带清空用户锁字段）标记 `@Deprecated` 并指向 `upsertRemoteFields`，新代码误用可在编译期发现。
+- 清理 `runSuspendCatching` 迁移后遗留的 14 处手工 `CancellationException` 重抛死代码（视频详情/个人中心/番剧详情/搜索/关于页）。
+- 枚举持久化约定文档化：`PrefEnums` 明确 code 型与 ordinal 型两类持久化及对应解码函数清单，`intEnumFlow` KDoc 补充混用越界警示。
+- `ExoMediaPlayer.reset` 标注 `@VisibleForTesting(NONE)` 防生产代码误用（生产路径切流走 release + 重建实例）。
+- 屏保设置项补充说明文案（非播放态下无操作超时自动触发，全局生效）。
+
+### 🧪 测试与文档
+- 新增 `ScreensaverCoordinatorTest`；播放页切集竞态新增序号守卫/心跳取消/资源加载兜底等配套单测（+180 行）；用户锁状态机新增初始化与失败重试路径单测（+100 行）；删除旧的 `ScreensaverStateTest`。
+- PRD 新增 §4.13「防烧屏屏保」章节（触发/抑制条件、计时重置、配置项与验收标准）；真机测试指南新增第 6 节屏保验收清单（12 个用例）。
+
 ## [v0.5.12] - 2026-11-12
 
 > 稳定性修复版本：用户锁数据安全与保存失败重试、切集弹幕残留、接口日志体系升级与迁移幂等加固。

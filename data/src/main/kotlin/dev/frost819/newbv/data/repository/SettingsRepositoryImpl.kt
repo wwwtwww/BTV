@@ -249,6 +249,13 @@ class SettingsRepositoryImpl(
      *
      * 注意：[fromInt] 解码函数不得抛异常，由调用方（枚举定义）保证兜底。
      *
+     * 调用方必须确保传入的 [fromInt] 函数与 Prefs key 对应的枚举持久化方式匹配：
+     * - code 型枚举（[Resolution]、[Audio]、[PlaySpeed]、[ActionAfterPlay]、
+     *   [ScreensaverTimeout]、[HomeTopNavItem]）必须传入 fromCode
+     * - ordinal 型枚举（[VideoCodec]、[LeftNaviItem]、[HomeHeroMode]、[ThemeMode]、
+     *   [ApiType]、[PersonalTopNavItem]）必须传入 fromOrdinal
+     * 错误混用会导致数组越界或返回错值（例如用 fromOrdinal 解码 code=30216 的 [Audio]）。
+     *
      * @param key DataStore 键。
      * @param fromInt 整数（code 或 ordinal）转枚举的映射函数，自身需对非法值做安全兜底（不得抛异常）。
      * @param initialValue 初始值（从 Prefs 当前值获取）。

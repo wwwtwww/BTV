@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 /**
  * [UserLockViewModel] 的单元测试。
  *
- * 验证三阶段状态机流转、旧密码强校验、正向回退删除、异步写入防竞态与写入失败恢复。
+ * 验证初始化安全占位阶段、三阶段状态机流转、旧密码强校验、正向回退删除、异步写入防竞态与写入失败恢复。
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UserLockViewModelTest {
@@ -70,8 +70,106 @@ class UserLockViewModelTest {
         }
 
     @Test
+    fun `default phase is Initializing before init completes`() =
+        runTest(testDispatcher) {
+            // 默认阶段必须是 Initializing：Room 首查返回前不允许任何确认语义生效
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.Initializing)
+        }
+
+    @Test
+    fun `confirm during Initializing is ignored and never clears lock`() =
+        runTest(testDispatcher) {
+            val user = UserEntity(uid = 1001L, username = "test", avatar = "", auth = "{}", lock = "udlr")
+            coEvery { accountRepository.findUserByUid(1001L) } returns user
+
+            // When：init 协程尚未调度（模拟 Room 查询延迟窗口），用户误按确认键
+            viewModel.init(1001L)
+            viewModel.confirm()
+
+            // Then：不写入数据库，阶段仍为 Initializing
+            coVerify(exactly = 0) { accountRepository.updateUserLock(any(), any()) }
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.Initializing)
+        }
+
+    @Test
+    fun `appendDirection and confirm during Initializing do not accumulate input`() =
+        runTest(testDispatcher) {
+            coEvery { accountRepository.findUserByUid(1003L) } returns null
+
+            // When：初始化未完成的窗口内连续输入方向键并退格
+            viewModel.init(1003L)
+            viewModel.appendDirection("u")
+            viewModel.appendDirection("d")
+            viewModel.deleteLastDirection()
+
+            val state = viewModel.uiState.value
+            assertThat(state.inputPassword).isEmpty()
+            assertThat(state.phase).isEqualTo(LockInputPhase.Initializing)
+        }
+
+    @Test
+    fun `init enters InitFailed when lock query fails`() =
+        runTest(testDispatcher) {
+            coEvery { accountRepository.findUserByUid(1004L) } throws IllegalStateException("db down")
+
+            viewModel.init(1004L)
+            advanceUntilIdle()
+
+            // 查询失败时切换到 InitFailed，通知用户可重试
+            val state = viewModel.uiState.value
+            assertThat(state.phase).isEqualTo(LockInputPhase.InitFailed)
+            // 失败路径也必须保存 currentUid，否则 confirm() 重试会传入默认 0L
+            assertThat(state.currentUid).isEqualTo(1004L)
+        }
+
+    @Test
+    fun `confirm in InitFailed retries init and recovers`() =
+        runTest(testDispatcher) {
+            // Given: 第一次查询失败
+            coEvery { accountRepository.findUserByUid(1005L) } throws IllegalStateException("db down")
+            viewModel.init(1005L)
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.InitFailed)
+            assertThat(viewModel.uiState.value.currentUid).isEqualTo(1005L)
+
+            // When: 故障恢复，按确认键触发重试
+            val user = UserEntity(uid = 1005L, username = "test", avatar = "", auth = "{}", lock = "")
+            coEvery { accountRepository.findUserByUid(1005L) } returns user
+            viewModel.confirm()
+            advanceUntilIdle()
+
+            // Then: 重试成功，进入 InputNew
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.InputNew)
+            // 重试必须使用原始 uid（state.currentUid），而非默认 0L
+            coVerify { accountRepository.findUserByUid(1005L) }
+            coVerify(exactly = 0) { accountRepository.findUserByUid(0L) }
+        }
+
+    @Test
+    fun `appendDirection and deleteLastDirection blocked in InitFailed`() =
+        runTest(testDispatcher) {
+            coEvery { accountRepository.findUserByUid(1006L) } throws IllegalStateException("db down")
+            viewModel.init(1006L)
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.InitFailed)
+
+            // 方向键与回退操作应被拦截，不累积无效输入
+            viewModel.appendDirection("u")
+            viewModel.appendDirection("d")
+            viewModel.deleteLastDirection()
+
+            assertThat(viewModel.uiState.value.inputPassword).isEmpty()
+            assertThat(viewModel.uiState.value.phase).isEqualTo(LockInputPhase.InitFailed)
+        }
+
+    @Test
     fun `appendDirection appends key and deleteLastDirection drops from the end`() =
         runTest(testDispatcher) {
+            val user = UserEntity(uid = 1002L, username = "test", avatar = "", auth = "{}", lock = "")
+            coEvery { accountRepository.findUserByUid(1002L) } returns user
+            viewModel.init(1002L)
+            advanceUntilIdle()
+
             viewModel.appendDirection("u")
             viewModel.appendDirection("d")
             viewModel.appendDirection("l")

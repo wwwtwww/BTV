@@ -33,6 +33,17 @@ object DatabaseModule {
      *
      * 使用应用上下文构建，数据库名由 [AppDatabase.DATABASE_NAME] 定义。
      * 不使用手动单例（区别于原版 BV），由 Hilt 管理生命周期。
+     *
+     * 迁移策略：只注册显式 [MIGRATION_4_5]，**不开启** `fallbackToDestructiveMigration()`。
+     * 破坏式降级会静默清空账户/搜索历史（含用户锁），且让“漏写迁移”这类
+     * 错误逃过开发/CI 阶段；缺失迁移路径时应直接抛 [IllegalStateException] 暴露问题。
+     * 任何 Entity 结构变更都必须同步在 `Migrations.kt` 中补充 Migration 并在此注册。
+     *
+     * 移除 fallback 的前提条件：所有已发布版本的 DB schema 均 >= version 4，
+     * 因此不存在更早版本的用户数据需要迁移，[MIGRATION_4_5] 是当前唯一迁移路径。
+     * 若未来需要回退支持更早版本（如 v3 及以下），必须先补充完整迁移链
+     * （MIGRATION_3_4 等）并在此注册，方可安全升级；否则老用户升级会直接抛
+     * [IllegalStateException]（这优于静默清库，能在开发阶段立即暴露漏迁移问题）。
      */
     @Provides
     @Singleton
@@ -42,7 +53,6 @@ object DatabaseModule {
         Room
             .databaseBuilder(context, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
             .addMigrations(MIGRATION_4_5)
-            .fallbackToDestructiveMigration()
             .build()
 
     /** 提供搜索历史 DAO。 */

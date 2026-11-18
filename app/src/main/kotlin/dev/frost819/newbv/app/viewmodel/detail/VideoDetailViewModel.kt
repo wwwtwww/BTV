@@ -18,8 +18,6 @@ import dev.frost819.newbv.biliapi.repositories.VideoDetailRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -227,9 +225,6 @@ class VideoDetailViewModel
                         }
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load video detail: $aid" }
                     _uiState.update {
                         it.copy(

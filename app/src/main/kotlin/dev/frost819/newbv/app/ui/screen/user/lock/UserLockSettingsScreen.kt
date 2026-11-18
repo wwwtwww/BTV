@@ -37,6 +37,8 @@ import dev.frost819.newbv.data.datastore.Prefs
  * 用户锁设置页面。
  *
  * 遵循多阶段状态机流转：
+ * 0. [LockInputPhase.Initializing]（查询当前是否已设锁）：只展示加载提示，不渲染密码输入区，
+ *    也不处理方向/确认按键，防止 Room 首查延迟窗口内的误操作绕过旧密码校验直接清锁；
  * 1. [LockInputPhase.VerifyOld]（用户已有密码时）：强制验证原密码；
  * 2. [LockInputPhase.InputNew]：输入新密码（若直接确认则视为清除密码）；
  * 3. [LockInputPhase.ConfirmNew]：二次确认新密码；
@@ -76,6 +78,9 @@ fun UserLockSettingsScreen(
         }
     }
 
+    val initializing = uiState.phase == LockInputPhase.Initializing
+    val initFailed = uiState.phase == LockInputPhase.InitFailed
+
     Surface(
         modifier =
             modifier
@@ -83,6 +88,15 @@ fun UserLockSettingsScreen(
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+                    // 初始化完成前拦截所有输入键（仅 Back 放行），避免按键穿透到未就绪的状态机
+                    if (initializing && event.key != Key.Back) return@onPreviewKeyEvent true
+                    // InitFailed: 放行确认键（触发重试）和 Back，拦截方向键
+                    if (initFailed &&
+                        event.key != Key.DirectionCenter &&
+                        event.key != Key.Back
+                    ) {
+                        return@onPreviewKeyEvent true
+                    }
                     when (event.key) {
                         Key.DirectionUp -> {
                             viewModel.appendDirection("u")
@@ -120,49 +134,67 @@ fun UserLockSettingsScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.padding(48.dp),
-            ) {
+            if (initializing) {
+                // 空输入阶段不渲染密码与提示，仅给出一句加载文案，避免露出可误触的确认语义
                 Text(
-                    text =
-                        when (uiState.phase) {
-                            LockInputPhase.VerifyOld -> stringResource(R.string.lock_input_old)
-                            LockInputPhase.InputNew -> stringResource(R.string.lock_set_new)
-                            LockInputPhase.ConfirmNew -> stringResource(R.string.lock_confirm_new)
-                            LockInputPhase.SaveSuccess -> ""
-                            // 失败态只展示固定文案（含重试提示），异常详情仅记录在日志
-                            LockInputPhase.SaveFailed -> stringResource(R.string.lock_save_failed)
-                        },
-                    style = MaterialTheme.typography.displaySmall,
+                    text = stringResource(R.string.loading),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
-
-                val displayPassword =
-                    uiState.inputPassword
-                        .replace("u", "↑")
-                        .replace("d", "↓")
-                        .replace("l", "←")
-                        .replace("r", "→")
+            } else if (initFailed) {
+                // 初始化查询失败，显示错误提示与重试引导，不渲染密码输入键盘
                 Text(
-                    text = displayPassword.ifEmpty { " " },
-                    style = MaterialTheme.typography.displayLarge,
+                    text = stringResource(R.string.lock_init_failed),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error,
                 )
-
-                if (uiState.message.isNotEmpty()) {
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.padding(48.dp),
+                ) {
                     Text(
-                        text = uiState.message,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        text =
+                            when (uiState.phase) {
+                                LockInputPhase.Initializing -> ""
+                                LockInputPhase.InitFailed -> ""
+                                LockInputPhase.VerifyOld -> stringResource(R.string.lock_input_old)
+                                LockInputPhase.InputNew -> stringResource(R.string.lock_set_new)
+                                LockInputPhase.ConfirmNew -> stringResource(R.string.lock_confirm_new)
+                                LockInputPhase.SaveSuccess -> ""
+                                // 失败态只展示固定文案（含重试提示），异常详情仅记录在日志
+                                LockInputPhase.SaveFailed -> stringResource(R.string.lock_save_failed)
+                            },
+                        style = MaterialTheme.typography.displaySmall,
                     )
-                }
 
-                if (uiState.phase == LockInputPhase.InputNew) {
+                    val displayPassword =
+                        uiState.inputPassword
+                            .replace("u", "↑")
+                            .replace("d", "↓")
+                            .replace("l", "←")
+                            .replace("r", "→")
                     Text(
-                        text = stringResource(R.string.lock_hint_blank_remove),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        text = displayPassword.ifEmpty { " " },
+                        style = MaterialTheme.typography.displayLarge,
                     )
+
+                    if (uiState.message.isNotEmpty()) {
+                        Text(
+                            text = uiState.message,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+
+                    if (uiState.phase == LockInputPhase.InputNew) {
+                        Text(
+                            text = stringResource(R.string.lock_hint_blank_remove),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
                 }
             }
         }

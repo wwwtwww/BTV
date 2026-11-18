@@ -25,11 +25,10 @@ import dev.frost819.newbv.app.network.GithubApi
 import dev.frost819.newbv.app.ui.component.settings.UpdateDialog
 import dev.frost819.newbv.app.ui.component.settings.UpdateDialogMode
 import dev.frost819.newbv.app.ui.screen.settings.SettingsMenuNavItem
+import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.focus.touchClickable
 import dev.frost819.newbv.core.log.Loggers
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -51,7 +50,7 @@ fun AboutSetting(modifier: Modifier = Modifier) {
     var latestVersionName by remember { mutableStateOf("正在获取...") }
 
     LaunchedEffect(Unit) {
-        runCatching {
+        runSuspendCatching {
             withTimeout(LATEST_VERSION_TIMEOUT_MS) {
                 withContext(Dispatchers.IO) {
                     GithubApi.getLatestBuild().name
@@ -61,9 +60,7 @@ fun AboutSetting(modifier: Modifier = Modifier) {
             latestVersionName = name
             logger.info { "Find latest version $name" }
         }.onFailure { error ->
-            if (error is CancellationException && error !is TimeoutCancellationException) {
-                throw error
-            }
+            // runSuspendCatching 已保证外部取消信号被重新抛出，此处只会收到超时与常规异常
             logger.error(error) { "Failed to get latest version" }
             latestVersionName = "获取失败"
         }

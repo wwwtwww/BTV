@@ -23,9 +23,7 @@ import dev.frost819.newbv.biliapi.repositories.ToViewRepository
 import dev.frost819.newbv.biliapi.util.runSuspendCatching
 import dev.frost819.newbv.core.log.Loggers
 import dev.frost819.newbv.data.datastore.Prefs
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -183,9 +181,6 @@ class PersonalViewModel
                             toViewItems.addAll(data.data)
                         }
                     }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
                         logger.error(error) { "Failed to load toview" }
                         _uiState.update { it.copy(toViewError = true) }
                     }
@@ -213,9 +208,6 @@ class PersonalViewModel
                     toViewItems.removeAll { it.oid == aid }
                     _effect.emit(PersonalUiEffect.ShowToast("已移除稍后再看"))
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to delete toview $aid" }
                     _effect.emit(PersonalUiEffect.ShowToast("移除失败: ${error.message ?: "未知错误"}"))
                 }
@@ -267,9 +259,6 @@ class PersonalViewModel
                             }
                         }
                     }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
                         logger.error(error) { "Failed to load history" }
                         _uiState.update { it.copy(historyError = true) }
                     }
@@ -321,9 +310,6 @@ class PersonalViewModel
                         }
                     }
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to load favorite folders" }
                     _uiState.update { it.copy(favoriteError = true) }
                 }
@@ -387,9 +373,6 @@ class PersonalViewModel
                             }
                         }
                     }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            return@launch
-                        }
                         logger.error(error) { "Failed to load favorite items for folder $folderId" }
                         _uiState.update { it.copy(favoriteError = true) }
                     }
@@ -453,9 +436,6 @@ class PersonalViewModel
                             }
                         }
                     }.onFailure { error ->
-                        if (error is CancellationException && error !is TimeoutCancellationException) {
-                            throw error
-                        }
                         logger.error(error) { "Failed to load following seasons" }
                         _uiState.update { it.copy(followingError = true) }
                     }
@@ -538,9 +518,6 @@ class PersonalViewModel
                     historyRepository.deleteHistory(kid)
                     _effect.emit(PersonalUiEffect.ShowToast("已删除历史记录"))
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to delete history item: oid=${item.oid}" }
                     _uiState.update { state ->
                         state.copy(
@@ -590,9 +567,6 @@ class PersonalViewModel
                     )
                     _effect.emit(PersonalUiEffect.ShowToast("已取消收藏"))
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to remove favorite item: aid=$aid, folderId=$folderId" }
                     _uiState.update { state ->
                         if (state.currentFolderId != folderId) {
@@ -643,9 +617,6 @@ class PersonalViewModel
                     )
                     _effect.emit(PersonalUiEffect.ShowToast("已取消追番"))
                 }.onFailure { error ->
-                    if (error is CancellationException && error !is TimeoutCancellationException) {
-                        throw error
-                    }
                     logger.error(error) { "Failed to cancel following season: seasonId=$seasonId" }
                     _uiState.update { state ->
                         if ((state.followingType to state.followingStatus) != filterSnapshot) {

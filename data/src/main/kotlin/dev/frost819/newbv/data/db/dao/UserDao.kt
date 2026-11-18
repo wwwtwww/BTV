@@ -40,7 +40,15 @@ interface UserDao {
      * 警告：REPLACE 语义是「删除旧行 + 插入新行」，会连带覆盖 `lock` 字段。
      * 登录态刷新等只关心远端字段的场景禁止使用本方法，应改用 [upsertRemoteFields]，
      * 否则并发下传入的 `lock=""` 会把用户锁静默清空。
+     *
+     * @deprecated 本地字段（用户锁 `lock`）会被无意清除，存在安全风险；
+     *   新代码一律使用 [upsertRemoteFields]（仅更新远端字段、保留 `lock`）。
+     *   保留本方法仅供历史调用溯源，以及回归测试断言「不再调用 REPLACE 语义」。
      */
+    @Deprecated(
+        "REPLACE 语义会清除本地字段（lock），请使用 upsertRemoteFields（ON CONFLICT DO UPDATE 仅更新远端字段）",
+        ReplaceWith("upsertRemoteFields(user.uid, user.username, user.avatar, user.auth)"),
+    )
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(user: UserEntity)
 

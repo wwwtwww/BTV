@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import dev.frost819.newbv.app.data.VideoInfoRepository
+import dev.frost819.newbv.app.data.VideoSharedState
 import dev.frost819.newbv.app.entity.player.VideoAspectRatio
 import dev.frost819.newbv.app.entity.player.VideoListItem
 import dev.frost819.newbv.app.ui.action.player.MediaProfileSettingAction
@@ -43,9 +44,12 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -361,6 +365,138 @@ class PlayerViewModelTest {
             viewModel.playNewVideo(VideoListItem(aid = 10, cid = 20, title = "New"))
 
             verify { mockPlayer.pause() }
+        }
+
+    // ── deferred 详情协程陈旧性守卫（Task #31 Issue 3）──────
+
+    @Test
+    fun `playNewVideo with same aid but new cid discards stale deferred detail job`() =
+        runTest(testDispatcher) {
+            // cid==0 进入：详情协程挂起在加载中，详情返回的默认分P cid=111
+            val detailFlow = MutableStateFlow<VideoDetail?>(null)
+            every { videoInfoRepository.videoDetail } returns detailFlow
+            coEvery { videoInfoRepository.loadVideoDetail(any(), any()) } coAnswers {
+                delay(3_000L)
+                detailFlow.value = fakeVideoDetail(cid = 111L)
+            }
+            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } coAnswers {
+                delay(Long.MAX_VALUE)
+                error("unreachable")
+            }
+
+            viewModel.playNewVideo(VideoListItem(aid = 10L, cid = 0L, title = "P1"))
+            runCurrent() // 启动 deferred 详情协程，停在 loadVideoDetail 挂起点
+
+            // 同 aid 换分P：新请求带有效 cid=222，旧协程随后返回也必须作废
+            viewModel.playNewVideo(VideoListItem(aid = 10L, cid = 222L, title = "P2"))
+            advanceTimeBy(5_000L)
+            runCurrent()
+
+            // 旧协程不得以补齐的 111 覆盖新请求，也不得以 111 发起资源加载
+            assertThat(viewModel.uiState.value.cid).isEqualTo(222L)
+            coVerify(exactly = 0) {
+                videoPlayRepository.getPlayData(aid = 10L, cid = 111L, preferApiType = any())
+            }
+            coVerify {
+                videoPlayRepository.getPlayData(aid = 10L, cid = 222L, preferApiType = any())
+            }
+
+            viewModel.viewModelScope.cancel()
+        }
+
+    // ── cid!=0 详情协程陈旧性守卫（Task #33）──────────────────
+
+    @Test
+    fun `playNewVideo cid nonzero stale detail coroutine does not overwrite lastPlayed`() =
+        runTest(testDispatcher) {
+            // Given: 视频 A 的历史进度（cid=100 处断点 60s）
+            val sharedFlow =
+                MutableStateFlow(
+                    VideoSharedState(aid = 10L, lastPlayedCid = 100L, lastPlayedTime = 60),
+                )
+            every { videoInfoRepository.videoSharedState } returns sharedFlow
+
+            // loadVideoDetail(aid=10) 挂起直到测试手动释放
+            val firstDetailGate = CompletableDeferred<Unit>()
+            coEvery { videoInfoRepository.loadVideoDetail(aid = 10L, preferApiType = any()) } coAnswers {
+                firstDetailGate.await()
+            }
+            coEvery { videoInfoRepository.loadVideoDetail(aid = 20L, preferApiType = any()) } coAnswers { }
+
+            // getPlayData 挂起不返回（本例不验证资源加载流程）
+            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } coAnswers {
+                delay(Long.MAX_VALUE)
+                error("unreachable")
+            }
+
+            // When: 播放视频 A（aid=10, cid=100）—— 详情协程挂起在 loadVideoDetail
+            viewModel.playNewVideo(VideoListItem(aid = 10L, cid = 100L, title = "Video A"))
+            runCurrent() // 启动 detailJob，停在 loadVideoDetail 挂起点
+
+            // 快速切换到视频 B（aid=20, cid=300）—— 递增 playRequestId + cancelPlaybackScopedJobs
+            viewModel.playNewVideo(VideoListItem(aid = 20L, cid = 300L, title = "Video B"))
+            runCurrent()
+
+            // 释放旧详情协程的挂起点，协程恢复后 rid != playRequestId 守卫使其丢弃结果
+            firstDetailGate.complete(Unit)
+            advanceUntilIdle()
+
+            // Assert: 旧协程不得以视频 A 的进度覆盖视频 B 的 lastPlayed
+            assertThat(viewModel.uiState.value.lastPlayed).isEqualTo(0)
+            assertThat(viewModel.uiState.value.aid).isEqualTo(20L)
+            assertThat(viewModel.uiState.value.cid).isEqualTo(300L)
+
+            viewModel.viewModelScope.cancel()
+        }
+
+    // ── 切集心跳取消（Task #31 Issue 4）──────────────────────
+
+    @Test
+    fun `playNewVideo cancels in-flight heartbeat of previous episode`() =
+        runTest(testDispatcher) {
+            every { Prefs.incognitoMode } returns false
+            setVideoPlayer(mockPlayer)
+            every { mockPlayer.currentPosition } returns 30_000L
+            every { mockPlayer.duration } returns 120_000L
+            coEvery { videoPlayRepository.getPlayData(any(), any(), any()) } coAnswers {
+                delay(Long.MAX_VALUE)
+                error("unreachable")
+            }
+
+            // 首次心跳上报挂起不返回（用于观察它是否被切集取消）；
+            // 切集后的补报直接返回，避免遗留永不完成的协程任务
+            val heartbeatStarted = CompletableDeferred<Unit>()
+            val heartbeatCancelled = CompletableDeferred<Unit>()
+            var heartbeatCalls = 0
+            coEvery {
+                videoPlayRepository.sendHeartbeat(any(), any(), any(), any(), any(), any(), any(), any())
+            } coAnswers {
+                heartbeatCalls++
+                if (heartbeatCalls == 1) {
+                    heartbeatStarted.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } catch (e: CancellationException) {
+                        heartbeatCancelled.complete(Unit)
+                        throw e
+                    }
+                }
+            }
+
+            // 不先 init，避免周期任务干扰：本例中 heartbeatJob 只能属于这一次上报
+            viewModel.trySendHeartbeat()
+            runCurrent()
+            assertThat(heartbeatStarted.isCompleted).isTrue()
+
+            // 切集：先取消上一集仍在飞行中的心跳任务
+            viewModel.playNewVideo(VideoListItem(aid = 100L, cid = 201L, title = "Ep 2"))
+            runCurrent()
+
+            assertThat(heartbeatCancelled.isCompleted).isTrue()
+            // 旧任务被取消，但切集补报仍正常发出（第 2 次调用）
+            assertThat(heartbeatCalls).isEqualTo(2)
+
+            viewModel.viewModelScope.cancel()
         }
 
     // ── online watching polling tests ────────────────────────
@@ -1605,5 +1741,49 @@ class PlayerViewModelTest {
             val error = state as PlayerState.Error
             assertThat(error.message).contains("CDN resolution failed")
             assertThat(viewModel.uiState.value.isBuffering).isFalse()
+        }
+
+    // ── loadVideoJob 取消与 requestId 守卫回归（Task #40）─────────────────
+
+    /**
+     * Issue1 回归：切到 cid==0 的视频时，cancelPlaybackScopedJobs 必须取消上一个视频的 loadVideoJob。
+     *
+     * 场景：视频 A（cid=100）正在 resolveUrlsAndPlay 挂起等待网络响应，此时用户切到
+     * 视频 B（cid=0）。旧版本 cancelPlaybackScopedJobs 未取消 loadVideoJob，导致视频 A
+     * 的协程完成后以陈旧结果调用 executePlayback，实际播放了视频 A。
+     * 修复后：loadVideoJob?.cancel() 加入 cancelPlaybackScopedJobs，同时 loadVideoWithResources
+     * 中的 requestId 快照守卫作为第二道保险，确保陈旧结果被丢弃。
+     */
+    @Test
+    fun `playNewVideo to cid-zero cancels in-flight loadVideoJob of previous video`() =
+        runTest(testDispatcher) {
+            setVideoPlayer(mockPlayer)
+
+            // 视频 A：getPlayData 挂起不返回，模拟网络延迟
+            // 修复前 loadVideoJob 未被取消，协程完成后会调用 executePlayback
+            coEvery { videoPlayRepository.getPlayData(aid = 10L, cid = 100L, preferApiType = any()) } coAnswers {
+                awaitCancellation()
+            }
+            // 视频 B：cid==0 走 deferredDetailJob，详情加载也挂起（本例不关心 B 的加载完成）
+            coEvery { videoInfoRepository.loadVideoDetail(aid = 20L, preferApiType = any()) } coAnswers {
+                delay(Long.MAX_VALUE)
+            }
+
+            // Step 1: 播放视频 A（cid=100）—— loadVideoJob 启动，停在 awaitCancellation
+            viewModel.playNewVideo(VideoListItem(aid = 10L, cid = 100L, title = "Video A"))
+            runCurrent() // 将 loadVideoJob 推进到挂起点
+
+            // Step 2: 切到视频 B（cid=0）—— playRequestId 递增，cancelPlaybackScopedJobs 取消 loadVideoJob
+            viewModel.playNewVideo(VideoListItem(aid = 20L, cid = 0L, title = "Video B"))
+            runCurrent() // 处理取消信号
+
+            advanceUntilIdle()
+
+            // Assert: 视频 A 的 executePlayback 从未被调用，即 playUrl/prepare/start 均未被调用
+            verify(exactly = 0) { mockPlayer.playUrl(any(), any()) }
+            verify(exactly = 0) { mockPlayer.prepare() }
+            verify(exactly = 0) { mockPlayer.start() }
+
+            viewModel.viewModelScope.cancel()
         }
 }

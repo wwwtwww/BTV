@@ -100,7 +100,9 @@ fun AudioVideoSetting(
         )
         SettingListItem(
             title = "防烧屏屏保超时",
-            supportText = "当前：${uiState.screensaverTimeout.displayName}",
+            supportText =
+                "当前：${uiState.screensaverTimeout.displayName}\n" +
+                    "非播放状态下无操作超过指定时间后自动触发，全局生效（不限播放页）",
             onClick = { showScreensaverTimeoutDialog = true },
         )
         SettingListItem(

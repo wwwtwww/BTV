@@ -94,11 +94,14 @@ fun NavGraphBuilder.videoPlayerScreen(navController: NavController) {
             }
         }
 
-        // 全屏 + 隐藏系统栏，并按播放状态保持屏幕常亮（issue #283）
+        // 全屏 + 隐藏系统栏；采用黑名单策略对齐屏保门控：
+        // 仅 Paused/Ended 且非缓冲时允许系统熄屏，其他状态（含 Error/Ready/Loading）一律保持常亮，
+        // 避免错误提示或加载态下屏幕自动熄灭导致用户无法操作。
         val playerUiState by playerViewModel.uiState.collectAsState()
-        PlayerWindowEffect(
-            keepScreenOn = playerUiState.playerState == PlayerState.Playing || playerUiState.isBuffering,
-        )
+        val allowScreenOff =
+            (playerUiState.playerState == PlayerState.Paused || playerUiState.playerState == PlayerState.Ended) &&
+                !playerUiState.isBuffering
+        PlayerWindowEffect(keepScreenOn = !allowScreenOff)
 
         VideoPlayerScreen(
             navController = navController,
@@ -142,11 +145,14 @@ fun NavGraphBuilder.livePlayerScreen(navController: NavController) {
             }
         }
 
-        // 全屏 + 隐藏系统栏，并按播放状态保持屏幕常亮（issue #283）
+        // 全屏 + 隐藏系统栏；采用黑名单策略对齐屏保门控：
+        // 仅 Paused/Ended 且非缓冲时允许系统熄屏，其他状态（含 Error/Loading/Idle）一律保持常亮，
+        // 避免错误提示或加载态下屏幕自动熄灭导致用户无法操作。
         val liveUiState by viewModel.uiState.collectAsState()
-        PlayerWindowEffect(
-            keepScreenOn = liveUiState.playerState == LivePlayerState.Playing || liveUiState.isBuffering,
-        )
+        val allowScreenOff =
+            (liveUiState.playerState == LivePlayerState.Paused || liveUiState.playerState == LivePlayerState.Ended) &&
+                !liveUiState.isBuffering
+        PlayerWindowEffect(keepScreenOn = !allowScreenOff)
 
         LivePlayerScreen(
             navController = navController,
@@ -159,14 +165,17 @@ fun NavGraphBuilder.livePlayerScreen(navController: NavController) {
 /**
  * 播放器页面通用窗口效果。
  *
- * 进入时全屏 + 隐藏系统栏，离开时恢复系统栏；播放/缓冲期间
- * 添加 [WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON]，暂停/结束/出错后清除，
- * 使暂停后可正常进入系统屏保，且离开播放页时兜底清除避免常亮泄漏。
+ * 进入时全屏 + 隐藏系统栏，离开时恢复系统栏。
+ * 屏幕常亮采用**黑名单策略**：仅当 [keepScreenOn] 为 false（即 Paused/Ended 且非缓冲）时
+ * 清除 [WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON]，其余状态一律保持常亮。
+ * 这样做是为了与屏保门控对齐——Error/Ready/Loading 态下如果熄屏，
+ * 用户将无法看到错误提示或加载状态，体验严重受损。
  *
  * 全屏与常亮拆成两个 [DisposableEffect]：全屏仅在进入/离开时切换，
  * 常亮随 [keepScreenOn] 变化，避免暂停时反复 show/hide 系统栏造成闪烁。
  *
- * @param keepScreenOn 是否需要保持屏幕常亮。
+ * @param keepScreenOn 是否需要保持屏幕常亮。由调用方按黑名单策略计算：
+ *   仅 Paused/Ended（且非 buffering）时传 false，其余一律 true。
  */
 @Composable
 private fun PlayerWindowEffect(keepScreenOn: Boolean) {
@@ -189,7 +198,7 @@ private fun PlayerWindowEffect(keepScreenOn: Boolean) {
         }
     }
 
-    // 播放/缓冲期间保持屏幕常亮
+    // 屏幕常亮（黑名单策略：仅 Paused/Ended 且非缓冲时由调用方传入 false，其余保持常亮）
     DisposableEffect(window, keepScreenOn) {
         if (keepScreenOn) {
             window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

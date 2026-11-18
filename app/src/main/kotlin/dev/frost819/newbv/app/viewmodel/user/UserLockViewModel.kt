@@ -17,6 +17,17 @@ import javax.inject.Inject
  * 用户锁输入状态机阶段。
  */
 enum class LockInputPhase {
+    /**
+     * 初始化中阶段（安全占位）。
+     *
+     * [UserLockViewModel.init] 需查询 Room 读取当前用户是否已设锁，首次查询存在
+     * 100-300ms 延迟。若默认阶段直接是 [InputNew]，该窗口内的确认键会被
+     * `saveLockInternal(uid, "", ...)` 当成“清除密码锁”执行，形成不校验旧密码的安全旁路。
+     * 因此默认阶段为本值，`init` 完成后再切到 [VerifyOld] 或 [InputNew]，期间所有输入与
+     * 确认操作均被忽略。
+     */
+    Initializing,
+
     /** 验证已有旧密码阶段。 */
     VerifyOld,
 
@@ -28,6 +39,16 @@ enum class LockInputPhase {
 
     /** 密码已成功写入持久化阶段。 */
     SaveSuccess,
+
+    /**
+     * 初始化查询失败阶段。
+     *
+     * [UserLockViewModel.init] 查询 Room 时抛出异常，无法得知当前用户是否已设锁。
+     * 为避免状态机永久卡在 [Initializing]，切换到本相位并通知用户；
+     * 按确认键触发 [UserLockViewModel.confirm] 重新调用 [UserLockViewModel.init] 重试。
+     * 方向键与回退操作仍被拦截，不累积无效输入。
+     */
+    InitFailed,
 
     /**
      * 密码写入失败阶段。
@@ -53,7 +74,7 @@ enum class LockInputPhase {
 data class UserLockUiState(
     val currentUid: Long = 0L,
     val hasExistingLock: Boolean = false,
-    val phase: LockInputPhase = LockInputPhase.InputNew,
+    val phase: LockInputPhase = LockInputPhase.Initializing,
     val inputPassword: String = "",
     val newPassword: String = "",
     val message: String = "",
@@ -83,6 +104,17 @@ class UserLockViewModel
         private var existingLockPassword = ""
 
         /**
+         * 当前是否处于输入拦截相位（初始化中或初始化失败）。
+         *
+         * 两种相位下均不允许方向键输入与回退操作：
+         * - [LockInputPhase.Initializing]：查询结果未落地，防止误触发清锁等后续流程；
+         * - [LockInputPhase.InitFailed]：无法得知旧密码是否存在，不允许输入避免安全旁路。
+         */
+        private fun isInputBlocked() =
+            _uiState.value.phase == LockInputPhase.Initializing ||
+                _uiState.value.phase == LockInputPhase.InitFailed
+
+        /**
          * 发起本次保存时所处的阶段。
          *
          * 保存失败进入 [LockInputPhase.SaveFailed] 后，用户重新输入时回到该阶段，
@@ -104,12 +136,27 @@ class UserLockViewModel
          * - 若已设置，则进入 [LockInputPhase.VerifyOld] 阶段；
          * - 若未设置，则直接进入 [LockInputPhase.InputNew] 阶段。
          *
+         * 查询完成前状态保持 [LockInputPhase.Initializing]，避免 TV 首帧到数据返回这段时间
+         * 内的按键（尤其是空输入确认清锁）被误当作有效操作执行。
+         *
          * @param uid 目标用户 UID。
          */
         fun init(uid: Long) {
             viewModelScope.launch {
-                val user = accountRepository.findUserByUid(uid)
-                val lock = user?.lock.orEmpty()
+                // 查询失败（Room 异常等）时无法得知是否已设锁，必须停留在 Initializing：
+                // 若贸然进入 InputNew，空输入确认会清除锁而绕过校验，与修复目标相左。
+                val lock =
+                    try {
+                        accountRepository.findUserByUid(uid)?.lock.orEmpty()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.error(e) { "UserLock init failed" }
+                        // 失败路径必须写入 currentUid，否则 confirm() 重试时 state.currentUid 保持默认 0L，
+                        // 会对错误用户执行查询，导致数据污染。
+                        _uiState.update { it.copy(currentUid = uid, phase = LockInputPhase.InitFailed) }
+                        return@launch
+                    }
                 existingLockPassword = lock
                 val hasLock = lock.isNotEmpty()
 
@@ -133,7 +180,13 @@ class UserLockViewModel
          * @param direction 按键方向标记（"u" / "d" / "l" / "r"）。
          */
         fun appendDirection(direction: String) {
-            if (_uiState.value.isSaving || _uiState.value.phase == LockInputPhase.SaveSuccess) return
+            // Initializing 阶段查询结果未落地，忽略按键防止误触发后续流程
+            if (isInputBlocked() ||
+                _uiState.value.isSaving ||
+                _uiState.value.phase == LockInputPhase.SaveSuccess
+            ) {
+                return
+            }
             // 失败态下继续输入视为放弃重试，回到发起保存前的阶段重新编辑
             restorePhaseIfSaveFailed()
             _uiState.update {
@@ -150,7 +203,12 @@ class UserLockViewModel
          * 严格使用 [dropLast]，防止从头部删除造成倒序错位。
          */
         fun deleteLastDirection() {
-            if (_uiState.value.isSaving || _uiState.value.phase == LockInputPhase.SaveSuccess) return
+            if (isInputBlocked() ||
+                _uiState.value.isSaving ||
+                _uiState.value.phase == LockInputPhase.SaveSuccess
+            ) {
+                return
+            }
             restorePhaseIfSaveFailed()
             _uiState.update {
                 it.copy(
@@ -164,6 +222,7 @@ class UserLockViewModel
          * 处理确认键（DirectionCenter）按下事件。
          *
          * 根据当前所处阶段执行校验或持久化：
+         * 0. [LockInputPhase.Initializing]：直接忽略，防止初始化查询返回前误清锁；
          * 1. [LockInputPhase.VerifyOld]：核对原密码，核对通过进入 [LockInputPhase.InputNew]，否则提示错误并清空；
          * 2. [LockInputPhase.InputNew]：若输入为空则清除密码锁，否则暂存并进入 [LockInputPhase.ConfirmNew]；
          * 3. [LockInputPhase.ConfirmNew]：核对与新密码是否一致，一致则异步持久化并在完成后进入 [LockInputPhase.SaveSuccess]；
@@ -171,9 +230,21 @@ class UserLockViewModel
          */
         fun confirm() {
             val state = _uiState.value
+            // 安全守卫：初始化未完成时严禁确认，否则空输入会绕过旧密码校验直接清除用户锁
+            if (state.phase == LockInputPhase.Initializing) return
             if (state.isSaving || state.phase == LockInputPhase.SaveSuccess) return
 
+            if (state.phase == LockInputPhase.InitFailed) {
+                // 初始化查询失败后按确认键重试，重新发起 init 查询
+                init(state.currentUid)
+                return
+            }
+
             when (state.phase) {
+                LockInputPhase.Initializing -> {
+                    // 已由上方守卫拦截，正常不可达
+                }
+
                 LockInputPhase.VerifyOld -> {
                     if (state.inputPassword == existingLockPassword) {
                         _uiState.update {
@@ -230,6 +301,10 @@ class UserLockViewModel
                 }
 
                 LockInputPhase.SaveFailed -> retrySave()
+
+                LockInputPhase.InitFailed -> {
+                    // 已由上方 InitFailed 早返分支拦截并调用 init 重试，正常不可达
+                }
             }
         }
 
@@ -241,6 +316,10 @@ class UserLockViewModel
         fun onBack(): Boolean {
             val state = _uiState.value
             if (state.isSaving) return true
+            // Initializing 阶段无有效输入，直接放行退出，避免按键穿透到未就绪的状态机
+            if (state.phase == LockInputPhase.Initializing) return false
+            // InitFailed 阶段无有效输入，直接放行退出
+            if (state.phase == LockInputPhase.InitFailed) return false
 
             // SaveFailed 阶段一次 Back 即回退原阶段并清空输入，避免用户需多次 Back 才退出
             if (state.phase == LockInputPhase.SaveFailed) {
